@@ -5,6 +5,7 @@ import { Route, Switch, Redirect } from "wouter";   // ← Redirect adicionado
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Service from "./pages/Service";              // ← Home vira Service
+import Materiais from "./pages/Materiais";          // ← Catálogo de Produtos
 
 // Importações adicionadas para o Painel Administrativo
 import Login from "./pages/admin/Login";
@@ -18,6 +19,7 @@ function Router() {
         <Redirect to="/service" />
       </Route>
       <Route path={"/service"} component={Service} />
+      <Route path={"/materiais"} component={Materiais} />
 
       {/* Novas rotas do painel administrativo */}
       <Route path={"/admin"} component={Login} />
