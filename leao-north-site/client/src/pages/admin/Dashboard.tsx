@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
-import { LogOut, Upload, Trash2, Plus, Image as ImageIcon, LayoutDashboard, Mail, Star, FolderOpen, X } from "lucide-react";
+import { LogOut, Upload, Trash2, Plus, Image as ImageIcon, LayoutDashboard, Mail, Star, FolderOpen, Package, X } from "lucide-react";
 
 export default function Dashboard() {
   const [, setLocation] = useLocation();
@@ -19,6 +19,12 @@ export default function Dashboard() {
   const [depForm, setDepForm] = useState<{ id?: number; nome: string; estrelas: number; texto: string; }>({ nome: "", estrelas: 5, texto: "" });
   const [loadingDep, setLoadingDep] = useState(false);
 
+  // Estados do Catálogo de Produtos
+  const [produtos, setProdutos] = useState<any[]>([]);
+  const [prodForm, setProdForm] = useState({ nome: "", especificacao: "", categoria: "Disjuntores" });
+  const [prodFile, setProdFile] = useState<File | null>(null);
+  const [loadingProd, setLoadingProd] = useState(false);
+
   useEffect(() => {
     if (!localStorage.getItem("admin_token")) {
       setLocation("/admin");
@@ -26,6 +32,7 @@ export default function Dashboard() {
       fetchPortfolio();
       fetchMensagens();
       fetchDepoimentos();
+      fetchProdutos();
     }
   }, []);
 
@@ -117,6 +124,61 @@ export default function Dashboard() {
     } catch (err) { alert("Erro ao excluir."); }
   };
 
+  // --- FUNÇÕES DO CATÁLOGO DE PRODUTOS ---
+  const fetchProdutos = async () => {
+    try {
+      const res = await fetch("http://localhost/leaonorth/api/produtos.php");
+      const data = await res.json();
+      if (Array.isArray(data)) setProdutos(data);
+    } catch (err) { console.error("Erro produtos", err); }
+  };
+
+  const handleAddProduto = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!prodFile) return alert("Selecione uma imagem!");
+    setLoadingProd(true);
+    const formData = new FormData();
+    formData.append("image", prodFile);
+    formData.append("nome", prodForm.nome);
+    formData.append("especificacao", prodForm.especificacao);
+    formData.append("categoria", prodForm.categoria);
+
+    try {
+      const res = await fetch("http://localhost/leaonorth/api/admin/add_produto.php", {
+        method: "POST", body: formData,
+      });
+      if (res.ok) {
+        setProdForm({ nome: "", especificacao: "", categoria: "Disjuntores" });
+        setProdFile(null);
+        fetchProdutos();
+        alert("Produto adicionado!");
+      } else {
+        // Exibe a mensagem de validação do backend (MIME/5MB/erros)
+        const err = await res.json().catch(() => null);
+        alert(err?.mensagem || "Erro ao salvar produto.");
+      }
+    } catch (err) { alert("Erro ao enviar."); } finally { setLoadingProd(false); }
+  };
+
+  const handleDeleteProduto = async (id: number) => {
+    if (!confirm("Tem certeza que deseja apagar este produto?")) return;
+    try {
+      await fetch(`http://localhost/leaonorth/api/admin/delete_produto.php?id=${id}`, { method: "DELETE" });
+      fetchProdutos();
+    } catch (err) { alert("Erro ao excluir."); }
+  };
+
+  // --- BADGES DE ORIGEM DA MENSAGEM (tipo_mensagem) ---
+  const tipoMensagemConfig: Record<string, { label: string; className: string }> = {
+    service:   { label: "Service",   className: "bg-[#F0B429]/10 text-[#F0B429] border-[#F0B429]/30" },
+    materiais: { label: "Materiais", className: "bg-sky-500/10 text-sky-400 border-sky-500/30" },
+    socio:     { label: "Sócio",     className: "bg-purple-500/10 text-purple-400 border-purple-500/30" },
+  };
+
+  const getTipoBadge = (tipo?: string) =>
+    tipoMensagemConfig[tipo ?? ""] ??
+    { label: tipo || "—", className: "bg-white/5 text-white/40 border-white/10" };
+
   const inputClass = "w-full bg-[#080808] border border-white/10 rounded-sm px-4 py-2.5 text-white text-sm font-['DM_Sans'] focus:border-[#F0B429]/50 focus:outline-none transition-all";
 
   return (
@@ -132,6 +194,9 @@ export default function Dashboard() {
         <nav className="flex-1 p-4 space-y-2">
           <button onClick={() => setActiveTab("portfolio")} className={`w-full flex items-center gap-3 px-4 py-3 rounded-sm transition-colors ${activeTab === "portfolio" ? "bg-[#F0B429]/10 text-[#F0B429]" : "text-white/60 hover:bg-white/5 hover:text-white"}`}>
             <FolderOpen className="w-5 h-5" /> Portfólio
+          </button>
+          <button onClick={() => setActiveTab("produtos")} className={`w-full flex items-center gap-3 px-4 py-3 rounded-sm transition-colors ${activeTab === "produtos" ? "bg-[#F0B429]/10 text-[#F0B429]" : "text-white/60 hover:bg-white/5 hover:text-white"}`}>
+            <Package className="w-5 h-5" /> Catálogo de Produtos
           </button>
           <button onClick={() => setActiveTab("mensagens")} className={`w-full flex items-center gap-3 px-4 py-3 rounded-sm transition-colors ${activeTab === "mensagens" ? "bg-[#F0B429]/10 text-[#F0B429]" : "text-white/60 hover:bg-white/5 hover:text-white"}`}>
             <Mail className="w-5 h-5" /> Caixa de Entrada
@@ -218,6 +283,73 @@ export default function Dashboard() {
           </div>
         )}
 
+        {/* ABA: CATÁLOGO DE PRODUTOS */}
+        {activeTab === "produtos" && (
+          <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+            <div className="md:col-span-1 bg-[#111111] border border-white/10 rounded-sm p-6 h-fit">
+              <h2 className="text-white font-['Barlow_Condensed'] text-xl uppercase font-600 mb-6 flex items-center gap-2">
+                <Plus className="w-5 h-5 text-[#F0B429]" /> Adicionar Produto
+              </h2>
+              <form onSubmit={handleAddProduto} className="space-y-4">
+                <div>
+                  <label className="block text-white/40 text-xs tracking-widest uppercase mb-1.5">Nome</label>
+                  <input type="text" required value={prodForm.nome} onChange={e => setProdForm({...prodForm, nome: e.target.value})} className={inputClass} placeholder="Ex: Disjuntor 63A" />
+                </div>
+                <div>
+                  <label className="block text-white/40 text-xs tracking-widest uppercase mb-1.5">Especificação</label>
+                  <textarea value={prodForm.especificacao} onChange={e => setProdForm({...prodForm, especificacao: e.target.value})} className={`${inputClass} min-h-[120px] resize-none`} placeholder="Detalhes técnicos do produto..." />
+                </div>
+                <div>
+                  <label className="block text-white/40 text-xs tracking-widest uppercase mb-1.5">Categoria</label>
+                  <select value={prodForm.categoria} onChange={e => setProdForm({...prodForm, categoria: e.target.value})} className={inputClass}>
+                    <option value="Disjuntores">Disjuntores</option>
+                    <option value="Cabos">Cabos</option>
+                    <option value="Tomadas">Tomadas</option>
+                    <option value="Iluminação">Iluminação</option>
+                    <option value="Quadros">Quadros</option>
+                    <option value="Outros">Outros</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-white/40 text-xs tracking-widest uppercase mb-1.5">Imagem</label>
+                  <div className="relative overflow-hidden">
+                    <input type="file" required accept="image/*" onChange={e => setProdFile(e.target.files?.[0] || null)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+                    <div className={`${inputClass} flex items-center gap-2 text-white/60 ${prodFile ? 'text-[#F0B429] border-[#F0B429]/50' : ''}`}>
+                      <ImageIcon className="w-4 h-4" /> {prodFile ? prodFile.name : "Escolher Arquivo..."}
+                    </div>
+                  </div>
+                </div>
+                <button type="submit" disabled={loadingProd} className="w-full py-3 bg-[#F0B429] text-[#080808] font-['Barlow_Condensed'] font-700 uppercase rounded-sm hover:bg-[#FFD060] transition-colors mt-4 flex items-center justify-center gap-2 disabled:opacity-50">
+                  {loadingProd ? "Enviando..." : <><Upload className="w-4 h-4"/> Salvar Produto</>}
+                </button>
+              </form>
+            </div>
+            <div className="md:col-span-2">
+              <h2 className="text-white font-['Barlow_Condensed'] text-xl uppercase font-600 mb-6">Produtos Cadastrados</h2>
+              <div className="grid sm:grid-cols-2 gap-4">
+                {produtos.map(prod => (
+                  <div key={prod.id} className="bg-[#111111] border border-white/10 rounded-sm overflow-hidden group flex flex-col">
+                    <div className="h-40 overflow-hidden relative">
+                      <img src={`http://localhost/leaonorth${prod.imagem}`} alt={prod.nome} className="w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <button onClick={() => handleDeleteProduto(prod.id)} className="bg-red-500/20 text-red-500 p-2 rounded-full hover:bg-red-500 hover:text-white transition-all">
+                          <Trash2 className="w-5 h-5" />
+                        </button>
+                      </div>
+                    </div>
+                    <div className="p-4 flex-1">
+                      <span className="text-[#F0B429] text-[10px] tracking-widest uppercase">{prod.categoria}</span>
+                      <h3 className="text-white font-medium text-sm mt-1">{prod.nome}</h3>
+                      {prod.especificacao && <p className="text-white/50 text-xs mt-1 line-clamp-2">{prod.especificacao}</p>}
+                    </div>
+                  </div>
+                ))}
+                {produtos.length === 0 && <div className="col-span-2 text-center text-white/40 py-10 border border-dashed border-white/10 rounded-sm">Nenhum produto cadastrado.</div>}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* ABA: CAIXA DE ENTRADA (Orçamentos) */}
         {activeTab === "mensagens" && (
           <div className="max-w-6xl mx-auto">
@@ -233,6 +365,7 @@ export default function Dashboard() {
                       <th className="px-6 py-4 font-medium border-b border-white/5">Cliente</th>
                       <th className="px-6 py-4 font-medium border-b border-white/5">Contato</th>
                       <th className="px-6 py-4 font-medium border-b border-white/5">Serviço</th>
+                      <th className="px-6 py-4 font-medium border-b border-white/5">Origem</th>
                       <th className="px-6 py-4 font-medium border-b border-white/5">Mensagem</th>
                     </tr>
                   </thead>
@@ -251,11 +384,16 @@ export default function Dashboard() {
                           <p className="text-white/40 text-xs">{msg.email}</p>
                         </td>
                         <td className="px-6 py-4 text-[#F0B429]">{msg.servico}</td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-sm text-[10px] font-['DM_Sans'] uppercase tracking-wider border ${getTipoBadge(msg.tipo_mensagem).className}`}>
+                            {getTipoBadge(msg.tipo_mensagem).label}
+                          </span>
+                        </td>
                         <td className="px-6 py-4 max-w-xs truncate text-white/60">{msg.mensagem}</td>
                       </tr>
                     ))}
                     {mensagens.length === 0 && (
-                      <tr><td colSpan={5} className="px-6 py-8 text-center text-white/40">Nenhuma mensagem recebida ainda.</td></tr>
+                      <tr><td colSpan={6} className="px-6 py-8 text-center text-white/40">Nenhuma mensagem recebida ainda.</td></tr>
                     )}
                   </tbody>
                 </table>
@@ -298,6 +436,12 @@ export default function Dashboard() {
                       <div>
                         <span className="block text-white/40 text-xs tracking-widest uppercase mb-1">Serviço de Interesse</span>
                         <span className="text-white font-medium bg-white/5 px-3 py-1 rounded-sm border border-white/5">{selectedMsg.servico}</span>
+                      </div>
+                      <div>
+                        <span className="block text-white/40 text-xs tracking-widest uppercase mb-1">Origem</span>
+                        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-sm text-xs font-['DM_Sans'] uppercase tracking-wider border ${getTipoBadge(selectedMsg.tipo_mensagem).className}`}>
+                          {getTipoBadge(selectedMsg.tipo_mensagem).label}
+                        </span>
                       </div>
                     </div>
 

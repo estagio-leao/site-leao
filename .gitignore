@@ -46,3 +46,6 @@ zoo_code_docs/
 
 # Arquivo de configuração
 .project-config.json
+
+# Ignorar logs de debug do Manus
+.manus-logs/
