@@ -1,0 +1,40 @@
+# ==============================
+# FRONTEND (React / Vite)
+# ==============================
+# Dependências gigantes que não devem ir pro Git
+node_modules/
+.pnp
+.pnp.js
+
+# Pastas de Build (Código compilado final)
+dist/
+dist-ssr/
+build/
+
+# Logs de erros dos gerenciadores de pacotes
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Variáveis de Ambiente (Senhas do front, se houver no futuro)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Cache do Vite
+.vite/
+
+# ==============================
+# BACKEND (PHP / Testes)
+# ==============================
+# O arquivo de teste que simulamos o envio de e-mail anteriormente
+teste_email.txt
+
+# ==============================
+# SISTEMA OPERACIONAL
+# ==============================
+.DS_Store
+Thumbs.db
