@@ -38,3 +38,11 @@ teste_email.txt
 # ==============================
 .DS_Store
 Thumbs.db
+
+# ==============================
+# ARQUIVOS DO AGENTE ZOO CODE
+# ==============================
+zoo_code_docs/
+
+# Arquivo de configuração
+.project-config.json
