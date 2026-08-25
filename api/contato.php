@@ -21,19 +21,32 @@ if (!empty($dados->name) && !empty($dados->phone) && !empty($dados->message)) {
     $db_name = "leao_north";
     $username = "root";
     $password = ""; // Senha vazia no XAMPP
+
+    // Campos opcionais (não podem quebrar se ausentes)
+    $email = isset($dados->email) ? $dados->email : "";
+    $servico = isset($dados->service) ? $dados->service : "";
+
+    // Valida tipo_mensagem com whitelist (service | materiais | socio)
+    $tipos_validos = array('service', 'materiais', 'socio');
+    $tipo_mensagem = isset($dados->tipo_mensagem) ? $dados->tipo_mensagem : 'service';
+    if (!in_array($tipo_mensagem, $tipos_validos)) {
+        $tipo_mensagem = 'service';
+    }
     
     try {
         $conn = new PDO("mysql:host={$host};dbname={$db_name}", $username, $password);
         $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
         
-        $query = "INSERT INTO contatos (nome, telefone, email, servico, mensagem) VALUES (:nome, :telefone, :email, :servico, :mensagem)";
+        $query = "INSERT INTO contatos (nome, telefone, email, servico, mensagem, tipo_mensagem)
+                  VALUES (:nome, :telefone, :email, :servico, :mensagem, :tipo_mensagem)";
         
         $stmt = $conn->prepare($query);
         $stmt->bindParam(":nome", $dados->name);
         $stmt->bindParam(":telefone", $dados->phone);
-        $stmt->bindParam(":email", $dados->email);
-        $stmt->bindParam(":servico", $dados->service);
+        $stmt->bindParam(":email", $email);
+        $stmt->bindParam(":servico", $servico);
         $stmt->bindParam(":mensagem", $dados->message);
+        $stmt->bindParam(":tipo_mensagem", $tipo_mensagem);
         
         if ($stmt->execute()) {
             // Disparar e-mail de notificação
@@ -43,13 +56,14 @@ if (!empty($dados->name) && !empty($dados->phone) && !empty($dados->message)) {
             $corpo = "Você recebeu um novo contato pelo site:\n\n";
             $corpo .= "Nome: " . $dados->name . "\n";
             $corpo .= "Telefone: " . $dados->phone . "\n";
-            $corpo .= "E-mail: " . $dados->email . "\n";
-            $corpo .= "Serviço: " . $dados->service . "\n";
+            $corpo .= "E-mail: " . $email . "\n";
+            $corpo .= "Serviço: " . $servico . "\n";
+            $corpo .= "Origem: " . $tipo_mensagem . "\n";
             $corpo .= "Mensagem:\n" . $dados->message . "\n";
             
             // O e-mail "From" (De) deve ter o final @leaonorth.com.br para a Umbler não bloquear por spam
             $headers = "From: site@leaonorth.com.br\r\n";
-            $headers .= "Reply-To: " . $dados->email . "\r\n";
+            $headers .= "Reply-To: " . $email . "\r\n";
             $headers .= "Content-Type: text/plain; charset=UTF-8\r\n";
             
             // O "@" oculta erros temporários no XAMPP, já que o localhost não envia e-mail de verdade
