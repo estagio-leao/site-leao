@@ -1,11 +1,12 @@
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
-import { Route, Switch, Redirect } from "wouter";   // ← Redirect adicionado
+import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
-import Service from "./pages/Service";              // ← Home vira Service
-import Materiais from "./pages/Materiais";          // ← Catálogo de Produtos
+import Gateway from "./pages/Gateway";              // ← Portal Gateway
+import Service from "./pages/Service";
+import Materiais from "./pages/Materiais";
 
 // Importações adicionadas para o Painel Administrativo
 import Login from "./pages/admin/Login";
@@ -14,10 +15,8 @@ import Dashboard from "./pages/admin/Dashboard";
 function Router() {
   return (
     <Switch>
-      {/* Redirecionamento temporário até o Portal Gateway (Fase 5) */}
-      <Route path={"/"}>
-        <Redirect to="/service" />
-      </Route>
+      {/* Portal Gateway — primeira tela do domínio */}
+      <Route path={"/"} component={Gateway} />
       <Route path={"/service"} component={Service} />
       <Route path={"/materiais"} component={Materiais} />
 
