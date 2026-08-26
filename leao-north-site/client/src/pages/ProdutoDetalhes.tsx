@@ -5,7 +5,7 @@
  */
 import { useEffect, useState } from "react";
 import { Link, useParams } from "wouter";
-import { ChevronLeft, ChevronRight, ArrowLeft } from "lucide-react";
+import { ChevronLeft, ChevronRight, ArrowLeft, ZoomIn } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import WhatsAppButton from "@/components/WhatsAppButton";
@@ -38,6 +38,10 @@ export default function ProdutoDetalhes() {
   const [produto, setProduto] = useState<Produto | null>(null);
   const [naoEncontrado, setNaoEncontrado] = useState(false);
   const [fotoAtiva, setFotoAtiva] = useState(0); // capa selecionada por padrão
+
+  // Estados do efeito de zoom (Fase 10)
+  const [isZoomed, setIsZoomed] = useState(false);
+  const [mousePos, setMousePos] = useState({ x: 50, y: 50 }); // posição do mouse em % (0 a 100)
 
   useEffect(() => {
     setNaoEncontrado(false);
@@ -89,6 +93,17 @@ export default function ProdutoDetalhes() {
   const total = imagens.length;
   const prevFoto = () => setFotoAtiva(i => (i - 1 + total) % total);
   const nextFoto = () => setFotoAtiva(i => (i + 1) % total);
+
+  // Calcula a posição do mouse em % (0 a 100) para o transform-origin do zoom
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * 100;
+    const y = ((e.clientY - rect.top) / rect.height) * 100;
+    setMousePos({
+      x: Math.min(100, Math.max(0, x)),
+      y: Math.min(100, Math.max(0, y)),
+    });
+  };
   const whatsLink = `https://wa.me/${WHATSAPP_NUMERO}?text=${encodeURIComponent(`Olá! Tenho interesse no produto: ${produto.nome}`)}`;
 
   return (
@@ -104,16 +119,32 @@ export default function ProdutoDetalhes() {
         <div className="grid lg:grid-cols-2 gap-10 lg:gap-14">
           {/* GALERIA */}
           <div>
-            <div className="relative bg-white border border-slate-200 rounded-sm overflow-hidden flex items-center justify-center p-6 h-[420px]">
+            <div
+              className="relative bg-white border border-slate-200 rounded-sm overflow-hidden flex items-center justify-center p-6 h-[420px] cursor-zoom-in"
+              onMouseEnter={() => setIsZoomed(true)}
+              onMouseLeave={() => setIsZoomed(false)}
+              onMouseMove={handleMouseMove}
+            >
               {total > 0 ? (
                 <img
                   src={`http://localhost/leaonorth${imagens[fotoAtiva].caminho_imagem}`}
                   alt={produto.nome}
                   className="max-w-full max-h-full object-contain"
+                  style={{
+                    transform: isZoomed ? "scale(2)" : "scale(1)",
+                    transformOrigin: `${mousePos.x}% ${mousePos.y}%`,
+                    transition: "transform 0.2s cubic-bezier(0.23, 1, 0.32, 1)",
+                    cursor: isZoomed ? "zoom-out" : "zoom-in",
+                  }}
                 />
               ) : (
                 <span className="text-slate-400 text-sm">Sem imagem</span>
               )}
+
+              {/* Ícone de lupa (indica que a foto é interativa) */}
+              <div className="absolute top-3 right-3 w-9 h-9 rounded-full bg-white/90 shadow flex items-center justify-center text-slate-600 pointer-events-none transition-opacity">
+                <ZoomIn className="w-5 h-5" />
+              </div>
 
               {total > 1 && (
                 <>
