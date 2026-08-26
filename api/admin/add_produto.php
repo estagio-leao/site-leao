@@ -11,41 +11,66 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 
 header("Content-Type: application/json; charset=UTF-8");
 
-// Validação de campos obrigatórios (mesmo padrão do upload.php atual)
-if (!isset($_POST['nome']) || !isset($_FILES['image'])) {
+// ---- Validação de campos obrigatórios ----
+if (!isset($_POST['nome']) || !isset($_FILES['imagens'])) {
     http_response_code(400);
     echo json_encode(array("mensagem" => "Dados incompletos."));
     exit();
 }
 
-// ---- Validação rigorosa do arquivo de imagem ----
-
-// 1) Erro de upload
-if ($_FILES["image"]["error"] !== UPLOAD_ERR_OK) {
+// ---- Validação da quantidade de imagens (1 a 8) ----
+$qtd = count($_FILES['imagens']['name']);
+if ($qtd < 1 || $qtd > 8) {
     http_response_code(400);
-    echo json_encode(array("mensagem" => "Falha no envio da imagem."));
+    echo json_encode(array("mensagem" => "Envie entre 1 e 8 imagens."));
     exit();
 }
 
-// 2) Tamanho máximo: 5MB
-$tamanho_maximo = 5 * 1024 * 1024;
-if ($_FILES["image"]["size"] > $tamanho_maximo) {
+// ---- Validação do índice da capa ----
+$capa_index = isset($_POST['capa_index']) ? (int)$_POST['capa_index'] : 0;
+if ($capa_index < 0 || $capa_index >= $qtd) {
     http_response_code(400);
-    echo json_encode(array("mensagem" => "Imagem muito grande. O limite é de 5MB."));
+    echo json_encode(array("mensagem" => "Índice da capa inválido."));
     exit();
 }
 
-// 3) MIME type real do arquivo (mais seguro que confiar no header enviado pelo cliente)
+// ---- Validação das informações adicionais (string JSON) ----
+$informacoes = isset($_POST['informacoes']) ? json_decode($_POST['informacoes'], true) : array();
+if ($informacoes === null) {
+    http_response_code(400);
+    echo json_encode(array("mensagem" => "Informações adicionais inválidas."));
+    exit();
+}
+
+// ---- Validação rigorosa de cada imagem (MIME real via finfo + limite 5MB) ----
 $tipos_permitidos = array("image/jpeg", "image/png", "image/webp", "image/avif");
+$tamanho_maximo = 5 * 1024 * 1024; // 5MB
 
-$finfo = finfo_open(FILEINFO_MIME_TYPE);
-$tipo_real = finfo_file($finfo, $_FILES["image"]["tmp_name"]);
-finfo_close($finfo);
+for ($i = 0; $i < $qtd; $i++) {
+    // 1) Erro de upload
+    if ($_FILES['imagens']['error'][$i] !== UPLOAD_ERR_OK) {
+        http_response_code(400);
+        echo json_encode(array("mensagem" => "Falha no envio da imagem " . ($i + 1) . "."));
+        exit();
+    }
 
-if (!in_array($tipo_real, $tipos_permitidos)) {
-    http_response_code(400);
-    echo json_encode(array("mensagem" => "Tipo de arquivo não permitido. Use JPG, PNG, WEBP ou AVIF."));
-    exit();
+    // 2) Tamanho máximo
+    if ($_FILES['imagens']['size'][$i] > $tamanho_maximo) {
+        http_response_code(400);
+        echo json_encode(array("mensagem" => "Imagem muito grande. O limite é de 5MB por imagem."));
+        exit();
+    }
+
+    // 3) MIME type real do arquivo
+    $finfo = finfo_open(FILEINFO_MIME_TYPE);
+    $tipo_real = finfo_file($finfo, $_FILES['imagens']['tmp_name'][$i]);
+    finfo_close($finfo);
+
+    if (!in_array($tipo_real, $tipos_permitidos)) {
+        http_response_code(400);
+        echo json_encode(array("mensagem" => "Tipo de arquivo não permitido. Use JPG, PNG, WEBP ou AVIF."));
+        exit();
+    }
 }
 
 $host = "localhost";
@@ -56,40 +81,75 @@ $password_db = "";
 $diretorio_upload = "../../uploads/";
 if (!is_dir($diretorio_upload)) mkdir($diretorio_upload, 0755, true);
 
-$nome_arquivo = time() . "_" . basename($_FILES["image"]["name"]);
-$caminho_final = $diretorio_upload . $nome_arquivo;
-$url_imagem = "/uploads/" . $nome_arquivo; // Caminho que vai pro banco e pro React ler
+$imagens_salvas = array();
 
-if (move_uploaded_file($_FILES["image"]["tmp_name"], $caminho_final)) {
-    try {
-        $conn = new PDO("mysql:host={$host};dbname={$db_name}", $username, $password_db);
-        $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+try {
+    $conn = new PDO("mysql:host={$host};dbname={$db_name}", $username, $password_db);
+    $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-        $query = "INSERT INTO produtos (nome, especificacao, categoria, imagem)
-                  VALUES (:nome, :especificacao, :categoria, :imagem)";
-        $stmt = $conn->prepare($query);
-        $stmt->bindParam(":nome", $_POST['nome']);
-        $stmt->bindParam(":especificacao", $_POST['especificacao']);
-        $stmt->bindParam(":categoria", $_POST['categoria']);
-        $stmt->bindParam(":imagem", $url_imagem);
+    $conn->beginTransaction();
 
-        if ($stmt->execute()) {
-            http_response_code(200);
-            echo json_encode(array("mensagem" => "Produto salvo com sucesso."));
-        } else {
-            // Remove a imagem já salva para não deixar órfã
-            if (file_exists($caminho_final)) @unlink($caminho_final);
-            http_response_code(500);
-            echo json_encode(array("mensagem" => "Erro ao salvar no banco."));
+    // 1) Insere o produto (a coluna imagem não existe mais — imagens vão para produto_imagens)
+    $query = "INSERT INTO produtos (nome, especificacao, categoria, descricao)
+              VALUES (:nome, :especificacao, :categoria, :descricao)";
+    $stmt = $conn->prepare($query);
+    $stmt->bindParam(":nome", $_POST['nome']);
+    $stmt->bindParam(":especificacao", $_POST['especificacao']);
+    $stmt->bindParam(":categoria", $_POST['categoria']);
+    $descricao = isset($_POST['descricao']) ? $_POST['descricao'] : "";
+    $stmt->bindParam(":descricao", $descricao);
+    $stmt->execute();
+    $produto_id = $conn->lastInsertId();
+
+    // 2) Salva cada imagem em disco e insere em produto_imagens
+    for ($i = 0; $i < $qtd; $i++) {
+        $nome_arquivo = time() . "_" . basename($_FILES['imagens']['name'][$i]);
+        $caminho_final = $diretorio_upload . $nome_arquivo;
+        $url_imagem = "/uploads/" . $nome_arquivo;
+
+        if (!move_uploaded_file($_FILES['imagens']['tmp_name'][$i], $caminho_final)) {
+            throw new Exception("Erro ao mover a imagem.");
         }
-    } catch(PDOException $exception) {
-        // Remove a imagem já salva para não deixar órfã
-        if (file_exists($caminho_final)) @unlink($caminho_final);
-        http_response_code(500);
-        echo json_encode(array("mensagem" => "Erro ao salvar no banco."));
+        $imagens_salvas[] = $caminho_final;
+
+        $is_capa = ($i === $capa_index) ? 1 : 0;
+        $stmt = $conn->prepare(
+            "INSERT INTO produto_imagens (produto_id, caminho_imagem, is_capa, ordem)
+             VALUES (:pid, :caminho, :is_capa, :ordem)"
+        );
+        $stmt->bindParam(":pid", $produto_id);
+        $stmt->bindParam(":caminho", $url_imagem);
+        $stmt->bindParam(":is_capa", $is_capa);
+        $stmt->bindParam(":ordem", $i);
+        $stmt->execute();
     }
-} else {
+
+    // 3) Insere as informações adicionais (pares título/texto)
+    $stmt = $conn->prepare(
+        "INSERT INTO produto_informacoes (produto_id, titulo, texto) VALUES (:pid, :titulo, :texto)"
+    );
+    foreach ($informacoes as $info) {
+        $titulo = isset($info['titulo']) ? $info['titulo'] : "";
+        $texto = isset($info['texto']) ? $info['texto'] : "";
+        if ($titulo === "" || $texto === "") continue;
+        $stmt->bindParam(":pid", $produto_id);
+        $stmt->bindParam(":titulo", $titulo);
+        $stmt->bindParam(":texto", $texto);
+        $stmt->execute();
+    }
+
+    $conn->commit();
+    http_response_code(200);
+    echo json_encode(array("mensagem" => "Produto salvo com sucesso."));
+} catch (Exception $exception) {
+    if (isset($conn) && $conn->inTransaction()) {
+        $conn->rollBack();
+    }
+    // Remove as imagens já salvas em disco para não deixar órfãs
+    foreach ($imagens_salvas as $caminho) {
+        if (file_exists($caminho)) @unlink($caminho);
+    }
     http_response_code(500);
-    echo json_encode(array("mensagem" => "Erro ao fazer upload da imagem."));
+    echo json_encode(array("mensagem" => "Erro ao salvar o produto."));
 }
 ?>

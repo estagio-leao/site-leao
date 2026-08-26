@@ -21,22 +21,22 @@ if (isset($_GET['id']) && $_GET['id'] !== '') {
         $conn = new PDO("mysql:host={$host};dbname={$db_name}", $username, $password_db);
         $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-        // 1) Resgata o caminho da imagem ANTES de excluir o registro
-        $query_imagem = "SELECT imagem FROM produtos WHERE id = :id";
-        $stmt_imagem = $conn->prepare($query_imagem);
-        $stmt_imagem->bindParam(":id", $_GET['id']);
-        $stmt_imagem->execute();
-        $produto = $stmt_imagem->fetch(PDO::FETCH_ASSOC);
+        // 1) Resgata TODAS as imagens do produto ANTES de excluir (produto_imagens)
+        $query_imagens = "SELECT caminho_imagem FROM produto_imagens WHERE produto_id = :id";
+        $stmt_imagens = $conn->prepare($query_imagens);
+        $stmt_imagens->bindParam(":id", $_GET['id']);
+        $stmt_imagens->execute();
+        $imagens = $stmt_imagens->fetchAll(PDO::FETCH_ASSOC);
 
-        // 2) Remove o registro do banco
+        // 2) Exclui o produto — FKs ON DELETE CASCADE removem produto_imagens e produto_informacoes
         $query = "DELETE FROM produtos WHERE id = :id";
         $stmt = $conn->prepare($query);
         $stmt->bindParam(":id", $_GET['id']);
 
         if ($stmt->execute()) {
-            // 3) Remove o arquivo físico da pasta uploads (evita arquivos órfãos)
-            if ($produto && !empty($produto['imagem'])) {
-                $arquivo = basename($produto['imagem']);
+            // 3) Remove fisicamente TODAS as imagens da pasta uploads (evita arquivos órfãos)
+            foreach ($imagens as $img) {
+                $arquivo = basename($img['caminho_imagem']);
                 $caminho = "../../uploads/" . $arquivo;
                 if (file_exists($caminho)) @unlink($caminho);
             }

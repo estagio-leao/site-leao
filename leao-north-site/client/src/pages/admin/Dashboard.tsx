@@ -19,10 +19,12 @@ export default function Dashboard() {
   const [depForm, setDepForm] = useState<{ id?: number; nome: string; estrelas: number; texto: string; }>({ nome: "", estrelas: 5, texto: "" });
   const [loadingDep, setLoadingDep] = useState(false);
 
-  // Estados do Catálogo de Produtos
+  // Estados do Catálogo de Produtos (formato complexo - Fase 6/7)
   const [produtos, setProdutos] = useState<any[]>([]);
-  const [prodForm, setProdForm] = useState({ nome: "", especificacao: "", categoria: "Disjuntores" });
-  const [prodFile, setProdFile] = useState<File | null>(null);
+  const [prodForm, setProdForm] = useState({ nome: "", especificacao: "", categoria: "Disjuntores", descricao: "" });
+  const [prodFiles, setProdFiles] = useState<File[]>([]);
+  const [capaIndex, setCapaIndex] = useState(0);
+  const [infoList, setInfoList] = useState<{ titulo: string; texto: string }[]>([]);
   const [loadingProd, setLoadingProd] = useState(false);
 
   useEffect(() => {
@@ -133,23 +135,70 @@ export default function Dashboard() {
     } catch (err) { console.error("Erro produtos", err); }
   };
 
+  // Adiciona arquivos selecionados ao array (limite de 8)
+  const handleAddProdFiles = (files: FileList | null) => {
+    if (!files) return;
+    const novos = Array.from(files);
+    const total = prodFiles.length + novos.length;
+    if (total > 8) return alert("Máximo de 8 imagens por produto.");
+    setProdFiles(prev => [...prev, ...novos]);
+  };
+
+  // Remove um arquivo da fila e ajusta o índice da capa, se necessário
+  const handleRemoveProdFile = (index: number) => {
+    setProdFiles(prev => {
+      const novo = prev.filter((_, i) => i !== index);
+      setCapaIndex(prevCapa => {
+        if (index === prevCapa) return 0;
+        if (index < prevCapa) return prevCapa - 1;
+        return prevCapa;
+      });
+      return novo;
+    });
+  };
+
+  // ---- Informações adicionais (dinâmicas) ----
+  const handleAddInfo = () => setInfoList(prev => [...prev, { titulo: "", texto: "" }]);
+
+  const handleUpdateInfo = (index: number, campo: "titulo" | "texto", valor: string) => {
+    setInfoList(prev => prev.map((item, i) => (i === index ? { ...item, [campo]: valor } : item)));
+  };
+
+  const handleRemoveInfo = (index: number) =>
+    setInfoList(prev => prev.filter((_, i) => i !== index));
+
+  // Reset do formulário após salvar
+  const resetProdForm = () => {
+    setProdForm({ nome: "", especificacao: "", categoria: "Disjuntores", descricao: "" });
+    setProdFiles([]);
+    setCapaIndex(0);
+    setInfoList([]);
+  };
+
   const handleAddProduto = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!prodFile) return alert("Selecione uma imagem!");
+    if (prodFiles.length === 0) return alert("Selecione pelo menos uma imagem!");
     setLoadingProd(true);
+
     const formData = new FormData();
-    formData.append("image", prodFile);
+    
+    // A MÁGICA ESTÁ AQUI: "imagens[]" com colchetes para o PHP ler como Array!
+    prodFiles.forEach(file => formData.append("imagens[]", file));
+    
+    formData.append("capa_index", String(capaIndex));
+    formData.append("informacoes", JSON.stringify(infoList)); // string JSON
     formData.append("nome", prodForm.nome);
     formData.append("especificacao", prodForm.especificacao);
     formData.append("categoria", prodForm.categoria);
+    formData.append("descricao", prodForm.descricao);
 
     try {
       const res = await fetch("http://localhost/leaonorth/api/admin/add_produto.php", {
         method: "POST", body: formData,
       });
+      
       if (res.ok) {
-        setProdForm({ nome: "", especificacao: "", categoria: "Disjuntores" });
-        setProdFile(null);
+        resetProdForm();
         fetchProdutos();
         alert("Produto adicionado!");
       } else {
@@ -300,6 +349,10 @@ export default function Dashboard() {
                   <textarea value={prodForm.especificacao} onChange={e => setProdForm({...prodForm, especificacao: e.target.value})} className={`${inputClass} min-h-[120px] resize-none`} placeholder="Detalhes técnicos do produto..." />
                 </div>
                 <div>
+                  <label className="block text-white/40 text-xs tracking-widest uppercase mb-1.5">Descrição</label>
+                  <textarea value={prodForm.descricao} onChange={e => setProdForm({...prodForm, descricao: e.target.value})} className={`${inputClass} min-h-[100px] resize-none`} placeholder="Descrição longa do produto. Quebras de linha são preservadas." />
+                </div>
+                <div>
                   <label className="block text-white/40 text-xs tracking-widest uppercase mb-1.5">Categoria</label>
                   <select value={prodForm.categoria} onChange={e => setProdForm({...prodForm, categoria: e.target.value})} className={inputClass}>
                     <option value="Disjuntores">Disjuntores</option>
@@ -311,12 +364,89 @@ export default function Dashboard() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-white/40 text-xs tracking-widest uppercase mb-1.5">Imagem</label>
-                  <div className="relative overflow-hidden">
-                    <input type="file" required accept="image/*" onChange={e => setProdFile(e.target.files?.[0] || null)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
-                    <div className={`${inputClass} flex items-center gap-2 text-white/60 ${prodFile ? 'text-[#F0B429] border-[#F0B429]/50' : ''}`}>
-                      <ImageIcon className="w-4 h-4" /> {prodFile ? prodFile.name : "Escolher Arquivo..."}
+                  <label className="block text-white/40 text-xs tracking-widest uppercase mb-1.5">
+                    Fotos ({prodFiles.length}/8) — clique na foto para definir a Capa
+                  </label>
+                  <div className="relative overflow-hidden mb-3">
+                    <input
+                      type="file"
+                      multiple
+                      accept="image/*"
+                      onChange={e => handleAddProdFiles(e.target.files)}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    />
+                    <div className={`${inputClass} flex items-center gap-2 text-white/60`}>
+                      <ImageIcon className="w-4 h-4" /> {prodFiles.length > 0 ? `${prodFiles.length} imagem(ns) selecionada(s)` : "Escolher Arquivos..."}
                     </div>
+                  </div>
+
+                  {prodFiles.length > 0 && (
+                    <div className="grid grid-cols-3 gap-2">
+                      {prodFiles.map((file, i) => (
+                        <div
+                          key={i}
+                          onClick={() => setCapaIndex(i)}
+                          className={`relative rounded-sm overflow-hidden cursor-pointer border-2 transition-all ${i === capaIndex ? "border-[#F0B429]" : "border-transparent"}`}
+                          title={i === capaIndex ? "Capa" : "Clique para definir como Capa"}
+                        >
+                          <img src={URL.createObjectURL(file)} alt={`Foto ${i + 1}`} className="w-full h-16 object-cover" />
+                          {i === capaIndex && (
+                            <span className="absolute top-0 left-0 bg-[#F0B429] text-[#080808] text-[9px] font-bold px-1 uppercase">Capa</span>
+                          )}
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); handleRemoveProdFile(i); }}
+                            className="absolute top-0 right-0 bg-red-500/80 text-white p-0.5"
+                            title="Remover foto"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-white/40 text-xs tracking-widest uppercase">Informações Adicionais</label>
+                    <button
+                      type="button"
+                      onClick={handleAddInfo}
+                      className="flex items-center gap-1 text-[#F0B429] text-xs font-['DM_Sans'] uppercase tracking-wider hover:text-[#FFD060] transition-colors"
+                    >
+                      <Plus className="w-3.5 h-3.5" /> Adicionar Informação
+                    </button>
+                  </div>
+                  <div className="space-y-2">
+                    {infoList.map((info, i) => (
+                      <div key={i} className="flex gap-2 items-start">
+                        <input
+                          type="text"
+                          value={info.titulo}
+                          onChange={e => handleUpdateInfo(i, "titulo", e.target.value)}
+                          className={`${inputClass} !w-2/5`}
+                          placeholder="Título (ex.: Temperatura)"
+                        />
+                        <input
+                          type="text"
+                          value={info.texto}
+                          onChange={e => handleUpdateInfo(i, "texto", e.target.value)}
+                          className={`${inputClass} flex-1`}
+                          placeholder="Texto (ex.: 6500K)"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveInfo(i)}
+                          className="mt-1 text-red-500/60 hover:text-red-500 transition-colors p-1"
+                          title="Remover informação"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                    {infoList.length === 0 && (
+                      <p className="text-white/30 text-xs italic">Nenhuma informação adicional. Clique em "+ Adicionar Informação".</p>
+                    )}
                   </div>
                 </div>
                 <button type="submit" disabled={loadingProd} className="w-full py-3 bg-[#F0B429] text-[#080808] font-['Barlow_Condensed'] font-700 uppercase rounded-sm hover:bg-[#FFD060] transition-colors mt-4 flex items-center justify-center gap-2 disabled:opacity-50">
@@ -327,23 +457,32 @@ export default function Dashboard() {
             <div className="md:col-span-2">
               <h2 className="text-white font-['Barlow_Condensed'] text-xl uppercase font-600 mb-6">Produtos Cadastrados</h2>
               <div className="grid sm:grid-cols-2 gap-4">
-                {produtos.map(prod => (
-                  <div key={prod.id} className="bg-[#111111] border border-white/10 rounded-sm overflow-hidden group flex flex-col">
-                    <div className="h-40 overflow-hidden relative">
-                      <img src={`http://localhost/leaonorth${prod.imagem}`} alt={prod.nome} className="w-full h-full object-cover" />
-                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                        <button onClick={() => handleDeleteProduto(prod.id)} className="bg-red-500/20 text-red-500 p-2 rounded-full hover:bg-red-500 hover:text-white transition-all">
-                          <Trash2 className="w-5 h-5" />
-                        </button>
+                {produtos.map(prod => {
+                  const capa = prod.imagens?.find((i: any) => i.is_capa)?.caminho_imagem;
+                  return (
+                    <div key={prod.id} className="bg-[#111111] border border-white/10 rounded-sm overflow-hidden group flex flex-col">
+                      <div className="h-40 overflow-hidden relative bg-[#080808]">
+                        {capa ? (
+                          <img src={`http://localhost/leaonorth${capa}`} alt={prod.nome} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-white/20">
+                            <ImageIcon className="w-10 h-10" />
+                          </div>
+                        )}
+                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                          <button onClick={() => handleDeleteProduto(prod.id)} className="bg-red-500/20 text-red-500 p-2 rounded-full hover:bg-red-500 hover:text-white transition-all">
+                            <Trash2 className="w-5 h-5" />
+                          </button>
+                        </div>
+                      </div>
+                      <div className="p-4 flex-1">
+                        <span className="text-[#F0B429] text-[10px] tracking-widest uppercase">{prod.categoria} • {prod.imagens?.length || 0} foto(s)</span>
+                        <h3 className="text-white font-medium text-sm mt-1">{prod.nome}</h3>
+                        {prod.especificacao && <p className="text-white/50 text-xs mt-1 line-clamp-2">{prod.especificacao}</p>}
                       </div>
                     </div>
-                    <div className="p-4 flex-1">
-                      <span className="text-[#F0B429] text-[10px] tracking-widest uppercase">{prod.categoria}</span>
-                      <h3 className="text-white font-medium text-sm mt-1">{prod.nome}</h3>
-                      {prod.especificacao && <p className="text-white/50 text-xs mt-1 line-clamp-2">{prod.especificacao}</p>}
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
                 {produtos.length === 0 && <div className="col-span-2 text-center text-white/40 py-10 border border-dashed border-white/10 rounded-sm">Nenhum produto cadastrado.</div>}
               </div>
             </div>
