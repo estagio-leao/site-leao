@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
-import { LogOut, Upload, Trash2, Plus, Image as ImageIcon, LayoutDashboard, Mail, Star, FolderOpen, Package, X } from "lucide-react";
+import { LogOut, Upload, Trash2, Plus, Image as ImageIcon, LayoutDashboard, Mail, Star, FolderOpen, Package, X, Pencil } from "lucide-react";
 
 export default function Dashboard() {
   const [, setLocation] = useLocation();
@@ -26,6 +26,10 @@ export default function Dashboard() {
   const [capaIndex, setCapaIndex] = useState(0);
   const [infoList, setInfoList] = useState<{ titulo: string; texto: string }[]>([]);
   const [loadingProd, setLoadingProd] = useState(false);
+
+  // Modo edição de produto (Fase 9)
+  const [produtoEditandoId, setProdutoEditandoId] = useState<number | null>(null); // null = modo adicionar
+  const [imgsMantidas, setImgsMantidas] = useState<{ caminho_imagem: string; is_capa: boolean | number }[]>([]);
 
   useEffect(() => {
     if (!localStorage.getItem("admin_token")) {
@@ -135,18 +139,32 @@ export default function Dashboard() {
     } catch (err) { console.error("Erro produtos", err); }
   };
 
-  // Adiciona arquivos selecionados ao array (limite de 8)
+  // Adiciona arquivos selecionados ao array (limite de 8, considerando mantidas + novas)
   const handleAddProdFiles = (files: FileList | null) => {
     if (!files) return;
     const novos = Array.from(files);
-    const total = prodFiles.length + novos.length;
+    const total = imgsMantidas.length + prodFiles.length + novos.length;
     if (total > 8) return alert("Máximo de 8 imagens por produto.");
     setProdFiles(prev => [...prev, ...novos]);
   };
 
-  // Remove um arquivo da fila e ajusta o índice da capa, se necessário
+  // Remove uma NOVA imagem (índice relativo às prodFiles) e recalcula a capa
   const handleRemoveProdFile = (index: number) => {
     setProdFiles(prev => {
+      const novo = prev.filter((_, i) => i !== index);
+      const combinado = imgsMantidas.length + index; // posição na lista combinada
+      setCapaIndex(prevCapa => {
+        if (combinado === prevCapa) return 0;
+        if (combinado < prevCapa) return prevCapa - 1;
+        return prevCapa;
+      });
+      return novo;
+    });
+  };
+
+  // Remove uma imagem ANTIGA mantida (índice relativo às imgsMantidas) e recalcula a capa
+  const handleRemoveImgMantida = (index: number) => {
+    setImgsMantidas(prev => {
       const novo = prev.filter((_, i) => i !== index);
       setCapaIndex(prevCapa => {
         if (index === prevCapa) return 0;
@@ -167,12 +185,65 @@ export default function Dashboard() {
   const handleRemoveInfo = (index: number) =>
     setInfoList(prev => prev.filter((_, i) => i !== index));
 
-  // Reset do formulário após salvar
+  // Reset do formulário (sai do modo edição e volta para "Adicionar")
   const resetProdForm = () => {
+    setProdutoEditandoId(null);
+    setImgsMantidas([]);
     setProdForm({ nome: "", especificacao: "", categoria: "Disjuntores", descricao: "" });
     setProdFiles([]);
     setCapaIndex(0);
     setInfoList([]);
+  };
+
+  // Entra no modo edição preenchendo o formulário com os dados do produto
+  const entrarEdicao = (prod: any) => {
+    setProdutoEditandoId(prod.id);
+    setProdForm({
+      nome: prod.nome || "",
+      especificacao: prod.especificacao || "",
+      categoria: prod.categoria || "Disjuntores",
+      descricao: prod.descricao || "",
+    });
+    setImgsMantidas(prod.imagens || []);
+    setProdFiles([]);
+    const capaIdx = (prod.imagens || []).findIndex((i: any) => i.is_capa === true || i.is_capa === 1);
+    setCapaIndex(capaIdx >= 0 ? capaIdx : 0);
+    setInfoList(prod.informacoes || []);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const handleEditProduto = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (produtoEditandoId === null) return;
+    if (imgsMantidas.length + prodFiles.length === 0) return alert("O produto deve ter ao menos 1 imagem.");
+    setLoadingProd(true);
+
+    const formData = new FormData();
+    formData.append("id", String(produtoEditandoId));
+    formData.append("nome", prodForm.nome);
+    formData.append("especificacao", prodForm.especificacao);
+    formData.append("categoria", prodForm.categoria);
+    formData.append("descricao", prodForm.descricao);
+    // Lista combinada em ordem: mantidas primeiro, depois novas
+    formData.append("imagens_mantidas", JSON.stringify(imgsMantidas.map(i => i.caminho_imagem)));
+    formData.append("capa_index", String(capaIndex));
+    formData.append("informacoes", JSON.stringify(infoList));
+    // 🚨 CRÍTICO: "novas_imagens[]" com colchetes para o PHP ler como Array (mesmo padrão do add_produto)
+    prodFiles.forEach(file => formData.append("novas_imagens[]", file));
+
+    try {
+      const res = await fetch("http://localhost/leaonorth/api/admin/edit_produto.php", {
+        method: "POST", body: formData,
+      });
+      if (res.ok) {
+        resetProdForm();
+        fetchProdutos();
+        alert("Produto atualizado!");
+      } else {
+        const err = await res.json().catch(() => null);
+        alert(err?.mensagem || "Erro ao atualizar produto.");
+      }
+    } catch (err) { alert("Erro ao enviar."); } finally { setLoadingProd(false); }
   };
 
   const handleAddProduto = async (e: React.FormEvent) => {
@@ -337,9 +408,9 @@ export default function Dashboard() {
           <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
             <div className="md:col-span-1 bg-[#111111] border border-white/10 rounded-sm p-6 h-fit">
               <h2 className="text-white font-['Barlow_Condensed'] text-xl uppercase font-600 mb-6 flex items-center gap-2">
-                <Plus className="w-5 h-5 text-[#F0B429]" /> Adicionar Produto
+                <Plus className="w-5 h-5 text-[#F0B429]" /> {produtoEditandoId !== null ? "Editar Produto" : "Adicionar Produto"}
               </h2>
-              <form onSubmit={handleAddProduto} className="space-y-4">
+              <form onSubmit={produtoEditandoId !== null ? handleEditProduto : handleAddProduto} className="space-y-4">
                 <div>
                   <label className="block text-white/40 text-xs tracking-widest uppercase mb-1.5">Nome</label>
                   <input type="text" required value={prodForm.nome} onChange={e => setProdForm({...prodForm, nome: e.target.value})} className={inputClass} placeholder="Ex: Disjuntor 63A" />
@@ -365,7 +436,7 @@ export default function Dashboard() {
                 </div>
                 <div>
                   <label className="block text-white/40 text-xs tracking-widest uppercase mb-1.5">
-                    Fotos ({prodFiles.length}/8) — clique na foto para definir a Capa
+                    Fotos ({imgsMantidas.length + prodFiles.length}/8) — clique na foto para definir a Capa
                   </label>
                   <div className="relative overflow-hidden mb-3">
                     <input
@@ -376,26 +447,27 @@ export default function Dashboard() {
                       className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                     />
                     <div className={`${inputClass} flex items-center gap-2 text-white/60`}>
-                      <ImageIcon className="w-4 h-4" /> {prodFiles.length > 0 ? `${prodFiles.length} imagem(ns) selecionada(s)` : "Escolher Arquivos..."}
+                      <ImageIcon className="w-4 h-4" /> {imgsMantidas.length + prodFiles.length > 0 ? "Adicionar mais fotos..." : "Escolher Arquivos..."}
                     </div>
                   </div>
 
-                  {prodFiles.length > 0 && (
+                  {(imgsMantidas.length > 0 || prodFiles.length > 0) && (
                     <div className="grid grid-cols-3 gap-2">
-                      {prodFiles.map((file, i) => (
+                      {/* Imagens antigas mantidas */}
+                      {imgsMantidas.map((img, i) => (
                         <div
-                          key={i}
+                          key={`antiga-${i}`}
                           onClick={() => setCapaIndex(i)}
                           className={`relative rounded-sm overflow-hidden cursor-pointer border-2 transition-all ${i === capaIndex ? "border-[#F0B429]" : "border-transparent"}`}
                           title={i === capaIndex ? "Capa" : "Clique para definir como Capa"}
                         >
-                          <img src={URL.createObjectURL(file)} alt={`Foto ${i + 1}`} className="w-full h-16 object-cover" />
+                          <img src={`http://localhost/leaonorth${img.caminho_imagem}`} alt={`Foto ${i + 1}`} className="w-full h-16 object-cover" />
                           {i === capaIndex && (
                             <span className="absolute top-0 left-0 bg-[#F0B429] text-[#080808] text-[9px] font-bold px-1 uppercase">Capa</span>
                           )}
                           <button
                             type="button"
-                            onClick={(e) => { e.stopPropagation(); handleRemoveProdFile(i); }}
+                            onClick={(e) => { e.stopPropagation(); handleRemoveImgMantida(i); }}
                             className="absolute top-0 right-0 bg-red-500/80 text-white p-0.5"
                             title="Remover foto"
                           >
@@ -403,6 +475,31 @@ export default function Dashboard() {
                           </button>
                         </div>
                       ))}
+                      {/* Novas imagens */}
+                      {prodFiles.map((file, i) => {
+                        const indice = imgsMantidas.length + i;
+                        return (
+                          <div
+                            key={`nova-${i}`}
+                            onClick={() => setCapaIndex(indice)}
+                            className={`relative rounded-sm overflow-hidden cursor-pointer border-2 transition-all ${indice === capaIndex ? "border-[#F0B429]" : "border-transparent"}`}
+                            title={indice === capaIndex ? "Capa" : "Clique para definir como Capa"}
+                          >
+                            <img src={URL.createObjectURL(file)} alt={`Nova ${i + 1}`} className="w-full h-16 object-cover" />
+                            {indice === capaIndex && (
+                              <span className="absolute top-0 left-0 bg-[#F0B429] text-[#080808] text-[9px] font-bold px-1 uppercase">Capa</span>
+                            )}
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); handleRemoveProdFile(i); }}
+                              className="absolute top-0 right-0 bg-red-500/80 text-white p-0.5"
+                              title="Remover foto"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -449,9 +546,16 @@ export default function Dashboard() {
                     )}
                   </div>
                 </div>
-                <button type="submit" disabled={loadingProd} className="w-full py-3 bg-[#F0B429] text-[#080808] font-['Barlow_Condensed'] font-700 uppercase rounded-sm hover:bg-[#FFD060] transition-colors mt-4 flex items-center justify-center gap-2 disabled:opacity-50">
-                  {loadingProd ? "Enviando..." : <><Upload className="w-4 h-4"/> Salvar Produto</>}
-                </button>
+                <div className="flex gap-2 mt-4">
+                  <button type="submit" disabled={loadingProd} className="flex-1 py-3 bg-[#F0B429] text-[#080808] font-['Barlow_Condensed'] font-700 uppercase rounded-sm hover:bg-[#FFD060] transition-colors flex items-center justify-center gap-2 disabled:opacity-50">
+                    {loadingProd ? "Salvando..." : <><Upload className="w-4 h-4"/> {produtoEditandoId !== null ? "Salvar Alterações" : "Salvar Produto"}</>}
+                  </button>
+                  {produtoEditandoId !== null && (
+                    <button type="button" onClick={resetProdForm} className="px-4 py-3 bg-white/5 text-white/60 font-['Barlow_Condensed'] font-700 uppercase rounded-sm hover:bg-white/10 hover:text-white transition-colors">
+                      Cancelar
+                    </button>
+                  )}
+                </div>
               </form>
             </div>
             <div className="md:col-span-2">
@@ -469,8 +573,11 @@ export default function Dashboard() {
                             <ImageIcon className="w-10 h-10" />
                           </div>
                         )}
-                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                          <button onClick={() => handleDeleteProduto(prod.id)} className="bg-red-500/20 text-red-500 p-2 rounded-full hover:bg-red-500 hover:text-white transition-all">
+                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
+                          <button onClick={() => entrarEdicao(prod)} className="bg-[#F0B429]/20 text-[#F0B429] p-2 rounded-full hover:bg-[#F0B429] hover:text-[#080808] transition-all" title="Editar produto">
+                            <Pencil className="w-5 h-5" />
+                          </button>
+                          <button onClick={() => handleDeleteProduto(prod.id)} className="bg-red-500/20 text-red-500 p-2 rounded-full hover:bg-red-500 hover:text-white transition-all" title="Excluir produto">
                             <Trash2 className="w-5 h-5" />
                           </button>
                         </div>
