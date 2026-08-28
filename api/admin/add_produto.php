@@ -90,10 +90,15 @@ try {
     $conn->beginTransaction();
 
     // 1) Insere o produto (a coluna imagem não existe mais — imagens vão para produto_imagens)
-    $query = "INSERT INTO produtos (nome, especificacao, categoria, descricao)
-              VALUES (:nome, :especificacao, :categoria, :descricao)";
+    //    Campo grupo (Fase 11): opcional; grava NULL se vier vazio
+    $grupo = isset($_POST['grupo']) ? trim($_POST['grupo']) : "";
+    if ($grupo === "") $grupo = null;
+
+    $query = "INSERT INTO produtos (nome, grupo, especificacao, categoria, descricao)
+              VALUES (:nome, :grupo, :especificacao, :categoria, :descricao)";
     $stmt = $conn->prepare($query);
     $stmt->bindParam(":nome", $_POST['nome']);
+    $stmt->bindParam(":grupo", $grupo);
     $stmt->bindParam(":especificacao", $_POST['especificacao']);
     $stmt->bindParam(":categoria", $_POST['categoria']);
     $descricao = isset($_POST['descricao']) ? $_POST['descricao'] : "";

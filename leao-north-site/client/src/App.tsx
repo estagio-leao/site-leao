@@ -8,6 +8,7 @@ import Gateway from "./pages/Gateway";              // ← Portal Gateway
 import Service from "./pages/Service";
 import Materiais from "./pages/Materiais";
 import ProdutoDetalhes from "./pages/ProdutoDetalhes";
+import GrupoVariacoes from "./pages/GrupoVariacoes";
 
 // Importações adicionadas para o Painel Administrativo
 import Login from "./pages/admin/Login";
@@ -20,6 +21,7 @@ function Router() {
       <Route path={"/"} component={Gateway} />
       <Route path={"/service"} component={Service} />
       <Route path={"/materiais"} component={Materiais} />
+      <Route path={"/materiais/grupo/:nome_grupo"} component={GrupoVariacoes} />
       <Route path={"/materiais/:id"} component={ProdutoDetalhes} />
 
       {/* Novas rotas do painel administrativo */}

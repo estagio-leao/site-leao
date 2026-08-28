@@ -100,11 +100,16 @@ try {
 
     $conn->beginTransaction();
 
-    // 1) UPDATE dos dados básicos do produto
+    // 1) UPDATE dos dados básicos do produto (inclui grupo na Fase 11)
+    //    Campo grupo: opcional; grava NULL se vier vazio
+    $grupo = isset($_POST['grupo']) ? trim($_POST['grupo']) : "";
+    if ($grupo === "") $grupo = null;
+
     $stmt = $conn->prepare(
-        "UPDATE produtos SET nome=:nome, especificacao=:especificacao, categoria=:categoria, descricao=:descricao WHERE id=:id"
+        "UPDATE produtos SET nome=:nome, grupo=:grupo, especificacao=:especificacao, categoria=:categoria, descricao=:descricao WHERE id=:id"
     );
     $stmt->bindParam(":nome", $_POST['nome']);
+    $stmt->bindParam(":grupo", $grupo);
     $stmt->bindParam(":especificacao", $_POST['especificacao']);
     $stmt->bindParam(":categoria", $_POST['categoria']);
     $descricao = isset($_POST['descricao']) ? $_POST['descricao'] : "";

@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "wouter";
-import { LogOut, Upload, Trash2, Plus, Image as ImageIcon, LayoutDashboard, Mail, Star, FolderOpen, Package, X, Pencil } from "lucide-react";
+import { LogOut, Upload, Trash2, Plus, Image as ImageIcon, LayoutDashboard, Mail, Star, FolderOpen, Package, X, Pencil, Copy, ArrowLeft } from "lucide-react";
 
 export default function Dashboard() {
   const [, setLocation] = useLocation();
@@ -21,7 +21,7 @@ export default function Dashboard() {
 
   // Estados do Catálogo de Produtos (formato complexo - Fase 6/7)
   const [produtos, setProdutos] = useState<any[]>([]);
-  const [prodForm, setProdForm] = useState({ nome: "", especificacao: "", categoria: "Disjuntores", descricao: "" });
+  const [prodForm, setProdForm] = useState({ nome: "", especificacao: "", categoria: "Disjuntores", descricao: "", grupo: "" });
   const [prodFiles, setProdFiles] = useState<File[]>([]);
   const [capaIndex, setCapaIndex] = useState(0);
   const [infoList, setInfoList] = useState<{ titulo: string; texto: string }[]>([]);
@@ -30,6 +30,9 @@ export default function Dashboard() {
   // Modo edição de produto (Fase 9)
   const [produtoEditandoId, setProdutoEditandoId] = useState<number | null>(null); // null = modo adicionar
   const [imgsMantidas, setImgsMantidas] = useState<{ caminho_imagem: string; is_capa: boolean | number }[]>([]);
+
+  // Navegação em "pastas" da listagem (Fase 14): null = visão raiz | nome do grupo = dentro da pasta
+  const [grupoAtivo, setGrupoAtivo] = useState<string | null>(null);
 
   useEffect(() => {
     if (!localStorage.getItem("admin_token")) {
@@ -189,7 +192,7 @@ export default function Dashboard() {
   const resetProdForm = () => {
     setProdutoEditandoId(null);
     setImgsMantidas([]);
-    setProdForm({ nome: "", especificacao: "", categoria: "Disjuntores", descricao: "" });
+    setProdForm({ nome: "", especificacao: "", categoria: "Disjuntores", descricao: "", grupo: "" });
     setProdFiles([]);
     setCapaIndex(0);
     setInfoList([]);
@@ -203,6 +206,7 @@ export default function Dashboard() {
       especificacao: prod.especificacao || "",
       categoria: prod.categoria || "Disjuntores",
       descricao: prod.descricao || "",
+      grupo: prod.grupo || "",
     });
     setImgsMantidas(prod.imagens || []);
     setProdFiles([]);
@@ -224,6 +228,7 @@ export default function Dashboard() {
     formData.append("especificacao", prodForm.especificacao);
     formData.append("categoria", prodForm.categoria);
     formData.append("descricao", prodForm.descricao);
+    formData.append("grupo", prodForm.grupo);
     // Lista combinada em ordem: mantidas primeiro, depois novas
     formData.append("imagens_mantidas", JSON.stringify(imgsMantidas.map(i => i.caminho_imagem)));
     formData.append("capa_index", String(capaIndex));
@@ -262,6 +267,7 @@ export default function Dashboard() {
     formData.append("especificacao", prodForm.especificacao);
     formData.append("categoria", prodForm.categoria);
     formData.append("descricao", prodForm.descricao);
+    formData.append("grupo", prodForm.grupo);
 
     try {
       const res = await fetch("http://localhost/leaonorth/api/admin/add_produto.php", {
@@ -288,6 +294,30 @@ export default function Dashboard() {
     } catch (err) { alert("Erro ao excluir."); }
   };
 
+  // Duplica um produto (Fase 12): POST em duplicate_produto.php com o id no FormData
+  const handleDuplicateProduto = async (id: number) => {
+    if (!confirm("Duplicar este produto? Uma cópia independente será criada.")) return;
+
+    const formData = new FormData();
+    formData.append("id", String(id));
+
+    try {
+      const res = await fetch("http://localhost/leaonorth/api/admin/duplicate_produto.php", {
+        method: "POST",
+        body: formData,
+      });
+      if (res.ok) {
+        fetchProdutos(); // recarrega a listagem
+        alert("Produto duplicado com sucesso!");
+      } else {
+        const err = await res.json().catch(() => null);
+        alert(err?.mensagem || "Erro ao duplicar produto.");
+      }
+    } catch (err) {
+      alert("Erro ao duplicar produto.");
+    }
+  };
+
   // --- BADGES DE ORIGEM DA MENSAGEM (tipo_mensagem) ---
   const tipoMensagemConfig: Record<string, { label: string; className: string }> = {
     service:   { label: "Service",   className: "bg-[#F0B429]/10 text-[#F0B429] border-[#F0B429]/30" },
@@ -300,6 +330,103 @@ export default function Dashboard() {
     { label: tipo || "—", className: "bg-white/5 text-white/40 border-white/10" };
 
   const inputClass = "w-full bg-[#080808] border border-white/10 rounded-sm px-4 py-2.5 text-white text-sm font-['DM_Sans'] focus:border-[#F0B429]/50 focus:outline-none transition-all";
+
+  // --- FASE 14: Listagem agrupada em "pastas" (drill-down) ---
+  // Visão raiz: produtos sem grupo (avulsos) → cards individuais; produtos com grupo → pastas
+  const { avulsos, grupos } = useMemo(() => {
+    const mapa = new Map<string, any[]>();
+    const semGrupo: any[] = [];
+    for (const p of produtos) {
+      const g = (p.grupo || "").trim();
+      if (g === "") {
+        semGrupo.push(p);
+      } else {
+        if (!mapa.has(g)) mapa.set(g, []);
+        mapa.get(g)!.push(p);
+      }
+    }
+    return { avulsos: semGrupo, grupos: Array.from(mapa.entries()) };
+  }, [produtos]);
+
+  // Produtos da pasta ativa (visão dentro do grupo)
+  const produtosDoGrupo = useMemo(
+    () =>
+      grupoAtivo
+        ? produtos.filter(p => (p.grupo || "").trim() === grupoAtivo)
+        : [],
+    [produtos, grupoAtivo]
+  );
+
+  // Card de produto individual — mantém o JSX atual (com Editar/Duplicar/Excluir)
+  const renderProdutoCard = (prod: any) => {
+    const capa = prod.imagens?.find((i: any) => i.is_capa)?.caminho_imagem;
+    return (
+      <div key={prod.id} className="bg-[#111111] border border-white/10 rounded-sm overflow-hidden group flex flex-col">
+        <div className="h-40 overflow-hidden relative bg-[#080808]">
+          {capa ? (
+            <img src={`http://localhost/leaonorth${capa}`} alt={prod.nome} className="w-full h-full object-cover" />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-white/20">
+              <ImageIcon className="w-10 h-10" />
+            </div>
+          )}
+          <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
+            <button onClick={() => entrarEdicao(prod)} className="bg-[#F0B429]/20 text-[#F0B429] p-2 rounded-full hover:bg-[#F0B429] hover:text-[#080808] transition-all" title="Editar produto">
+              <Pencil className="w-5 h-5" />
+            </button>
+            <button onClick={() => handleDuplicateProduto(prod.id)} className="bg-sky-500/20 text-sky-400 p-2 rounded-full hover:bg-sky-500 hover:text-white transition-all" title="Duplicar produto">
+              <Copy className="w-5 h-5" />
+            </button>
+            <button onClick={() => handleDeleteProduto(prod.id)} className="bg-red-500/20 text-red-500 p-2 rounded-full hover:bg-red-500 hover:text-white transition-all" title="Excluir produto">
+              <Trash2 className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+        <div className="p-4 flex-1">
+          <span className="text-[#F0B429] text-[10px] tracking-widest uppercase">{prod.categoria} • {prod.imagens?.length || 0} foto(s)</span>
+          {prod.grupo && (
+            <p className="text-sky-400/80 text-[10px] tracking-widest uppercase mt-0.5">Grupo: {prod.grupo}</p>
+          )}
+          <h3 className="text-white font-medium text-sm mt-1">{prod.nome}</h3>
+          {prod.especificacao && <p className="text-white/50 text-xs mt-1 line-clamp-2">{prod.especificacao}</p>}
+        </div>
+      </div>
+    );
+  };
+
+  // Card de Pasta/Grupo — resumido, com botão "Ver Variações" (Fase 14)
+  const renderGrupoPasta = (nomeGrupo: string, variacoes: any[]) => {
+    const capa = variacoes[0]?.imagens?.find((i: any) => i.is_capa)?.caminho_imagem;
+    return (
+      <div key={`pasta-${nomeGrupo}`} className="bg-[#111111] border border-white/10 rounded-sm overflow-hidden flex flex-col">
+        <div className="h-40 overflow-hidden relative bg-[#080808]">
+          {capa ? (
+            <img src={`http://localhost/leaonorth${capa}`} alt={nomeGrupo} className="w-full h-full object-cover" />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-white/20">
+              <FolderOpen className="w-10 h-10" />
+            </div>
+          )}
+          <span className="absolute top-2 left-2 bg-sky-500/20 text-sky-400 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase border border-sky-500/30">
+            {variacoes.length} variação{variacoes.length > 1 ? "ões" : ""}
+          </span>
+        </div>
+        <div className="p-4 flex-1">
+          <span className="text-[#F0B429] text-[10px] tracking-widest uppercase">{variacoes[0]?.categoria || "Grupo"}</span>
+          <h3 className="text-white font-medium text-sm mt-1">{nomeGrupo}</h3>
+          <p className="text-white/40 text-xs mt-1">{variacoes.length} produto(s) nesta família.</p>
+        </div>
+        <div className="p-4 pt-0">
+          <button
+            onClick={() => setGrupoAtivo(nomeGrupo)}
+            className="w-full py-2.5 bg-sky-500/20 text-sky-400 font-['Barlow_Condensed'] font-700 uppercase rounded-sm hover:bg-sky-500 hover:text-white transition-all"
+          >
+            Ver Variações
+          </button>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-[#050505] font-['DM_Sans'] flex">
@@ -414,6 +541,10 @@ export default function Dashboard() {
                 <div>
                   <label className="block text-white/40 text-xs tracking-widest uppercase mb-1.5">Nome</label>
                   <input type="text" required value={prodForm.nome} onChange={e => setProdForm({...prodForm, nome: e.target.value})} className={inputClass} placeholder="Ex: Disjuntor 63A" />
+                </div>
+                <div>
+                  <label className="block text-white/40 text-xs tracking-widest uppercase mb-1.5">Grupo (Família) — Opcional</label>
+                  <input type="text" value={prodForm.grupo} onChange={e => setProdForm({...prodForm, grupo: e.target.value})} className={inputClass} placeholder="Ex: Painel de Led Quadrado" />
                 </div>
                 <div>
                   <label className="block text-white/40 text-xs tracking-widest uppercase mb-1.5">Especificação</label>
@@ -560,37 +691,38 @@ export default function Dashboard() {
             </div>
             <div className="md:col-span-2">
               <h2 className="text-white font-['Barlow_Condensed'] text-xl uppercase font-600 mb-6">Produtos Cadastrados</h2>
+
+              {/* Botão voltar quando dentro de um grupo (Fase 14) */}
+              {grupoAtivo !== null && (
+                <button
+                  onClick={() => setGrupoAtivo(null)}
+                  className="inline-flex items-center gap-2 text-sky-400 text-sm uppercase tracking-wider hover:text-white transition-colors mb-4"
+                >
+                  <ArrowLeft className="w-4 h-4" /> Voltar para a listagem principal
+                </button>
+              )}
+
               <div className="grid sm:grid-cols-2 gap-4">
-                {produtos.map(prod => {
-                  const capa = prod.imagens?.find((i: any) => i.is_capa)?.caminho_imagem;
-                  return (
-                    <div key={prod.id} className="bg-[#111111] border border-white/10 rounded-sm overflow-hidden group flex flex-col">
-                      <div className="h-40 overflow-hidden relative bg-[#080808]">
-                        {capa ? (
-                          <img src={`http://localhost/leaonorth${capa}`} alt={prod.nome} className="w-full h-full object-cover" />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-white/20">
-                            <ImageIcon className="w-10 h-10" />
-                          </div>
-                        )}
-                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
-                          <button onClick={() => entrarEdicao(prod)} className="bg-[#F0B429]/20 text-[#F0B429] p-2 rounded-full hover:bg-[#F0B429] hover:text-[#080808] transition-all" title="Editar produto">
-                            <Pencil className="w-5 h-5" />
-                          </button>
-                          <button onClick={() => handleDeleteProduto(prod.id)} className="bg-red-500/20 text-red-500 p-2 rounded-full hover:bg-red-500 hover:text-white transition-all" title="Excluir produto">
-                            <Trash2 className="w-5 h-5" />
-                          </button>
-                        </div>
+                {grupoAtivo === null ? (
+                  /* ===== VISÃO RAIZ ===== */
+                  <>
+                    {avulsos.map(renderProdutoCard)}
+                    {grupos.map(([nome, variacoes]) => renderGrupoPasta(nome, variacoes))}
+                    {produtos.length === 0 && (
+                      <div className="col-span-2 text-center text-white/40 py-10 border border-dashed border-white/10 rounded-sm">
+                        Nenhum produto cadastrado.
                       </div>
-                      <div className="p-4 flex-1">
-                        <span className="text-[#F0B429] text-[10px] tracking-widest uppercase">{prod.categoria} • {prod.imagens?.length || 0} foto(s)</span>
-                        <h3 className="text-white font-medium text-sm mt-1">{prod.nome}</h3>
-                        {prod.especificacao && <p className="text-white/50 text-xs mt-1 line-clamp-2">{prod.especificacao}</p>}
-                      </div>
-                    </div>
-                  );
-                })}
-                {produtos.length === 0 && <div className="col-span-2 text-center text-white/40 py-10 border border-dashed border-white/10 rounded-sm">Nenhum produto cadastrado.</div>}
+                    )}
+                  </>
+                ) : produtosDoGrupo.length > 0 ? (
+                  /* ===== VISÃO DENTRO DO GRUPO ===== */
+                  produtosDoGrupo.map(renderProdutoCard)
+                ) : (
+                  /* Pasta vazia (ex.: excluiu a última variação) */
+                  <div className="col-span-2 text-center text-white/40 py-10 border border-dashed border-white/10 rounded-sm">
+                    Nenhuma variação neste grupo.
+                  </div>
+                )}
               </div>
             </div>
           </div>

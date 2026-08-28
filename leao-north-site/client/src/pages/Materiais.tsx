@@ -1,125 +1,66 @@
 /*
  * LEÃO NORTH — Materiais Page (Catálogo de Produtos)
  * Design: Light Theme (fundo claro) com destaques dourados da marca
- * Sem scroll reveal nos cards — renderização direta
- * Cards com mini-carrossel de imagens (capa no índice 0) + botões "Mais Detalhes" e "Tenho Interesse"
+ * Fase 13 — Vitrine Agrupada:
+ *   - Produtos com o mesmo `grupo` viram 1 único "Card de Grupo" (badge "X opções disponíveis" + "Ver Opções")
+ *   - Produtos sem grupo (null/"") continuam como "Card de Produto" individual
  */
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "wouter";
-import { ChevronLeft, ChevronRight } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import WhatsAppButton from "@/components/WhatsAppButton";
+import ProdutoCard, { type Produto, normalizarImagens } from "@/components/ProdutoCard";
 
-type ProdutoImagem = { caminho_imagem: string; is_capa: boolean | number };
-type ProdutoInfo = { titulo: string; texto: string };
+// Item da vitrine: 1 card de grupo OU 1 card de produto individual
+type ItemVitrine =
+  | { tipo: "grupo"; nomeGrupo: string; variacoes: Produto[] }
+  | { tipo: "produto"; produto: Produto };
 
-type Produto = {
-  id: number;
-  nome: string;
-  especificacao: string | null;
-  categoria: string | null;
-  descricao: string | null;
-  data_cadastro: string;
-  imagens: ProdutoImagem[];
-  informacoes: ProdutoInfo[];
-};
-
-const WHATSAPP_NUMERO = "5543999190467";
-
-const montarLinkWhats = (produto: Produto) => {
-  const texto = `Olá! Tenho interesse no produto: ${produto.nome}`;
-  return `https://wa.me/${WHATSAPP_NUMERO}?text=${encodeURIComponent(texto)}`;
-};
-
-const WhatsAppIcon = () => (
-  <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current" aria-hidden="true">
-    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
-  </svg>
-);
-
-// Garante que a Capa fique sempre no índice 0 do carrossel
-const normalizarImagens = (imagens: ProdutoImagem[]): ProdutoImagem[] => [
-  ...imagens.filter(i => i.is_capa === true || i.is_capa === 1),
-  ...imagens.filter(i => !(i.is_capa === true || i.is_capa === 1)),
-];
-
-function ProdutoCard({ produto }: { produto: Produto }) {
-  const imagens = normalizarImagens(produto.imagens || []);
-  const total = imagens.length;
-  const [fotoIndex, setFotoIndex] = useState(0);
-
-  const prevFoto = () => setFotoIndex(i => (i - 1 + total) % total);
-  const nextFoto = () => setFotoIndex(i => (i + 1) % total);
+// Card de Grupo: representa uma família inteira (ex.: "Painel de Led Quadrado")
+function GrupoCard({ nomeGrupo, variacoes }: { nomeGrupo: string; variacoes: Produto[] }) {
+  const imagens = normalizarImagens(variacoes[0]?.imagens || []);
+  const capa = imagens[0]?.caminho_imagem; // capa da primeira variação do grupo
+  const rotaGrupo = `/materiais/grupo/${encodeURIComponent(nomeGrupo)}`;
 
   return (
     <div className="bg-white border border-slate-200 rounded-sm overflow-hidden flex flex-col shadow-sm hover:shadow-md hover:border-[#F0B429]/40 transition-all">
-      {/* Mini-carrossel */}
+      {/* Capa do grupo (imagem da 1ª variação) */}
       <div className="relative h-52 overflow-hidden bg-slate-100 flex items-center justify-center p-4">
-        {total > 0 ? (
+        {capa ? (
           <img
-            src={`http://localhost/leaonorth${imagens[fotoIndex].caminho_imagem}`}
-            alt={produto.nome}
+            src={`http://localhost/leaonorth${capa}`}
+            alt={nomeGrupo}
             className="w-full h-full object-contain"
             loading="lazy"
           />
         ) : (
           <span className="text-slate-400 text-sm">Sem imagem</span>
         )}
-
-        {total > 1 && (
-          <>
-            <button
-              onClick={prevFoto}
-              className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/80 hover:bg-white text-slate-700 rounded-full shadow flex items-center justify-center transition-colors"
-              title="Foto anterior"
-            >
-              <ChevronLeft className="w-5 h-5" />
-            </button>
-            <button
-              onClick={nextFoto}
-              className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/80 hover:bg-white text-slate-700 rounded-full shadow flex items-center justify-center transition-colors"
-              title="Próxima foto"
-            >
-              <ChevronRight className="w-5 h-5" />
-            </button>
-            <span className="absolute bottom-2 right-2 bg-black/50 text-white text-[10px] px-2 py-0.5 rounded-full">
-              {fotoIndex + 1}/{total}
-            </span>
-          </>
-        )}
+        {/* Badge: quantidade de opções disponíveis */}
+        <span className="absolute top-2 left-2 bg-[#F0B429] text-[#080808] text-[10px] font-bold px-2 py-0.5 rounded-full uppercase">
+          {variacoes.length} opções disponíveis
+        </span>
       </div>
 
       <div className="p-5 flex flex-col flex-1">
         <span className="text-[#B8860B] text-[10px] tracking-widest uppercase font-medium">
-          {produto.categoria || "Geral"}
+          {variacoes[0]?.categoria || "Geral"}
         </span>
         <h3 className="text-slate-900 font-['Barlow_Condensed'] font-700 text-xl mt-1">
-          {produto.nome}
+          {nomeGrupo}
         </h3>
-        {produto.especificacao && (
-          <p className="text-slate-600 text-sm font-['DM_Sans'] mt-2 mb-4 flex-1 line-clamp-2">
-            {produto.especificacao}
-          </p>
-        )}
+        <p className="text-slate-600 text-sm font-['DM_Sans'] mt-2 mb-4 flex-1">
+          Escolha entre {variacoes.length} opção{variacoes.length > 1 ? "ões" : ""} deste grupo.
+        </p>
 
-        {/* Ações: Mais Detalhes + Tenho Interesse lado a lado */}
-        <div className="flex gap-2">
-          <Link
-            href={`/materiais/${produto.id}`}
-            className="flex-1 flex items-center justify-center gap-2 py-3 bg-white border border-[#F0B429]/50 text-[#B8860B] font-['Barlow_Condensed'] font-700 uppercase rounded-sm hover:bg-[#F0B429]/10 transition-colors"
-          >
-            Mais Detalhes
-          </Link>
-          <a
-            href={montarLinkWhats(produto)}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex-1 flex items-center justify-center gap-2 py-3 bg-[#F0B429] text-[#080808] font-['Barlow_Condensed'] font-700 uppercase rounded-sm hover:bg-[#FFD060] transition-colors"
-          >
-            <WhatsAppIcon /> Tenho Interesse
-          </a>
-        </div>
+        {/* Ação: Ver Opções → página de variações */}
+        <Link
+          href={rotaGrupo}
+          className="flex items-center justify-center gap-2 py-3 bg-[#F0B429] text-[#080808] font-['Barlow_Condensed'] font-700 uppercase rounded-sm hover:bg-[#FFD060] transition-colors"
+        >
+          Ver Opções
+        </Link>
       </div>
     </div>
   );
@@ -160,11 +101,42 @@ export default function Materiais() {
     return ["todos", ...Array.from(unicas)];
   }, [produtos]);
 
-  // Filtro local (sem novo request à API)
-  const produtosFiltrados =
-    categoriaAtiva === "todos"
-      ? produtos
-      : produtos.filter((p) => p.categoria === categoriaAtiva);
+  // Filtro local por categoria (sem novo request à API)
+  const produtosFiltrados = useMemo(
+    () =>
+      categoriaAtiva === "todos"
+        ? produtos
+        : produtos.filter((p) => p.categoria === categoriaAtiva),
+    [produtos, categoriaAtiva]
+  );
+
+  // Vitrine mista (Fase 13): agrupa produtos da mesma família em 1 Card de Grupo
+  const itensVitrine = useMemo<ItemVitrine[]>(() => {
+    const mapa = new Map<string, Produto[]>();
+    const ordem: string[] = []; // ordem de primeira aparição de cada grupo
+    const itens: ItemVitrine[] = [];
+
+    for (const p of produtosFiltrados) {
+      const g = (p.grupo || "").trim();
+      if (g === "") {
+        // Produto sem grupo → card individual
+        itens.push({ tipo: "produto", produto: p });
+      } else {
+        if (!mapa.has(g)) {
+          mapa.set(g, []);
+          ordem.push(g);
+        }
+        mapa.get(g)!.push(p);
+      }
+    }
+
+    // Cada grupo vira 1 único card de grupo (na ordem de primeira aparição)
+    for (const nome of ordem) {
+      itens.push({ tipo: "grupo", nomeGrupo: nome, variacoes: mapa.get(nome)! });
+    }
+
+    return itens;
+  }, [produtosFiltrados]);
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-['DM_Sans']" style={{ background: "#F8FAFC" }}>
@@ -214,7 +186,7 @@ export default function Materiais() {
           <div className="text-center text-slate-500 py-16">Carregando produtos...</div>
         ) : erro ? (
           <div className="text-center text-slate-500 py-16">Não foi possível carregar o catálogo.</div>
-        ) : produtosFiltrados.length === 0 ? (
+        ) : itensVitrine.length === 0 ? (
           <div className="text-center text-slate-400 py-16 border border-dashed border-slate-300 rounded-sm">
             {produtos.length === 0
               ? "Nenhum produto disponível no momento."
@@ -222,9 +194,17 @@ export default function Materiais() {
           </div>
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {produtosFiltrados.map((produto) => (
-              <ProdutoCard key={produto.id} produto={produto} />
-            ))}
+            {itensVitrine.map((item) =>
+              item.tipo === "grupo" ? (
+                <GrupoCard
+                  key={`grupo-${item.nomeGrupo}`}
+                  nomeGrupo={item.nomeGrupo}
+                  variacoes={item.variacoes}
+                />
+              ) : (
+                <ProdutoCard key={item.produto.id} produto={item.produto} />
+              )
+            )}
           </div>
         )}
       </main>

@@ -20,14 +20,21 @@ try {
     $conn = new PDO("mysql:host={$host};dbname={$db_name}", $username, $password);
     $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-    // Filtro opcional por categoria: api/produtos.php?categoria=disjuntores
-    if (isset($_GET['categoria']) && $_GET['categoria'] !== '') {
-        $query = "SELECT id, nome, especificacao, categoria, descricao, data_cadastro
+    // Filtros opcionais (Fase 11):
+    //   api/produtos.php?categoria=disjuntores
+    //   api/produtos.php?grupo=Painel de Led Quadrado
+    if (isset($_GET['grupo']) && $_GET['grupo'] !== '') {
+        $query = "SELECT id, nome, grupo, especificacao, categoria, descricao, data_cadastro
+                  FROM produtos WHERE grupo = :grupo ORDER BY id DESC";
+        $stmt = $conn->prepare($query);
+        $stmt->bindParam(":grupo", $_GET['grupo']);
+    } elseif (isset($_GET['categoria']) && $_GET['categoria'] !== '') {
+        $query = "SELECT id, nome, grupo, especificacao, categoria, descricao, data_cadastro
                   FROM produtos WHERE categoria = :categoria ORDER BY id DESC";
         $stmt = $conn->prepare($query);
         $stmt->bindParam(":categoria", $_GET['categoria']);
     } else {
-        $query = "SELECT id, nome, especificacao, categoria, descricao, data_cadastro
+        $query = "SELECT id, nome, grupo, especificacao, categoria, descricao, data_cadastro
                   FROM produtos ORDER BY id DESC";
         $stmt = $conn->prepare($query);
     }
