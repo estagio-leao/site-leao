@@ -10,18 +10,17 @@ import { Link } from "wouter";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import WhatsAppButton from "@/components/WhatsAppButton";
-import ProdutoCard, { type Produto, normalizarImagens } from "@/components/ProdutoCard";
+import ProdutoCard, { type Produto } from "@/components/ProdutoCard";
 
 // Item da vitrine: 1 card de grupo OU 1 card de produto individual
 type ItemVitrine =
-  | { tipo: "grupo"; nomeGrupo: string; variacoes: Produto[] }
+  | { tipo: "grupo"; grupoId: number; nomeGrupo: string; variacoes: Produto[] }
   | { tipo: "produto"; produto: Produto };
 
 // Card de Grupo: representa uma família inteira (ex.: "Painel de Led Quadrado")
-function GrupoCard({ nomeGrupo, variacoes }: { nomeGrupo: string; variacoes: Produto[] }) {
-  const imagens = normalizarImagens(variacoes[0]?.imagens || []);
-  const capa = imagens[0]?.caminho_imagem; // capa da primeira variação do grupo
-  const rotaGrupo = `/materiais/grupo/${encodeURIComponent(nomeGrupo)}`;
+function GrupoCard({ grupoId, nomeGrupo, variacoes }: { grupoId: number; nomeGrupo: string; variacoes: Produto[] }) {
+  const capa = variacoes[0]?.grupo_capa; // Fase 19: capa OFICIAL do grupo (nativa do JSON)
+  const rotaGrupo = `/materiais/grupo/${grupoId}`; // Fase 19: passa o ID na URL
 
   return (
     <div className="bg-white border border-slate-200 rounded-sm overflow-hidden flex flex-col shadow-sm hover:shadow-md hover:border-[#F0B429]/40 transition-all">
@@ -45,7 +44,7 @@ function GrupoCard({ nomeGrupo, variacoes }: { nomeGrupo: string; variacoes: Pro
 
       <div className="p-5 flex flex-col flex-1">
         <span className="text-[#B8860B] text-[10px] tracking-widest uppercase font-medium">
-          {variacoes[0]?.categoria || "Geral"}
+          {variacoes[0]?.categoria_nome || "Geral"}
         </span>
         <h3 className="text-slate-900 font-['Barlow_Condensed'] font-700 text-xl mt-1">
           {nomeGrupo}
@@ -96,7 +95,7 @@ export default function Materiais() {
   const categorias = useMemo(() => {
     const unicas = new Set<string>();
     produtos.forEach((p) => {
-      if (p.categoria) unicas.add(p.categoria);
+      if (p.categoria_nome) unicas.add(p.categoria_nome);
     });
     return ["todos", ...Array.from(unicas)];
   }, [produtos]);
@@ -106,33 +105,39 @@ export default function Materiais() {
     () =>
       categoriaAtiva === "todos"
         ? produtos
-        : produtos.filter((p) => p.categoria === categoriaAtiva),
+        : produtos.filter((p) => p.categoria_nome === categoriaAtiva),
     [produtos, categoriaAtiva]
   );
 
   // Vitrine mista (Fase 13): agrupa produtos da mesma família em 1 Card de Grupo
   const itensVitrine = useMemo<ItemVitrine[]>(() => {
-    const mapa = new Map<string, Produto[]>();
-    const ordem: string[] = []; // ordem de primeira aparição de cada grupo
+    const mapa = new Map<number, Produto[]>();
+    const ordem: number[] = []; // ordem de primeira aparição de cada grupo
     const itens: ItemVitrine[] = [];
 
     for (const p of produtosFiltrados) {
-      const g = (p.grupo || "").trim();
-      if (g === "") {
+      const gid = p.grupo_id; // Fase 19: agrupa por ID
+      if (gid === null || gid === undefined) {
         // Produto sem grupo → card individual
         itens.push({ tipo: "produto", produto: p });
       } else {
-        if (!mapa.has(g)) {
-          mapa.set(g, []);
-          ordem.push(g);
+        if (!mapa.has(gid)) {
+          mapa.set(gid, []);
+          ordem.push(gid);
         }
-        mapa.get(g)!.push(p);
+        mapa.get(gid)!.push(p);
       }
     }
 
     // Cada grupo vira 1 único card de grupo (na ordem de primeira aparição)
-    for (const nome of ordem) {
-      itens.push({ tipo: "grupo", nomeGrupo: nome, variacoes: mapa.get(nome)! });
+    for (const gid of ordem) {
+      const variacoes = mapa.get(gid)!;
+      itens.push({
+        tipo: "grupo",
+        grupoId: gid,
+        nomeGrupo: variacoes[0]?.grupo_nome || "Grupo",
+        variacoes,
+      });
     }
 
     return itens;
@@ -197,7 +202,8 @@ export default function Materiais() {
             {itensVitrine.map((item) =>
               item.tipo === "grupo" ? (
                 <GrupoCard
-                  key={`grupo-${item.nomeGrupo}`}
+                  key={`grupo-${item.grupoId}`}
+                  grupoId={item.grupoId}
                   nomeGrupo={item.nomeGrupo}
                   variacoes={item.variacoes}
                 />

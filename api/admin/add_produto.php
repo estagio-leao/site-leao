@@ -89,18 +89,28 @@ try {
 
     $conn->beginTransaction();
 
-    // 1) Insere o produto (a coluna imagem não existe mais — imagens vão para produto_imagens)
-    //    Campo grupo (Fase 11): opcional; grava NULL se vier vazio
-    $grupo = isset($_POST['grupo']) ? trim($_POST['grupo']) : "";
-    if ($grupo === "") $grupo = null;
+    // 1) Insere o produto — modelo relacional (Fase 15): categoria_id e grupo_id (IDs)
+    $categoria_id = isset($_POST['categoria_id']) ? (int)$_POST['categoria_id'] : 0;
+    if ($categoria_id <= 0) {
+        http_response_code(400);
+        echo json_encode(array("mensagem" => "Categoria inválida."));
+        exit();
+    }
+    $grupo_id = (isset($_POST['grupo_id']) && $_POST['grupo_id'] !== '')
+        ? (int)$_POST['grupo_id']
+        : null;
 
-    $query = "INSERT INTO produtos (nome, grupo, especificacao, categoria, descricao)
-              VALUES (:nome, :grupo, :especificacao, :categoria, :descricao)";
+    $query = "INSERT INTO produtos (nome, categoria_id, grupo_id, especificacao, descricao)
+              VALUES (:nome, :categoria_id, :grupo_id, :especificacao, :descricao)";
     $stmt = $conn->prepare($query);
     $stmt->bindParam(":nome", $_POST['nome']);
-    $stmt->bindParam(":grupo", $grupo);
+    $stmt->bindParam(":categoria_id", $categoria_id, PDO::PARAM_INT);
+    if ($grupo_id === null) {
+        $stmt->bindValue(":grupo_id", null, PDO::PARAM_NULL);
+    } else {
+        $stmt->bindValue(":grupo_id", $grupo_id, PDO::PARAM_INT);
+    }
     $stmt->bindParam(":especificacao", $_POST['especificacao']);
-    $stmt->bindParam(":categoria", $_POST['categoria']);
     $descricao = isset($_POST['descricao']) ? $_POST['descricao'] : "";
     $stmt->bindParam(":descricao", $descricao);
     $stmt->execute();

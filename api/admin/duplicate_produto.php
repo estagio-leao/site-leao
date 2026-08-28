@@ -76,15 +76,23 @@ try {
     // 4) Nome da cópia: acréscimo de " (Cópia)"
     $novo_nome = $produto['nome'] . " (Cópia)";
 
-    // 5) INSERT do novo produto — herdando inclusive o grupo (mesma família)
+    // 5) INSERT do novo produto — herdando categoria_id e grupo_id (Fase 15)
     $stmt = $conn->prepare(
-        "INSERT INTO produtos (nome, grupo, especificacao, categoria, descricao)
-         VALUES (:nome, :grupo, :especificacao, :categoria, :descricao)"
+        "INSERT INTO produtos (nome, categoria_id, grupo_id, especificacao, descricao)
+         VALUES (:nome, :categoria_id, :grupo_id, :especificacao, :descricao)"
     );
     $stmt->bindParam(":nome", $novo_nome);
-    $stmt->bindParam(":grupo", $produto['grupo']);
+    if ($produto['categoria_id'] === null) {
+        $stmt->bindValue(":categoria_id", null, PDO::PARAM_NULL);
+    } else {
+        $stmt->bindValue(":categoria_id", $produto['categoria_id'], PDO::PARAM_INT);
+    }
+    if ($produto['grupo_id'] === null) {
+        $stmt->bindValue(":grupo_id", null, PDO::PARAM_NULL);
+    } else {
+        $stmt->bindValue(":grupo_id", $produto['grupo_id'], PDO::PARAM_INT);
+    }
     $stmt->bindParam(":especificacao", $produto['especificacao']);
-    $stmt->bindParam(":categoria", $produto['categoria']);
     $stmt->bindParam(":descricao", $produto['descricao']);
     $stmt->execute();
     $novo_id = $conn->lastInsertId();

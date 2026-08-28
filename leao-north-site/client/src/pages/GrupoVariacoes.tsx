@@ -1,8 +1,8 @@
 /*
  * LEÃO NORTH — Grupo de Variações (página intermediária da vitrine)
- * Rota: /materiais/grupo/:nome_grupo
- * Fase 13: busca os produtos, filtra os que pertencem ao grupo (client-side)
- * e exibe cada variação com o ProdutoCard individual normal.
+ * Rota: /materiais/grupo/:id
+ * Fase 19: busca os produtos, filtra por grupo_id (client-side) e exibe cada
+ * variação com o ProdutoCard individual normal, com os nomes oficiais no header.
  */
 import { useEffect, useState } from "react";
 import { Link, useParams } from "wouter";
@@ -13,16 +13,8 @@ import WhatsAppButton from "@/components/WhatsAppButton";
 import ProdutoCard, { type Produto } from "@/components/ProdutoCard";
 
 export default function GrupoVariacoes() {
-  const params = useParams<{ nome_grupo: string }>();
-
-  // Decodifica nomes com espaços/acentos (ex.: "Painel de Led Quadrado")
-  // try/catch: se o wouter já decodificou, mantém o valor original sem quebrar.
-  let nomeGrupo = params.nome_grupo || "";
-  try {
-    nomeGrupo = decodeURIComponent(nomeGrupo);
-  } catch {
-    // já veio decodificado (ou contém caractere inválido) — usa o valor bruto
-  }
+  const params = useParams<{ id: string }>();
+  const grupoId = Number(params.id); // Fase 19: rota por ID (estável, sem encoding)
 
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [loading, setLoading] = useState(true);
@@ -38,9 +30,9 @@ export default function GrupoVariacoes() {
           setNaoEncontrado(true);
           return;
         }
-        // Filtro client-side (Fase 13): aproveita os dados já buscados
+        // Filtro client-side (Fase 19): aproveita os dados já buscados, por grupo_id
         const filtrados = data.filter(
-          (p: Produto) => (p.grupo || "").trim() === nomeGrupo
+          (p: Produto) => Number(p.grupo_id) === grupoId
         );
         setProdutos(filtrados);
         setNaoEncontrado(filtrados.length === 0);
@@ -50,7 +42,7 @@ export default function GrupoVariacoes() {
         setNaoEncontrado(true);
       })
       .finally(() => setLoading(false));
-  }, [nomeGrupo]);
+  }, [grupoId]);
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-['DM_Sans']" style={{ background: "#F8FAFC" }}>
@@ -69,10 +61,10 @@ export default function GrupoVariacoes() {
         {!loading && !naoEncontrado && (
           <div className="mb-10 text-center">
             <span className="inline-flex items-center px-4 py-1.5 bg-[#F0B429]/10 border border-[#F0B429]/30 text-[#B8860B] text-xs font-['DM_Sans'] font-medium tracking-[0.2em] uppercase rounded-sm">
-              {produtos[0]?.categoria || "Leão North Materiais"}
+              {produtos[0]?.categoria_nome || "Leão North Materiais"}
             </span>
             <h1 className="font-['Barlow_Condensed'] font-700 text-3xl lg:text-5xl text-slate-900 uppercase mt-4">
-              {nomeGrupo}
+              {produtos[0]?.grupo_nome || "Grupo"}
             </h1>
             <p className="text-slate-600 text-sm lg:text-base font-['DM_Sans'] mt-3">
               {produtos.length} opção{produtos.length > 1 ? "ões" : ""} disponíve

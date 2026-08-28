@@ -15,9 +15,12 @@ export type ProdutoInfo = { titulo: string; texto: string };
 export type Produto = {
   id: number;
   nome: string;
-  grupo: string | null; // Fase 11: grupo/família (null = produto avulso)
+  categoria_id: number | null;
+  categoria_nome: string | null;
+  grupo_id: number | null;
+  grupo_nome: string | null;
+  grupo_capa: string | null; // capa EXCLUSIVA do grupo (nativa do JSON — Fase 15)
   especificacao: string | null;
-  categoria: string | null;
   descricao: string | null;
   data_cadastro: string;
   imagens: ProdutoImagem[];
@@ -91,7 +94,7 @@ export default function ProdutoCard({ produto }: { produto: Produto }) {
 
       <div className="p-5 flex flex-col flex-1">
         <span className="text-[#B8860B] text-[10px] tracking-widest uppercase font-medium">
-          {produto.categoria || "Geral"}
+          {produto.categoria_nome || "Geral"}
         </span>
         <h3 className="text-slate-900 font-['Barlow_Condensed'] font-700 text-xl mt-1">
           {produto.nome}

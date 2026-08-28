@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "wouter";
-import { LogOut, Upload, Trash2, Plus, Image as ImageIcon, LayoutDashboard, Mail, Star, FolderOpen, Package, X, Pencil, Copy, ArrowLeft } from "lucide-react";
+import { LogOut, Upload, Trash2, Plus, Image as ImageIcon, LayoutDashboard, Mail, Star, FolderOpen, Package, X, Pencil, Copy, ArrowLeft, Tag } from "lucide-react";
 
 export default function Dashboard() {
   const [, setLocation] = useLocation();
@@ -21,7 +21,13 @@ export default function Dashboard() {
 
   // Estados do Catálogo de Produtos (formato complexo - Fase 6/7)
   const [produtos, setProdutos] = useState<any[]>([]);
-  const [prodForm, setProdForm] = useState({ nome: "", especificacao: "", categoria: "Disjuntores", descricao: "", grupo: "" });
+  const [prodForm, setProdForm] = useState({
+    nome: "",
+    especificacao: "",
+    descricao: "",
+    categoria_id: "" as number | "", // Fase 18: id da categoria
+    grupo_id: "" as number | "",     // Fase 18: id do grupo, opcional
+  });
   const [prodFiles, setProdFiles] = useState<File[]>([]);
   const [capaIndex, setCapaIndex] = useState(0);
   const [infoList, setInfoList] = useState<{ titulo: string; texto: string }[]>([]);
@@ -34,6 +40,21 @@ export default function Dashboard() {
   // Navegação em "pastas" da listagem (Fase 14): null = visão raiz | nome do grupo = dentro da pasta
   const [grupoAtivo, setGrupoAtivo] = useState<string | null>(null);
 
+  // Estados de Categorias (Fase 16)
+  const [categorias, setCategorias] = useState<any[]>([]);
+  const [catForm, setCatForm] = useState<{ id?: number; nome: string }>({ nome: "" });
+  const [loadingCat, setLoadingCat] = useState(false);
+
+  // Estados de Grupos (Fase 17)
+  const [grupos, setGrupos] = useState<any[]>([]);
+  const [grupoForm, setGrupoForm] = useState<{ id?: number; nome: string; categoria_id: number | "" }>({
+    nome: "",
+    categoria_id: "",
+  });
+  const [grupoFile, setGrupoFile] = useState<File | null>(null);       // arquivo da capa
+  const [grupoPreview, setGrupoPreview] = useState<string | null>(null); // URL de preview da capa
+  const [loadingGrupo, setLoadingGrupo] = useState(false);
+
   useEffect(() => {
     if (!localStorage.getItem("admin_token")) {
       setLocation("/admin");
@@ -42,6 +63,8 @@ export default function Dashboard() {
       fetchMensagens();
       fetchDepoimentos();
       fetchProdutos();
+      fetchCategorias();
+      fetchGrupos();
     }
   }, []);
 
@@ -68,6 +91,22 @@ export default function Dashboard() {
       const data = await res.json();
       if (Array.isArray(data)) setDepoimentos(data);
     } catch (err) { console.error("Erro depoimentos", err); }
+  };
+
+  const fetchCategorias = async () => {
+    try {
+      const res = await fetch("http://localhost/leaonorth/api/categorias.php");
+      const data = await res.json();
+      if (Array.isArray(data)) setCategorias(data);
+    } catch (err) { console.error("Erro categorias", err); }
+  };
+
+  const fetchGrupos = async () => {
+    try {
+      const res = await fetch("http://localhost/leaonorth/api/grupos.php");
+      const data = await res.json();
+      if (Array.isArray(data)) setGrupos(data);
+    } catch (err) { console.error("Erro grupos", err); }
   };
 
   const handleLogout = () => {
@@ -133,6 +172,162 @@ export default function Dashboard() {
     } catch (err) { alert("Erro ao excluir."); }
   };
 
+  // --- FUNÇÕES DE CATEGORIAS (Fase 16) ---
+  const handleAddCategoria = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!catForm.nome.trim()) return alert("Informe o nome da categoria.");
+    setLoadingCat(true);
+    const formData = new FormData();
+    formData.append("nome", catForm.nome);
+    try {
+      const res = await fetch("http://localhost/leaonorth/api/admin/add_categoria.php", {
+        method: "POST", body: formData,
+      });
+      if (res.ok) {
+        setCatForm({ nome: "" });
+        fetchCategorias();
+        alert("Categoria adicionada!");
+      } else {
+        const err = await res.json().catch(() => null);
+        alert(err?.mensagem || "Erro ao salvar categoria.");
+      }
+    } catch (err) { alert("Erro ao enviar."); } finally { setLoadingCat(false); }
+  };
+
+  const handleEditCategoria = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!catForm.id) return;
+    if (!catForm.nome.trim()) return alert("Informe o nome da categoria.");
+    setLoadingCat(true);
+    const formData = new FormData();
+    formData.append("id", String(catForm.id));
+    formData.append("nome", catForm.nome);
+    try {
+      const res = await fetch("http://localhost/leaonorth/api/admin/edit_categoria.php", {
+        method: "POST", body: formData,
+      });
+      if (res.ok) {
+        setCatForm({ nome: "" });
+        fetchCategorias();
+        alert("Categoria atualizada!");
+      } else {
+        const err = await res.json().catch(() => null);
+        alert(err?.mensagem || "Erro ao atualizar categoria.");
+      }
+    } catch (err) { alert("Erro ao enviar."); } finally { setLoadingCat(false); }
+  };
+
+  const handleDeleteCategoria = async (id: number) => {
+    if (!confirm("Tem certeza que deseja apagar esta categoria?")) return;
+    try {
+      const res = await fetch(`http://localhost/leaonorth/api/admin/delete_categoria.php?id=${id}`, { method: "DELETE" });
+      if (res.ok) {
+        fetchCategorias();
+      } else {
+        const err = await res.json().catch(() => null);
+        alert(err?.mensagem || "Erro ao excluir categoria.");
+      }
+    } catch (err) { alert("Erro ao excluir."); }
+  };
+
+  // --- FUNÇÕES DE GRUPOS (Fase 17) ---
+  const resetGrupoForm = () => {
+    // Revoga o ObjectURL do preview local (se vier de um arquivo selecionado)
+    if (grupoFile && grupoPreview) {
+      URL.revokeObjectURL(grupoPreview);
+    }
+    setGrupoForm({ nome: "", categoria_id: "" });
+    setGrupoFile(null);
+    setGrupoPreview(null);
+  };
+
+  const handleGrupoFileChange = (file: File | null) => {
+    // Revoga o ObjectURL anterior, se havia um arquivo local selecionado
+    if (grupoFile && grupoPreview) {
+      URL.revokeObjectURL(grupoPreview);
+    }
+    setGrupoFile(file);
+    setGrupoPreview(file ? URL.createObjectURL(file) : null);
+  };
+
+  const entrarEdicaoGrupo = (g: any) => {
+    if (grupoFile && grupoPreview) {
+      URL.revokeObjectURL(grupoPreview);
+    }
+    setGrupoForm({ id: g.id, nome: g.nome, categoria_id: g.categoria_id });
+    setGrupoFile(null);
+    setGrupoPreview(g.caminho_imagem_capa ? `http://localhost/leaonorth${g.caminho_imagem_capa}` : null);
+  };
+
+  const handleAddGrupo = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!grupoForm.nome.trim()) return alert("Informe o nome do grupo.");
+    if (!grupoForm.categoria_id) return alert("Selecione uma categoria.");
+    if (!grupoFile) return alert("A capa do grupo é obrigatória.");
+    setLoadingGrupo(true);
+
+    const formData = new FormData();
+    formData.append("nome", grupoForm.nome);
+    formData.append("categoria_id", String(grupoForm.categoria_id));
+    formData.append("capa", grupoFile);   // upload ÚNICO da capa
+
+    try {
+      const res = await fetch("http://localhost/leaonorth/api/admin/add_grupo.php", {
+        method: "POST", body: formData,
+      });
+      if (res.ok) {
+        resetGrupoForm();
+        fetchGrupos();
+        alert("Grupo criado com sucesso!");
+      } else {
+        const err = await res.json().catch(() => null);
+        alert(err?.mensagem || "Erro ao criar grupo.");
+      }
+    } catch (err) { alert("Erro ao enviar."); } finally { setLoadingGrupo(false); }
+  };
+
+  const handleEditGrupo = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!grupoForm.id) return;
+    if (!grupoForm.nome.trim()) return alert("Informe o nome do grupo.");
+    if (!grupoForm.categoria_id) return alert("Selecione uma categoria.");
+    setLoadingGrupo(true);
+
+    const formData = new FormData();
+    formData.append("id", String(grupoForm.id));
+    formData.append("nome", grupoForm.nome);
+    formData.append("categoria_id", String(grupoForm.categoria_id));
+    // Só anexa a capa se houver um novo arquivo selecionado
+    if (grupoFile) formData.append("capa", grupoFile);
+
+    try {
+      const res = await fetch("http://localhost/leaonorth/api/admin/edit_grupo.php", {
+        method: "POST", body: formData,
+      });
+      if (res.ok) {
+        resetGrupoForm();
+        fetchGrupos();
+        alert("Grupo atualizado!");
+      } else {
+        const err = await res.json().catch(() => null);
+        alert(err?.mensagem || "Erro ao atualizar grupo.");
+      }
+    } catch (err) { alert("Erro ao enviar."); } finally { setLoadingGrupo(false); }
+  };
+
+  const handleDeleteGrupo = async (id: number) => {
+    if (!confirm("Tem certeza que deseja apagar este grupo?")) return;
+    try {
+      const res = await fetch(`http://localhost/leaonorth/api/admin/delete_grupo.php?id=${id}`, { method: "DELETE" });
+      if (res.ok) {
+        fetchGrupos();
+      } else {
+        const err = await res.json().catch(() => null);
+        alert(err?.mensagem || "Erro ao excluir grupo.");
+      }
+    } catch (err) { alert("Erro ao excluir."); }
+  };
+
   // --- FUNÇÕES DO CATÁLOGO DE PRODUTOS ---
   const fetchProdutos = async () => {
     try {
@@ -192,7 +387,7 @@ export default function Dashboard() {
   const resetProdForm = () => {
     setProdutoEditandoId(null);
     setImgsMantidas([]);
-    setProdForm({ nome: "", especificacao: "", categoria: "Disjuntores", descricao: "", grupo: "" });
+    setProdForm({ nome: "", especificacao: "", descricao: "", categoria_id: "", grupo_id: "" });
     setProdFiles([]);
     setCapaIndex(0);
     setInfoList([]);
@@ -204,9 +399,9 @@ export default function Dashboard() {
     setProdForm({
       nome: prod.nome || "",
       especificacao: prod.especificacao || "",
-      categoria: prod.categoria || "Disjuntores",
       descricao: prod.descricao || "",
-      grupo: prod.grupo || "",
+      categoria_id: prod.categoria_id ?? "",
+      grupo_id: prod.grupo_id ?? "",
     });
     setImgsMantidas(prod.imagens || []);
     setProdFiles([]);
@@ -226,9 +421,10 @@ export default function Dashboard() {
     formData.append("id", String(produtoEditandoId));
     formData.append("nome", prodForm.nome);
     formData.append("especificacao", prodForm.especificacao);
-    formData.append("categoria", prodForm.categoria);
+    formData.append("categoria_id", String(prodForm.categoria_id));
     formData.append("descricao", prodForm.descricao);
-    formData.append("grupo", prodForm.grupo);
+    // Grupo é opcional: só envia se um grupo foi selecionado
+    if (prodForm.grupo_id !== "") formData.append("grupo_id", String(prodForm.grupo_id));
     // Lista combinada em ordem: mantidas primeiro, depois novas
     formData.append("imagens_mantidas", JSON.stringify(imgsMantidas.map(i => i.caminho_imagem)));
     formData.append("capa_index", String(capaIndex));
@@ -265,9 +461,10 @@ export default function Dashboard() {
     formData.append("informacoes", JSON.stringify(infoList)); // string JSON
     formData.append("nome", prodForm.nome);
     formData.append("especificacao", prodForm.especificacao);
-    formData.append("categoria", prodForm.categoria);
+    formData.append("categoria_id", String(prodForm.categoria_id));
     formData.append("descricao", prodForm.descricao);
-    formData.append("grupo", prodForm.grupo);
+    // Grupo é opcional: só envia se um grupo foi selecionado
+    if (prodForm.grupo_id !== "") formData.append("grupo_id", String(prodForm.grupo_id));
 
     try {
       const res = await fetch("http://localhost/leaonorth/api/admin/add_produto.php", {
@@ -333,26 +530,26 @@ export default function Dashboard() {
 
   // --- FASE 14: Listagem agrupada em "pastas" (drill-down) ---
   // Visão raiz: produtos sem grupo (avulsos) → cards individuais; produtos com grupo → pastas
-  const { avulsos, grupos } = useMemo(() => {
-    const mapa = new Map<string, any[]>();
+  const { avulsos, gruposPasta } = useMemo(() => {
+    const mapa = new Map<number, any[]>();
     const semGrupo: any[] = [];
     for (const p of produtos) {
-      const g = (p.grupo || "").trim();
-      if (g === "") {
+      const gid = p.grupo_id; // Fase 18: agrupa por ID
+      if (gid === null || gid === undefined || gid === "") {
         semGrupo.push(p);
       } else {
-        if (!mapa.has(g)) mapa.set(g, []);
-        mapa.get(g)!.push(p);
+        if (!mapa.has(gid)) mapa.set(gid, []);
+        mapa.get(gid)!.push(p);
       }
     }
-    return { avulsos: semGrupo, grupos: Array.from(mapa.entries()) };
+    return { avulsos: semGrupo, gruposPasta: Array.from(mapa.entries()) };
   }, [produtos]);
 
   // Produtos da pasta ativa (visão dentro do grupo)
   const produtosDoGrupo = useMemo(
     () =>
-      grupoAtivo
-        ? produtos.filter(p => (p.grupo || "").trim() === grupoAtivo)
+      grupoAtivo !== null
+        ? produtos.filter(p => Number(p.grupo_id) === Number(grupoAtivo))
         : [],
     [produtos, grupoAtivo]
   );
@@ -383,9 +580,9 @@ export default function Dashboard() {
           </div>
         </div>
         <div className="p-4 flex-1">
-          <span className="text-[#F0B429] text-[10px] tracking-widest uppercase">{prod.categoria} • {prod.imagens?.length || 0} foto(s)</span>
-          {prod.grupo && (
-            <p className="text-sky-400/80 text-[10px] tracking-widest uppercase mt-0.5">Grupo: {prod.grupo}</p>
+          <span className="text-[#F0B429] text-[10px] tracking-widest uppercase">{prod.categoria_nome || "Geral"} • {prod.imagens?.length || 0} foto(s)</span>
+          {prod.grupo_nome && (
+            <p className="text-sky-400/80 text-[10px] tracking-widest uppercase mt-0.5">Grupo: {prod.grupo_nome}</p>
           )}
           <h3 className="text-white font-medium text-sm mt-1">{prod.nome}</h3>
           {prod.especificacao && <p className="text-white/50 text-xs mt-1 line-clamp-2">{prod.especificacao}</p>}
@@ -395,10 +592,12 @@ export default function Dashboard() {
   };
 
   // Card de Pasta/Grupo — resumido, com botão "Ver Variações" (Fase 14)
-  const renderGrupoPasta = (nomeGrupo: string, variacoes: any[]) => {
-    const capa = variacoes[0]?.imagens?.find((i: any) => i.is_capa)?.caminho_imagem;
+  const renderGrupoPasta = (grupoId: number, variacoes: any[]) => {
+    const primeiro = variacoes[0];
+    const capa = primeiro?.grupo_capa; // Fase 18: capa EXCLUSIVA do grupo (nativa do JSON)
+    const nomeGrupo = primeiro?.grupo_nome || "Grupo";
     return (
-      <div key={`pasta-${nomeGrupo}`} className="bg-[#111111] border border-white/10 rounded-sm overflow-hidden flex flex-col">
+      <div key={`pasta-${grupoId}`} className="bg-[#111111] border border-white/10 rounded-sm overflow-hidden flex flex-col">
         <div className="h-40 overflow-hidden relative bg-[#080808]">
           {capa ? (
             <img src={`http://localhost/leaonorth${capa}`} alt={nomeGrupo} className="w-full h-full object-cover" />
@@ -412,13 +611,13 @@ export default function Dashboard() {
           </span>
         </div>
         <div className="p-4 flex-1">
-          <span className="text-[#F0B429] text-[10px] tracking-widest uppercase">{variacoes[0]?.categoria || "Grupo"}</span>
+          <span className="text-[#F0B429] text-[10px] tracking-widest uppercase">{primeiro?.categoria_nome || "Grupo"}</span>
           <h3 className="text-white font-medium text-sm mt-1">{nomeGrupo}</h3>
           <p className="text-white/40 text-xs mt-1">{variacoes.length} produto(s) nesta família.</p>
         </div>
         <div className="p-4 pt-0">
           <button
-            onClick={() => setGrupoAtivo(nomeGrupo)}
+            onClick={() => setGrupoAtivo(String(grupoId))}
             className="w-full py-2.5 bg-sky-500/20 text-sky-400 font-['Barlow_Condensed'] font-700 uppercase rounded-sm hover:bg-sky-500 hover:text-white transition-all"
           >
             Ver Variações
@@ -427,6 +626,18 @@ export default function Dashboard() {
       </div>
     );
   };
+
+  // Classe dos itens do menu lateral (Fase 16)
+  const sidebarItemClass = (tab: string) =>
+    `w-full flex items-center gap-3 px-4 py-3 rounded-sm transition-colors ${
+      activeTab === tab
+        ? "bg-[#F0B429]/10 text-[#F0B429]"
+        : "text-white/60 hover:bg-white/5 hover:text-white"
+    }`;
+
+  const sidebarSectionLabel = (label: string) => (
+    <p className="px-4 pt-4 pb-1 text-[9px] tracking-[0.2em] uppercase text-white/30">{label}</p>
+  );
 
   return (
     <div className="min-h-screen bg-[#050505] font-['DM_Sans'] flex">
@@ -438,18 +649,32 @@ export default function Dashboard() {
             Painel <span className="text-[#F0B429]">Admin</span>
           </h1>
         </div>
-        <nav className="flex-1 p-4 space-y-2">
-          <button onClick={() => setActiveTab("portfolio")} className={`w-full flex items-center gap-3 px-4 py-3 rounded-sm transition-colors ${activeTab === "portfolio" ? "bg-[#F0B429]/10 text-[#F0B429]" : "text-white/60 hover:bg-white/5 hover:text-white"}`}>
-            <FolderOpen className="w-5 h-5" /> Portfólio
+        <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
+          {/* LEÃO MATERIAIS */}
+          {sidebarSectionLabel("Leão Materiais")}
+          <button onClick={() => setActiveTab("categorias")} className={sidebarItemClass("categorias")}>
+            <Tag className="w-5 h-5" /> Categorias
           </button>
-          <button onClick={() => setActiveTab("produtos")} className={`w-full flex items-center gap-3 px-4 py-3 rounded-sm transition-colors ${activeTab === "produtos" ? "bg-[#F0B429]/10 text-[#F0B429]" : "text-white/60 hover:bg-white/5 hover:text-white"}`}>
-            <Package className="w-5 h-5" /> Catálogo de Produtos
+          <button onClick={() => setActiveTab("grupos")} className={sidebarItemClass("grupos")}>
+            <FolderOpen className="w-5 h-5" /> Grupos
           </button>
-          <button onClick={() => setActiveTab("mensagens")} className={`w-full flex items-center gap-3 px-4 py-3 rounded-sm transition-colors ${activeTab === "mensagens" ? "bg-[#F0B429]/10 text-[#F0B429]" : "text-white/60 hover:bg-white/5 hover:text-white"}`}>
-            <Mail className="w-5 h-5" /> Caixa de Entrada
+          <button onClick={() => setActiveTab("produtos")} className={sidebarItemClass("produtos")}>
+            <Package className="w-5 h-5" /> Produtos
           </button>
-          <button onClick={() => setActiveTab("depoimentos")} className={`w-full flex items-center gap-3 px-4 py-3 rounded-sm transition-colors ${activeTab === "depoimentos" ? "bg-[#F0B429]/10 text-[#F0B429]" : "text-white/60 hover:bg-white/5 hover:text-white"}`}>
+
+          {/* LEÃO SERVICE */}
+          {sidebarSectionLabel("Leão Service")}
+          <button onClick={() => setActiveTab("portfolio")} className={sidebarItemClass("portfolio")}>
+            <ImageIcon className="w-5 h-5" /> Portfólio/Serviços
+          </button>
+          <button onClick={() => setActiveTab("depoimentos")} className={sidebarItemClass("depoimentos")}>
             <Star className="w-5 h-5" /> Depoimentos
+          </button>
+
+          {/* GERAL */}
+          {sidebarSectionLabel("Geral")}
+          <button onClick={() => setActiveTab("mensagens")} className={sidebarItemClass("mensagens")}>
+            <Mail className="w-5 h-5" /> Mensagens
           </button>
         </nav>
         <div className="p-4 border-t border-white/5">
@@ -544,7 +769,19 @@ export default function Dashboard() {
                 </div>
                 <div>
                   <label className="block text-white/40 text-xs tracking-widest uppercase mb-1.5">Grupo (Família) — Opcional</label>
-                  <input type="text" value={prodForm.grupo} onChange={e => setProdForm({...prodForm, grupo: e.target.value})} className={inputClass} placeholder="Ex: Painel de Led Quadrado" />
+                  <select
+                    value={prodForm.grupo_id}
+                    onChange={e => setProdForm({ ...prodForm, grupo_id: Number(e.target.value) })}
+                    className={inputClass}
+                    disabled={prodForm.categoria_id === ""}
+                  >
+                    <option value="">Sem grupo</option>
+                    {grupos
+                      .filter(g => prodForm.categoria_id !== "" && g.categoria_id === Number(prodForm.categoria_id))
+                      .map(g => (
+                        <option key={g.id} value={g.id}>{g.nome}</option>
+                      ))}
+                  </select>
                 </div>
                 <div>
                   <label className="block text-white/40 text-xs tracking-widest uppercase mb-1.5">Especificação</label>
@@ -556,13 +793,28 @@ export default function Dashboard() {
                 </div>
                 <div>
                   <label className="block text-white/40 text-xs tracking-widest uppercase mb-1.5">Categoria</label>
-                  <select value={prodForm.categoria} onChange={e => setProdForm({...prodForm, categoria: e.target.value})} className={inputClass}>
-                    <option value="Disjuntores">Disjuntores</option>
-                    <option value="Cabos">Cabos</option>
-                    <option value="Tomadas">Tomadas</option>
-                    <option value="Iluminação">Iluminação</option>
-                    <option value="Quadros">Quadros</option>
-                    <option value="Outros">Outros</option>
+                  <select
+                    required
+                    value={prodForm.categoria_id}
+                    onChange={e => {
+                      const novaCategoria = Number(e.target.value);
+                      // UX: ao trocar de categoria, limpa o grupo se ele não pertencer à nova categoria
+                      setProdForm(prev => ({
+                        ...prev,
+                        categoria_id: novaCategoria,
+                        grupo_id:
+                          prev.grupo_id !== "" &&
+                          grupos.some(g => g.id === prev.grupo_id && g.categoria_id === novaCategoria)
+                            ? prev.grupo_id
+                            : "",
+                      }));
+                    }}
+                    className={inputClass}
+                  >
+                    <option value="" disabled>Selecione uma categoria...</option>
+                    {categorias.map(cat => (
+                      <option key={cat.id} value={cat.id}>{cat.nome}</option>
+                    ))}
                   </select>
                 </div>
                 <div>
@@ -707,7 +959,7 @@ export default function Dashboard() {
                   /* ===== VISÃO RAIZ ===== */
                   <>
                     {avulsos.map(renderProdutoCard)}
-                    {grupos.map(([nome, variacoes]) => renderGrupoPasta(nome, variacoes))}
+                    {gruposPasta.map(([grupoId, variacoes]) => renderGrupoPasta(grupoId, variacoes))}
                     {produtos.length === 0 && (
                       <div className="col-span-2 text-center text-white/40 py-10 border border-dashed border-white/10 rounded-sm">
                         Nenhum produto cadastrado.
@@ -938,6 +1190,202 @@ export default function Dashboard() {
                   </div>
                 ))}
                 {depoimentos.length === 0 && <div className="col-span-2 text-center text-white/40 py-10 border border-dashed border-white/10 rounded-sm">Nenhum depoimento cadastrado.</div>}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ABA: CATEGORIAS (Fase 16) */}
+        {activeTab === "categorias" && (
+          <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+            <div className="md:col-span-1 bg-[#111111] border border-white/10 rounded-sm p-6 h-fit">
+              <h2 className="text-white font-['Barlow_Condensed'] text-xl uppercase font-600 mb-6 flex items-center gap-2">
+                <Plus className="w-5 h-5 text-[#F0B429]" /> {catForm.hasOwnProperty('id') ? "Editar Categoria" : "Nova Categoria"}
+              </h2>
+              <form onSubmit={catForm.hasOwnProperty('id') ? handleEditCategoria : handleAddCategoria} className="space-y-4">
+                <div>
+                  <label className="block text-white/40 text-xs tracking-widest uppercase mb-1.5">Nome</label>
+                  <input
+                    type="text" required
+                    value={catForm.nome}
+                    onChange={e => setCatForm({ ...catForm, nome: e.target.value })}
+                    className={inputClass}
+                    placeholder="Ex: Iluminação"
+                  />
+                </div>
+                <div className="flex gap-2 mt-4">
+                  <button type="submit" disabled={loadingCat} className="flex-1 py-3 bg-[#F0B429] text-[#080808] font-['Barlow_Condensed'] font-700 uppercase rounded-sm hover:bg-[#FFD060] transition-colors flex items-center justify-center">
+                    {loadingCat ? "Salvando..." : "Salvar"}
+                  </button>
+                  {catForm.hasOwnProperty('id') && (
+                    <button type="button" onClick={() => setCatForm({ nome: "" })} className="px-4 py-3 bg-white/5 text-white/60 font-['Barlow_Condensed'] font-700 uppercase rounded-sm hover:bg-white/10 hover:text-white transition-colors">
+                      Cancelar
+                    </button>
+                  )}
+                </div>
+              </form>
+            </div>
+
+            <div className="md:col-span-2">
+              <h2 className="text-white font-['Barlow_Condensed'] text-xl uppercase font-600 mb-6">Categorias Cadastradas</h2>
+              <div className="bg-[#111111] border border-white/10 rounded-sm overflow-hidden">
+                <table className="w-full text-left text-sm text-white/80">
+                  <thead className="bg-[#1A1A1A] text-white/50 text-xs uppercase tracking-wider">
+                    <tr>
+                      <th className="px-6 py-4 font-medium border-b border-white/5">Nome</th>
+                      <th className="px-6 py-4 font-medium border-b border-white/5 text-right">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5">
+                    {categorias.map(cat => (
+                      <tr key={cat.id} className="hover:bg-white/5 transition-colors">
+                        <td className="px-6 py-4 text-white/80">{cat.nome}</td>
+                        <td className="px-6 py-4 text-right whitespace-nowrap">
+                          <button
+                            onClick={() => setCatForm({ id: cat.id, nome: cat.nome })}
+                            className="bg-[#F0B429]/20 text-[#F0B429] p-2 rounded-full hover:bg-[#F0B429] hover:text-[#080808] transition-all"
+                            title="Editar categoria"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteCategoria(cat.id)}
+                            className="bg-red-500/20 text-red-500 p-2 rounded-full hover:bg-red-500 hover:text-white transition-all ml-2"
+                            title="Excluir categoria"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                    {categorias.length === 0 && (
+                      <tr>
+                        <td colSpan={2} className="px-6 py-8 text-center text-white/40">Nenhuma categoria cadastrada.</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ABA: GRUPOS (Fase 17) */}
+        {activeTab === "grupos" && (
+          <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+            <div className="md:col-span-1 bg-[#111111] border border-white/10 rounded-sm p-6 h-fit">
+              <h2 className="text-white font-['Barlow_Condensed'] text-xl uppercase font-600 mb-6 flex items-center gap-2">
+                <Plus className="w-5 h-5 text-[#F0B429]" /> {grupoForm.hasOwnProperty('id') ? "Editar Grupo" : "Novo Grupo"}
+              </h2>
+              <form onSubmit={grupoForm.hasOwnProperty('id') ? handleEditGrupo : handleAddGrupo} className="space-y-4">
+                {/* Nome */}
+                <div>
+                  <label className="block text-white/40 text-xs tracking-widest uppercase mb-1.5">Nome</label>
+                  <input
+                    type="text" required
+                    value={grupoForm.nome}
+                    onChange={e => setGrupoForm({ ...grupoForm, nome: e.target.value })}
+                    className={inputClass}
+                    placeholder="Ex: Painel de Led Quadrado"
+                  />
+                </div>
+                {/* Categoria */}
+                <div>
+                  <label className="block text-white/40 text-xs tracking-widest uppercase mb-1.5">Categoria</label>
+                  <select
+                    required
+                    value={grupoForm.categoria_id}
+                    onChange={e => setGrupoForm({ ...grupoForm, categoria_id: Number(e.target.value) })}
+                    className={inputClass}
+                  >
+                    <option value="" disabled>Selecione uma categoria...</option>
+                    {categorias.map(cat => (
+                      <option key={cat.id} value={cat.id}>{cat.nome}</option>
+                    ))}
+                  </select>
+                </div>
+                {/* Capa (upload único + preview) */}
+                <div>
+                  <label className="block text-white/40 text-xs tracking-widest uppercase mb-1.5">Capa (obrigatória)</label>
+                  <div className="relative overflow-hidden">
+                    <input
+                      type="file" accept="image/*"
+                      onChange={e => handleGrupoFileChange(e.target.files?.[0] || null)}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    />
+                    <div className={`${inputClass} flex items-center gap-2 text-white/60 ${grupoFile ? 'text-[#F0B429] border-[#F0B429]/50' : ''}`}>
+                      <ImageIcon className="w-4 h-4" /> {grupoFile ? grupoFile.name : "Escolher Arquivo..."}
+                    </div>
+                  </div>
+                  {/* Preview: capa atual (edição) ou foto recém-selecionada */}
+                  {grupoPreview && (
+                    <img src={grupoPreview} alt="Capa do grupo" className="mt-3 w-full h-32 object-cover rounded-sm border border-white/10" />
+                  )}
+                </div>
+                <div className="flex gap-2 mt-4">
+                  <button type="submit" disabled={loadingGrupo} className="flex-1 py-3 bg-[#F0B429] text-[#080808] font-['Barlow_Condensed'] font-700 uppercase rounded-sm hover:bg-[#FFD060] transition-colors flex items-center justify-center">
+                    {loadingGrupo ? "Salvando..." : "Salvar"}
+                  </button>
+                  {grupoForm.hasOwnProperty('id') && (
+                    <button type="button" onClick={resetGrupoForm} className="px-4 py-3 bg-white/5 text-white/60 font-['Barlow_Condensed'] font-700 uppercase rounded-sm hover:bg-white/10 hover:text-white transition-colors">
+                      Cancelar
+                    </button>
+                  )}
+                </div>
+              </form>
+            </div>
+
+            <div className="md:col-span-2">
+              <h2 className="text-white font-['Barlow_Condensed'] text-xl uppercase font-600 mb-6">Grupos Cadastrados</h2>
+              <div className="bg-[#111111] border border-white/10 rounded-sm overflow-hidden">
+                <table className="w-full text-left text-sm text-white/80">
+                  <thead className="bg-[#1A1A1A] text-white/50 text-xs uppercase tracking-wider">
+                    <tr>
+                      <th className="px-6 py-4 font-medium border-b border-white/5">Capa</th>
+                      <th className="px-6 py-4 font-medium border-b border-white/5">Nome</th>
+                      <th className="px-6 py-4 font-medium border-b border-white/5">Categoria</th>
+                      <th className="px-6 py-4 font-medium border-b border-white/5 text-right">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5">
+                    {grupos.map(g => (
+                      <tr key={g.id} className="hover:bg-white/5 transition-colors">
+                        <td className="px-6 py-3">
+                          {g.caminho_imagem_capa ? (
+                            <img src={`http://localhost/leaonorth${g.caminho_imagem_capa}`} alt={g.nome} className="w-14 h-14 object-cover rounded-sm" />
+                          ) : (
+                            <div className="w-14 h-14 bg-[#080808] flex items-center justify-center text-white/20 rounded-sm">
+                              <ImageIcon className="w-6 h-6" />
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-6 py-3 text-white/80">{g.nome}</td>
+                        <td className="px-6 py-3 text-white/50">{g.categoria_nome || "—"}</td>
+                        <td className="px-6 py-3 text-right whitespace-nowrap">
+                          <button
+                            onClick={() => entrarEdicaoGrupo(g)}
+                            className="bg-[#F0B429]/20 text-[#F0B429] p-2 rounded-full hover:bg-[#F0B429] hover:text-[#080808] transition-all"
+                            title="Editar grupo"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteGrupo(g.id)}
+                            className="bg-red-500/20 text-red-500 p-2 rounded-full hover:bg-red-500 hover:text-white transition-all ml-2"
+                            title="Excluir grupo"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                    {grupos.length === 0 && (
+                      <tr>
+                        <td colSpan={4} className="px-6 py-8 text-center text-white/40">Nenhum grupo cadastrado.</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>

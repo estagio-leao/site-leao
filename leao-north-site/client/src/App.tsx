@@ -21,7 +21,7 @@ function Router() {
       <Route path={"/"} component={Gateway} />
       <Route path={"/service"} component={Service} />
       <Route path={"/materiais"} component={Materiais} />
-      <Route path={"/materiais/grupo/:nome_grupo"} component={GrupoVariacoes} />
+      <Route path={"/materiais/grupo/:id"} component={GrupoVariacoes} />
       <Route path={"/materiais/:id"} component={ProdutoDetalhes} />
 
       {/* Novas rotas do painel administrativo */}

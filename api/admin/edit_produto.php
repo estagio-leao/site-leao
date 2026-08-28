@@ -100,18 +100,28 @@ try {
 
     $conn->beginTransaction();
 
-    // 1) UPDATE dos dados básicos do produto (inclui grupo na Fase 11)
-    //    Campo grupo: opcional; grava NULL se vier vazio
-    $grupo = isset($_POST['grupo']) ? trim($_POST['grupo']) : "";
-    if ($grupo === "") $grupo = null;
+    // 1) UPDATE dos dados básicos do produto — modelo relacional (Fase 15): IDs
+    $categoria_id = isset($_POST['categoria_id']) ? (int)$_POST['categoria_id'] : 0;
+    if ($categoria_id <= 0) {
+        http_response_code(400);
+        echo json_encode(array("mensagem" => "Categoria inválida."));
+        exit();
+    }
+    $grupo_id = (isset($_POST['grupo_id']) && $_POST['grupo_id'] !== '')
+        ? (int)$_POST['grupo_id']
+        : null;
 
     $stmt = $conn->prepare(
-        "UPDATE produtos SET nome=:nome, grupo=:grupo, especificacao=:especificacao, categoria=:categoria, descricao=:descricao WHERE id=:id"
+        "UPDATE produtos SET nome=:nome, categoria_id=:categoria_id, grupo_id=:grupo_id, especificacao=:especificacao, descricao=:descricao WHERE id=:id"
     );
     $stmt->bindParam(":nome", $_POST['nome']);
-    $stmt->bindParam(":grupo", $grupo);
+    $stmt->bindParam(":categoria_id", $categoria_id, PDO::PARAM_INT);
+    if ($grupo_id === null) {
+        $stmt->bindValue(":grupo_id", null, PDO::PARAM_NULL);
+    } else {
+        $stmt->bindValue(":grupo_id", $grupo_id, PDO::PARAM_INT);
+    }
     $stmt->bindParam(":especificacao", $_POST['especificacao']);
-    $stmt->bindParam(":categoria", $_POST['categoria']);
     $descricao = isset($_POST['descricao']) ? $_POST['descricao'] : "";
     $stmt->bindParam(":descricao", $descricao);
     $stmt->bindParam(":id", $id, PDO::PARAM_INT);

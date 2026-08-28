@@ -20,22 +20,28 @@ try {
     $conn = new PDO("mysql:host={$host};dbname={$db_name}", $username, $password);
     $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-    // Filtros opcionais (Fase 11):
-    //   api/produtos.php?categoria=disjuntores
-    //   api/produtos.php?grupo=Painel de Led Quadrado
-    if (isset($_GET['grupo']) && $_GET['grupo'] !== '') {
-        $query = "SELECT id, nome, grupo, especificacao, categoria, descricao, data_cadastro
-                  FROM produtos WHERE grupo = :grupo ORDER BY id DESC";
+    // Filtros opcionais (Fase 15 — modelo relacional):
+    //   api/produtos.php?categoria_id=3
+    //   api/produtos.php?grupo_id=2
+    $base_select = "SELECT p.id, p.nome, p.especificacao, p.descricao, p.data_cadastro,
+                           p.categoria_id, c.nome AS categoria_nome,
+                           p.grupo_id, g.nome AS grupo_nome, g.caminho_imagem_capa AS grupo_capa
+                    FROM produtos p
+                    LEFT JOIN categorias c ON c.id = p.categoria_id
+                    LEFT JOIN grupos g    ON g.id = p.grupo_id";
+
+    if (isset($_GET['grupo_id']) && $_GET['grupo_id'] !== '') {
+        $grupo_id = (int)$_GET['grupo_id'];
+        $query = $base_select . " WHERE p.grupo_id = :grupo_id ORDER BY p.id DESC";
         $stmt = $conn->prepare($query);
-        $stmt->bindParam(":grupo", $_GET['grupo']);
-    } elseif (isset($_GET['categoria']) && $_GET['categoria'] !== '') {
-        $query = "SELECT id, nome, grupo, especificacao, categoria, descricao, data_cadastro
-                  FROM produtos WHERE categoria = :categoria ORDER BY id DESC";
+        $stmt->bindParam(":grupo_id", $grupo_id, PDO::PARAM_INT);
+    } elseif (isset($_GET['categoria_id']) && $_GET['categoria_id'] !== '') {
+        $categoria_id = (int)$_GET['categoria_id'];
+        $query = $base_select . " WHERE p.categoria_id = :categoria_id ORDER BY p.id DESC";
         $stmt = $conn->prepare($query);
-        $stmt->bindParam(":categoria", $_GET['categoria']);
+        $stmt->bindParam(":categoria_id", $categoria_id, PDO::PARAM_INT);
     } else {
-        $query = "SELECT id, nome, grupo, especificacao, categoria, descricao, data_cadastro
-                  FROM produtos ORDER BY id DESC";
+        $query = $base_select . " ORDER BY p.id DESC";
         $stmt = $conn->prepare($query);
     }
 
