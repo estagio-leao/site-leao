@@ -19,13 +19,13 @@ const SOCIOS: Socio[] = [
     id: "socio-1",
     nome: "Igor Busquim de Moraes",
     especialidade: "Diretor Executivo",
-    foto: "/uploads/igor.jpg",
+    foto: "http://localhost/leaonorth/uploads/igor.jpg",
   },
   {
     id: "socio-2",
     nome: "Rafael",
     especialidade: "Diretor Técnico",
-    foto: "/uploads/rafael.jpg",
+    foto: "http://localhost/leaonorth/uploads/rafael.jpg",
   },
 ];
 

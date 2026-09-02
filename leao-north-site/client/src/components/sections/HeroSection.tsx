@@ -6,7 +6,7 @@
 import { useEffect, useRef } from "react";
 import { ArrowRight, Phone, ChevronDown } from "lucide-react";
 
-const HERO_IMG = "https://d2xsxph8kpxj0f.cloudfront.net/310519663679471714/7uCDftEx5Gn2oJRKUzBfKv/hero-electrical-M36v4H2JPJf8qyrYaiMEgd.webp";
+const HERO_IMG = "https://images.unsplash.com/photo-1581092160562-40aa08e78837?auto=format&fit=crop&q=80&w=2000";
 
 export default function HeroSection() {
   const heroRef = useRef<HTMLElement>(null);

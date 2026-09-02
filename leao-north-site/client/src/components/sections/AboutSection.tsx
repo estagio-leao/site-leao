@@ -5,7 +5,7 @@
 import { useEffect, useRef } from "react";
 import { CheckCircle2, Award, Users, ShieldCheck } from "lucide-react";
 
-const ABOUT_IMG = "https://d2xsxph8kpxj0f.cloudfront.net/310519663679471714/7uCDftEx5Gn2oJRKUzBfKv/about-team-QBkXvDh8U7PztiZkpkZzhr.webp";
+const ABOUT_IMG = "https://images.unsplash.com/photo-1621905251189-08b45d6a269e?auto=format&fit=crop&q=80&w=800";
 
 const highlights = [
   { icon: Award, text: "Engenheiro eletricista responsável técnico" },

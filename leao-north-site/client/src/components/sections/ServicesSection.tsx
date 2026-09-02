@@ -86,7 +86,7 @@ export default function ServicesSection() {
       <div
         className="absolute inset-0 opacity-[0.03]"
         style={{
-          backgroundImage: `url("https://d2xsxph8kpxj0f.cloudfront.net/310519663679471714/7uCDftEx5Gn2oJRKUzBfKv/services-industrial-btyjLZBRaHagKwqMurmtt7.webp")`,
+          backgroundImage: `url("https://images.unsplash.com/photo-1544724569-5f546fd6f2b6?auto=format&fit=crop&q=80&w=2000")`,
           backgroundSize: "cover",
           backgroundPosition: "center",
         }}
