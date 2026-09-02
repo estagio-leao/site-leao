@@ -9,6 +9,8 @@ import Service from "./pages/Service";
 import Materiais from "./pages/Materiais";
 import ProdutoDetalhes from "./pages/ProdutoDetalhes";
 import GrupoVariacoes from "./pages/GrupoVariacoes";
+import PortfolioDetalhes from "./pages/PortfolioDetalhes";
+import SocioDetalhes from "./pages/SocioDetalhes";
 
 // Importações adicionadas para o Painel Administrativo
 import Login from "./pages/admin/Login";
@@ -20,6 +22,9 @@ function Router() {
       {/* Portal Gateway — primeira tela do domínio */}
       <Route path={"/"} component={Gateway} />
       <Route path={"/service"} component={Service} />
+      {/* Fase 24 — páginas de detalhes da Leão Service */}
+      <Route path={"/service/portfolio/:id"} component={PortfolioDetalhes} />
+      <Route path={"/service/socio/:id"} component={SocioDetalhes} />
       <Route path={"/materiais"} component={Materiais} />
       <Route path={"/materiais/grupo/:id"} component={GrupoVariacoes} />
       <Route path={"/materiais/:id"} component={ProdutoDetalhes} />

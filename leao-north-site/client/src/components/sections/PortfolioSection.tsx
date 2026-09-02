@@ -1,37 +1,138 @@
+/*
+ * LEÃO NORTH — Portfolio Section
+ * Fase 24: consumo de api/service/portfolio.php (projeto + imagens + capa).
+ * Vitrine em "cards de projeto" com mini-carrossel (navegar ‹ › dentro do card);
+ * clicar no card leva a /service/portfolio/:id.
+ */
 import { useEffect, useRef, useState } from "react";
-import { X, ZoomIn } from "lucide-react";
+import { useLocation } from "wouter";
+import { ChevronLeft, ChevronRight, ImageIcon, ZoomIn } from "lucide-react";
 
-// TUDO DAQUI PARA BAIXO É NOVO OU MODIFICADO ATÉ O RETURN
+const BASE = "http://localhost/leaonorth";
+
+type ProjetoImagem = { caminho_imagem: string; is_capa: boolean | number };
+
+type Projeto = {
+  id: number;
+  servico_categoria_id: number | null;
+  categoria_nome?: string | null;
+  titulo: string;
+  subtitulo?: string | null;
+  descricao?: string | null;
+  imagens: ProjetoImagem[];
+  capa?: string | null;
+};
+
+// Mantém a Capa sempre no índice 0 do carrossel
+const normalizarImagens = (imagens: ProjetoImagem[]): ProjetoImagem[] => [
+  ...imagens.filter((i) => i.is_capa === true || i.is_capa === 1),
+  ...imagens.filter((i) => !(i.is_capa === true || i.is_capa === 1)),
+];
+
+/* Card de projeto com mini-carrossel (estado interno por card) */
+function ProjetoCard({ projeto }: { projeto: Projeto }) {
+  const [, navigate] = useLocation();
+  const imagens = normalizarImagens(projeto.imagens || []);
+  const total = imagens.length;
+  const [indice, setIndice] = useState(0);
+
+  const irParaDetalhes = () => navigate(`/service/portfolio/${projeto.id}`);
+
+  const prevFoto = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (total > 1) setIndice((i) => (i - 1 + total) % total);
+  };
+
+  const nextFoto = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (total > 1) setIndice((i) => (i + 1) % total);
+  };
+
+  return (
+    <div
+      onClick={irParaDetalhes}
+      className="bg-[#111111] border border-white/10 rounded-sm overflow-hidden group cursor-pointer flex flex-col h-full"
+      title="Ver detalhes do projeto"
+    >
+      {/* Imagem com mini-carrossel */}
+      <div className="relative h-56 overflow-hidden bg-[#080808]">
+        {total > 0 ? (
+          <img
+            src={`${BASE}${imagens[indice].caminho_imagem}`}
+            alt={`${projeto.titulo} — foto ${indice + 1}`}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+            loading="lazy"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center text-white/20">
+            <ImageIcon className="w-12 h-12" />
+          </div>
+        )}
+
+        {/* Setas ‹ › (clicar não navega — só troca a foto) */}
+        {total > 1 && (
+          <>
+            <button
+              type="button"
+              onClick={prevFoto}
+              className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 bg-black/50 hover:bg-[#F0B429] hover:text-[#080808] text-white rounded-full flex items-center justify-center transition-colors"
+              title="Foto anterior"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+            <button
+              type="button"
+              onClick={nextFoto}
+              className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 bg-black/50 hover:bg-[#F0B429] hover:text-[#080808] text-white rounded-full flex items-center justify-center transition-colors"
+              title="Próxima foto"
+            >
+              <ChevronRight className="w-5 h-5" />
+            </button>
+            <span className="absolute bottom-3 right-3 bg-black/60 text-white/90 text-[10px] font-['DM_Sans'] px-2 py-0.5 rounded-sm">
+              {indice + 1}/{total}
+            </span>
+          </>
+        )}
+
+        {/* Dica de zoom/detalhes ao passar o mouse */}
+        <div className="absolute top-3 right-3 w-9 h-9 bg-[#F0B429] rounded-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+          <ZoomIn className="w-4 h-4 text-[#080808]" />
+        </div>
+      </div>
+
+      {/* Conteúdo */}
+      <div className="p-5 flex flex-col flex-1">
+        <span className="text-[#F0B429] text-[10px] font-['DM_Sans'] font-medium tracking-[0.15em] uppercase">
+          {projeto.categoria_nome || "Sem categoria"} • {total} foto(s)
+        </span>
+        <h3 className="text-white font-['Barlow_Condensed'] font-600 text-xl uppercase mt-1 group-hover:text-[#F0B429] transition-colors">
+          {projeto.titulo}
+        </h3>
+        {projeto.subtitulo && (
+          <p className="text-white/50 text-sm font-['DM_Sans'] mt-1 leading-relaxed line-clamp-2">{projeto.subtitulo}</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function PortfolioSection() {
   const sectionRef = useRef<HTMLElement>(null);
-  const [lightbox, setLightbox] = useState<any>(null);
-  const [portfolioItems, setPortfolioItems] = useState<any[]>([]);
+  const [projetos, setProjetos] = useState<Projeto[]>([]);
 
-  // Novo useEffect com blindagem contra erros da API
   useEffect(() => {
-    fetch('http://localhost/leaonorth/api/portfolio.php')
-      .then(response => response.json())
-      .then(data => {
-        // Só salva se for uma lista válida, senão mantém array vazio
-        if (Array.isArray(data)) {
-          setPortfolioItems(data);
-        } else {
-          console.error("A API retornou um erro em vez de lista:", data);
-          setPortfolioItems([]);
-        }
+    // Busca os projetos reais (Fase 24 — api/service/portfolio.php)
+    fetch(`${BASE}/api/service/portfolio.php`)
+      .then((response) => response.json())
+      .then((data) => {
+        if (Array.isArray(data)) setProjetos(data);
       })
-      .catch(error => {
-        console.error("Erro ao buscar portfólio:", error);
-        setPortfolioItems([]);
-      });
-  }, []);
+      .catch((error) => console.error("Erro ao buscar portfólio:", error));
 
-  useEffect(() => {
     const el = sectionRef.current;
     if (!el) return;
     const observer = new IntersectionObserver(
       (entries) => {
-        // ... O RESTANTE DO CÓDIGO CONTINUA EXATAMENTE IGUAL AO ORIGINAL
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
             entry.target.querySelectorAll(".reveal").forEach((r, i) => {
@@ -48,15 +149,6 @@ export default function PortfolioSection() {
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
-
-  useEffect(() => {
-    if (lightbox) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
-    }
-    return () => { document.body.style.overflow = ""; };
-  }, [lightbox]);
 
   return (
     <section
@@ -92,80 +184,28 @@ export default function PortfolioSection() {
           </p>
         </div>
 
-        {/* Gallery Grid */}
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-          {portfolioItems.map((item, i) => (
+        {/* Grid de Cards de Projeto (mini-carrossel) */}
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {projetos.map((projeto, i) => (
             <div
-              key={i}
-              className={`reveal relative overflow-hidden rounded-sm cursor-pointer group ${item.size === "large" ? "col-span-2 lg:col-span-1 row-span-1" : ""
-                } ${i === 0 ? "lg:col-span-2 lg:row-span-2" : ""}`}
+              key={projeto.id}
+              className="reveal"
               style={{
                 opacity: 0,
                 transform: "translateY(24px)",
                 transition: `all 0.6s cubic-bezier(0.23,1,0.32,1) ${i * 100}ms`,
               }}
-              onClick={() => setLightbox(item)}
             >
-              <img
-                src={`http://localhost/leaonorth${item.img}`}
-                alt={item.title}
-                className={`w-full object-cover transition-transform duration-500 group-hover:scale-105 ${i === 0 ? "h-64 lg:h-full" : "h-48 lg:h-56"
-                  }`}
-                style={{ minHeight: i === 0 ? "300px" : undefined }}
-                loading="lazy"
-              />
-              {/* Overlay */}
-              <div className="absolute inset-0 bg-gradient-to-t from-[#080808]/80 via-[#080808]/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-              {/* Content */}
-              <div className="absolute bottom-0 left-0 right-0 p-4 translate-y-4 group-hover:translate-y-0 opacity-0 group-hover:opacity-100 transition-all duration-300">
-                <span className="text-[#F0B429] text-xs font-['DM_Sans'] font-medium tracking-[0.15em] uppercase">
-                  {item.category}
-                </span>
-                <h3 className="text-white font-['Barlow_Condensed'] font-600 text-lg uppercase mt-1">
-                  {item.title}
-                </h3>
-              </div>
-              {/* Zoom icon */}
-              <div className="absolute top-4 right-4 w-8 h-8 bg-[#F0B429] rounded-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                <ZoomIn className="w-4 h-4 text-[#080808]" />
-              </div>
+              <ProjetoCard projeto={projeto} />
             </div>
           ))}
+          {projetos.length === 0 && (
+            <div className="col-span-full text-center text-white/40 py-10 border border-dashed border-white/10 rounded-sm">
+              Nossos projetos estarão disponíveis em breve.
+            </div>
+          )}
         </div>
       </div>
-
-      {/* Lightbox */}
-      {lightbox && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm p-4"
-          onClick={() => setLightbox(null)}
-        >
-          <button
-            className="absolute top-4 right-4 w-10 h-10 bg-[#F0B429] rounded-sm flex items-center justify-center hover:bg-[#FFD060] transition-colors"
-            onClick={() => setLightbox(null)}
-          >
-            <X className="w-5 h-5 text-[#080808]" />
-          </button>
-          <div
-            className="max-w-4xl w-full"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <img
-              src={`http://localhost/leaonorth${lightbox.img}`}
-              alt={lightbox.title}
-              className="w-full max-h-[80vh] object-contain rounded-sm"
-            />
-            <div className="mt-4 flex items-center gap-3">
-              <span className="text-[#F0B429] text-xs font-['DM_Sans'] font-medium tracking-[0.15em] uppercase border border-[#F0B429]/30 px-2 py-0.5 rounded-sm">
-                {lightbox.category}
-              </span>
-              <h3 className="text-white font-['Barlow_Condensed'] font-600 text-xl uppercase">
-                {lightbox.title}
-              </h3>
-            </div>
-          </div>
-        </div>
-      )}
     </section>
   );
 }

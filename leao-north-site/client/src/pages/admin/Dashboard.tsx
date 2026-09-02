@@ -1,17 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "wouter";
-import { LogOut, Upload, Trash2, Plus, Image as ImageIcon, LayoutDashboard, Mail, Star, FolderOpen, Package, X, Pencil, Copy, ArrowLeft, Tag } from "lucide-react";
+import { LogOut, Upload, Trash2, Plus, Image as ImageIcon, LayoutDashboard, Mail, Star, FolderOpen, Package, X, Pencil, Copy, ArrowLeft, Tag, Wrench, Users } from "lucide-react";
+import AdminServicos from "./service/AdminServicos";
+import AdminSocios from "./service/AdminSocios";
+import AdminPortfolio from "./service/AdminPortfolio";
 
 export default function Dashboard() {
   const [, setLocation] = useLocation();
   const [activeTab, setActiveTab] = useState("portfolio");
   
-  // Estados do Portfólio
-  const [items, setItems] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [form, setForm] = useState({ title: "", category: "Residencial", size: "normal" });
-  const [file, setFile] = useState<File | null>(null);
-
   // Estados de Mensagens e Depoimentos
   const [mensagens, setMensagens] = useState<any[]>([]);
   const [selectedMsg, setSelectedMsg] = useState<any>(null); // Estado que controla o Modal de Leitura
@@ -59,7 +56,6 @@ export default function Dashboard() {
     if (!localStorage.getItem("admin_token")) {
       setLocation("/admin");
     } else {
-      fetchPortfolio();
       fetchMensagens();
       fetchDepoimentos();
       fetchProdutos();
@@ -69,14 +65,6 @@ export default function Dashboard() {
   }, []);
 
   // --- FUNÇÕES DE BUSCA ---
-  const fetchPortfolio = async () => {
-    try {
-      const res = await fetch("http://localhost/leaonorth/api/portfolio.php");
-      const data = await res.json();
-      if (Array.isArray(data)) setItems(data);
-    } catch (err) { console.error("Erro portfólio", err); }
-  };
-
   const fetchMensagens = async () => {
     try {
       const res = await fetch("http://localhost/leaonorth/api/admin/mensagens.php");
@@ -112,38 +100,6 @@ export default function Dashboard() {
   const handleLogout = () => {
     localStorage.removeItem("admin_token");
     setLocation("/admin");
-  };
-
-  // --- FUNÇÕES DO PORTFÓLIO ---
-  const handleUpload = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!file) return alert("Selecione uma imagem!");
-    setLoading(true);
-    const formData = new FormData();
-    formData.append("image", file);
-    formData.append("title", form.title);
-    formData.append("category", form.category);
-    formData.append("size", form.size);
-
-    try {
-      const res = await fetch("http://localhost/leaonorth/api/admin/upload.php", {
-        method: "POST", body: formData,
-      });
-      if (res.ok) {
-        setForm({ title: "", category: "Residencial", size: "normal" });
-        setFile(null);
-        fetchPortfolio();
-        alert("Projeto adicionado!");
-      }
-    } catch (err) { alert("Erro ao enviar."); } finally { setLoading(false); }
-  };
-
-  const handleDelete = async (id: number) => {
-    if (!confirm("Tem certeza que deseja apagar este projeto?")) return;
-    try {
-      await fetch(`http://localhost/leaonorth/api/admin/delete.php?id=${id}`, { method: "DELETE" });
-      fetchPortfolio();
-    } catch (err) { alert("Erro ao excluir."); }
   };
 
   // --- FUNÇÕES DE DEPOIMENTOS ---
@@ -664,8 +620,14 @@ export default function Dashboard() {
 
           {/* LEÃO SERVICE */}
           {sidebarSectionLabel("Leão Service")}
+          <button onClick={() => setActiveTab("servicos")} className={sidebarItemClass("servicos")}>
+            <Wrench className="w-5 h-5" /> Serviços
+          </button>
           <button onClick={() => setActiveTab("portfolio")} className={sidebarItemClass("portfolio")}>
-            <ImageIcon className="w-5 h-5" /> Portfólio/Serviços
+            <ImageIcon className="w-5 h-5" /> Portfólio
+          </button>
+          <button onClick={() => setActiveTab("socios")} className={sidebarItemClass("socios")}>
+            <Users className="w-5 h-5" /> Sócios
           </button>
           <button onClick={() => setActiveTab("depoimentos")} className={sidebarItemClass("depoimentos")}>
             <Star className="w-5 h-5" /> Depoimentos
@@ -687,73 +649,14 @@ export default function Dashboard() {
       {/* Main Content */}
       <main className="flex-1 p-8 overflow-y-auto relative">
         
-        {/* ABA: PORTFÓLIO */}
-        {activeTab === "portfolio" && (
-          <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-            <div className="md:col-span-1 bg-[#111111] border border-white/10 rounded-sm p-6 h-fit">
-              <h2 className="text-white font-['Barlow_Condensed'] text-xl uppercase font-600 mb-6 flex items-center gap-2">
-                <Plus className="w-5 h-5 text-[#F0B429]" /> Adicionar Projeto
-              </h2>
-              <form onSubmit={handleUpload} className="space-y-4">
-                <div>
-                  <label className="block text-white/40 text-xs tracking-widest uppercase mb-1.5">Título</label>
-                  <input type="text" required value={form.title} onChange={e => setForm({...form, title: e.target.value})} className={inputClass} placeholder="Ex: Painel Industrial" />
-                </div>
-                <div>
-                  <label className="block text-white/40 text-xs tracking-widest uppercase mb-1.5">Categoria</label>
-                  <select value={form.category} onChange={e => setForm({...form, category: e.target.value})} className={inputClass}>
-                    <option value="Residencial">Residencial</option>
-                    <option value="Comercial">Comercial</option>
-                    <option value="Industrial">Industrial</option>
-                    <option value="Projetos">Projetos</option>
-                    <option value="Quadros">Quadros</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-white/40 text-xs tracking-widest uppercase mb-1.5">Tamanho no Layout</label>
-                  <select value={form.size} onChange={e => setForm({...form, size: e.target.value})} className={inputClass}>
-                    <option value="normal">Normal (Quadrado)</option>
-                    <option value="large">Grande (Retangular)</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-white/40 text-xs tracking-widest uppercase mb-1.5">Imagem</label>
-                  <div className="relative overflow-hidden">
-                    <input type="file" required accept="image/*" onChange={e => setFile(e.target.files?.[0] || null)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
-                    <div className={`${inputClass} flex items-center gap-2 text-white/60 ${file ? 'text-[#F0B429] border-[#F0B429]/50' : ''}`}>
-                      <ImageIcon className="w-4 h-4" /> {file ? file.name : "Escolher Arquivo..."}
-                    </div>
-                  </div>
-                </div>
-                <button type="submit" disabled={loading} className="w-full py-3 bg-[#F0B429] text-[#080808] font-['Barlow_Condensed'] font-700 uppercase rounded-sm hover:bg-[#FFD060] transition-colors mt-4 flex items-center justify-center gap-2 disabled:opacity-50">
-                  {loading ? "Enviando..." : <><Upload className="w-4 h-4"/> Salvar Projeto</>}
-                </button>
-              </form>
-            </div>
-            <div className="md:col-span-2">
-              <h2 className="text-white font-['Barlow_Condensed'] text-xl uppercase font-600 mb-6">Projetos Cadastrados</h2>
-              <div className="grid sm:grid-cols-2 gap-4">
-                {items.map(item => (
-                  <div key={item.id} className="bg-[#111111] border border-white/10 rounded-sm overflow-hidden group flex flex-col">
-                    <div className="h-40 overflow-hidden relative">
-                      <img src={`http://localhost/leaonorth${item.img}`} alt={item.title} className="w-full h-full object-cover" />
-                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                        <button onClick={() => handleDelete(item.id)} className="bg-red-500/20 text-red-500 p-2 rounded-full hover:bg-red-500 hover:text-white transition-all">
-                          <Trash2 className="w-5 h-5" />
-                        </button>
-                      </div>
-                    </div>
-                    <div className="p-4 flex-1">
-                      <span className="text-[#F0B429] text-[10px] tracking-widest uppercase">{item.category} • {item.size}</span>
-                      <h3 className="text-white font-medium text-sm mt-1">{item.title}</h3>
-                    </div>
-                  </div>
-                ))}
-                {items.length === 0 && <div className="col-span-2 text-center text-white/40 py-10 border border-dashed border-white/10 rounded-sm">Nenhum projeto cadastrado.</div>}
-              </div>
-            </div>
-          </div>
-        )}
+        {/* ABA: SERVIÇOS (Fase 23) */}
+        {activeTab === "servicos" && <AdminServicos />}
+
+        {/* ABA: PORTFÓLIO (Fase 23) */}
+        {activeTab === "portfolio" && <AdminPortfolio />}
+
+        {/* ABA: SÓCIOS (Fase 23) */}
+        {activeTab === "socios" && <AdminSocios />}
 
         {/* ABA: CATÁLOGO DE PRODUTOS */}
         {activeTab === "produtos" && (

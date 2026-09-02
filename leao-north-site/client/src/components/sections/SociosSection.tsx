@@ -1,42 +1,40 @@
 /*
  * LEÃO NORTH — Sócios Section
- * Apresenta os sócios e permite contato direto (tipo_mensagem = "socio")
+ * Fase 24: consumo dinâmico de api/service/socios.php; cada card leva à página
+ * dedicada /service/socio/:id (foto ampliada + descrição) e mantém o
+ * mini-formulário "Falar com [Nome]" (tipo_mensagem = "socio").
  */
 import { useEffect, useRef, useState } from "react";
-import { Send, X, User, CheckCircle2 } from "lucide-react";
+import { Link } from "wouter";
+import { Send, X, User, CheckCircle2, ChevronRight } from "lucide-react";
+
+const BASE = "http://localhost/leaonorth";
 
 type Socio = {
-  id: string;
+  id: number;
   nome: string;
-  especialidade: string;
-  foto: string;
-  whatsapp?: string;
+  subtitulo?: string | null;
+  descricao?: string | null;
+  caminho_foto?: string | null;
 };
-
-// Dados oficiais (fotos são placeholders até o Tech Lead fornecer as reais)
-const SOCIOS: Socio[] = [
-  {
-    id: "socio-1",
-    nome: "Igor Busquim de Moraes",
-    especialidade: "Diretor Executivo",
-    foto: "http://localhost/leaonorth/uploads/igor.jpg",
-  },
-  {
-    id: "socio-2",
-    nome: "Rafael",
-    especialidade: "Diretor Técnico",
-    foto: "http://localhost/leaonorth/uploads/rafael.jpg",
-  },
-];
 
 export default function SociosSection() {
   const sectionRef = useRef<HTMLElement>(null);
+  const [socios, setSocios] = useState<Socio[]>([]);
   const [socioAtivo, setSocioAtivo] = useState<Socio | null>(null);
   const [form, setForm] = useState({ name: "", phone: "", message: "" });
   const [enviado, setEnviado] = useState(false);
   const [enviando, setEnviando] = useState(false);
 
   useEffect(() => {
+    // Busca os sócios reais (Fase 24)
+    fetch(`${BASE}/api/service/socios.php`)
+      .then((response) => response.json())
+      .then((data) => {
+        if (Array.isArray(data)) setSocios(data);
+      })
+      .catch((error) => console.error("Erro ao buscar sócios:", error));
+
     const el = sectionRef.current;
     if (!el) return;
     const observer = new IntersectionObserver(
@@ -47,7 +45,7 @@ export default function SociosSection() {
               setTimeout(() => {
                 (r as HTMLElement).style.opacity = "1";
                 (r as HTMLElement).style.transform = "translateY(0)";
-              }, i * 100);
+              }, i * 120);
             });
           }
         });
@@ -72,7 +70,7 @@ export default function SociosSection() {
     setEnviando(true);
 
     try {
-      const response = await fetch("http://localhost/leaonorth/api/contato.php", {
+      const response = await fetch(`${BASE}/api/contato.php`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -81,7 +79,7 @@ export default function SociosSection() {
           email: "",                                    // opcional
           service: `Falar com ${socioAtivo.nome}`,      // fica registrado o sócio de interesse
           message: form.message,
-          tipo_mensagem: "socio",                       // ← campo novo, persistido pelo contato.php
+          tipo_mensagem: "socio",                       // origem persistida pelo contato.php
         }),
       });
 
@@ -130,18 +128,19 @@ export default function SociosSection() {
           </h2>
         </div>
 
-        {/* Cards dos sócios */}
-        <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-          {SOCIOS.map((socio, i) => (
+        {/* Cards dos sócios (dinâmicos) */}
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8 max-w-7xl mx-auto">
+          {socios.map((socio, i) => (
             <div
               key={socio.id}
               className="reveal bg-[#111111] border border-white/10 rounded-sm overflow-hidden group flex flex-col"
               style={{ opacity: 0, transform: "translateY(24px)", transition: `all 0.6s cubic-bezier(0.23,1,0.32,1) ${i * 120}ms` }}
             >
-              <div className="h-64 overflow-hidden relative">
-                {socio.foto ? (
+              {/* Foto clicável → página de detalhes do sócio */}
+              <Link href={`/service/socio/${socio.id}`} className="block relative h-64 overflow-hidden group/socio">
+                {socio.caminho_foto ? (
                   <img
-                    src={socio.foto}
+                    src={`${BASE}${socio.caminho_foto}`}
                     alt={socio.nome}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     loading="lazy"
@@ -151,13 +150,20 @@ export default function SociosSection() {
                     <User className="w-16 h-16 text-white/20" />
                   </div>
                 )}
-              </div>
+                <div className="absolute inset-0 bg-gradient-to-t from-[#080808]/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                <span className="absolute bottom-3 right-3 flex items-center gap-1 text-[#F0B429] text-xs font-['DM_Sans'] uppercase tracking-wider opacity-0 group-hover/socio:opacity-100 transition-opacity duration-300">
+                  Ver Perfil <ChevronRight className="w-4 h-4" />
+                </span>
+              </Link>
+
               <div className="p-6 flex flex-col flex-1">
-                <h3 className="font-['Barlow_Condensed'] font-700 text-2xl text-white uppercase">
-                  {socio.nome}
-                </h3>
+                <Link href={`/service/socio/${socio.id}`} className="group/title">
+                  <h3 className="font-['Barlow_Condensed'] font-700 text-2xl text-white uppercase group-hover/title:text-[#F0B429] transition-colors">
+                    {socio.nome}
+                  </h3>
+                </Link>
                 <p className="text-white/50 text-sm font-['DM_Sans'] mt-1 mb-5 flex-1">
-                  {socio.especialidade}
+                  {socio.subtitulo || "—"}
                 </p>
                 <button
                   onClick={() => abrirFormulario(socio)}
@@ -168,6 +174,11 @@ export default function SociosSection() {
               </div>
             </div>
           ))}
+          {socios.length === 0 && (
+            <div className="col-span-full text-center text-white/40 py-10 border border-dashed border-white/10 rounded-sm">
+              Nossos sócios estarão disponíveis em breve.
+            </div>
+          )}
         </div>
       </div>
 
