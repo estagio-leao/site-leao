@@ -3,12 +3,14 @@
  * Rota: /materiais/grupo/:id
  * Fase 19: busca os produtos, filtra por grupo_id (client-side) e exibe cada
  * variação com o ProdutoCard individual normal, com os nomes oficiais no header.
+ * Fase 21: breadcrumb (Início > Catálogo > Categoria > Grupo) substitui o botão
+ * "Voltar ao catálogo" — o próprio "Catálogo" da trilha já oferece o retorno.
  */
 import { useEffect, useState } from "react";
 import { Link, useParams } from "wouter";
-import { ArrowLeft } from "lucide-react";
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
+import { ArrowLeft, ChevronRight } from "lucide-react";
+import HeaderMateriais from "@/components/HeaderMateriais";
+import FooterMateriais from "@/components/FooterMateriais";
 import WhatsAppButton from "@/components/WhatsAppButton";
 import ProdutoCard, { type Produto } from "@/components/ProdutoCard";
 
@@ -44,18 +46,50 @@ export default function GrupoVariacoes() {
       .finally(() => setLoading(false));
   }, [grupoId]);
 
+  const categoria = !loading && !naoEncontrado ? produtos[0]?.categoria_nome : null;
+  const grupo = !loading && !naoEncontrado ? produtos[0]?.grupo_nome : null;
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-['DM_Sans']" style={{ background: "#F8FAFC" }}>
-      <Navbar variant="light" />
+      <HeaderMateriais />
 
-      <main className="container mx-auto px-4 lg:px-8 py-10 lg:py-14">
-        {/* Voltar */}
-        <Link
-          href="/materiais"
-          className="inline-flex items-center gap-2 text-slate-500 hover:text-[#B8860B] transition-colors mb-8"
-        >
-          <ArrowLeft className="w-4 h-4" /> Voltar ao catálogo
-        </Link>
+      <main className="container mx-auto px-4 lg:px-8 pt-24 lg:pt-28 pb-10 lg:pb-14">
+        {/* Fase 21 — Breadcrumb: Início > Catálogo > [Categoria] > [Grupo] */}
+        <nav aria-label="Trilha de navegação" className="mb-8">
+          <ol className="flex flex-wrap items-center gap-1.5 text-sm font-['DM_Sans'] text-slate-500">
+            <li>
+              <Link href="/" className="hover:text-[#B8860B] transition-colors">
+                Início
+              </Link>
+            </li>
+            <li aria-hidden="true">
+              <ChevronRight className="w-4 h-4 text-slate-300" />
+            </li>
+            <li>
+              <Link href="/materiais" className="hover:text-[#B8860B] transition-colors">
+                Catálogo
+              </Link>
+            </li>
+            {categoria && (
+              <>
+                <li aria-hidden="true">
+                  <ChevronRight className="w-4 h-4 text-slate-300" />
+                </li>
+                <li className="text-slate-700">{categoria}</li>
+              </>
+            )}
+            {grupo && (
+              <>
+                <li aria-hidden="true">
+                  <ChevronRight className="w-4 h-4 text-slate-300" />
+                </li>
+                <li aria-current="page" className="text-slate-800 font-medium">
+                  {grupo}
+                </li>
+              </>
+            )}
+          </ol>
+        </nav>
 
         {/* Header do grupo */}
         {!loading && !naoEncontrado && (
@@ -93,7 +127,7 @@ export default function GrupoVariacoes() {
         )}
       </main>
 
-      <Footer />
+      <FooterMateriais />
       <WhatsAppButton />
     </div>
   );

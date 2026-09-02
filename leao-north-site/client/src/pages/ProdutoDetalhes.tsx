@@ -6,8 +6,8 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "wouter";
 import { ChevronLeft, ChevronRight, ArrowLeft, ZoomIn } from "lucide-react";
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
+import HeaderMateriais from "@/components/HeaderMateriais";
+import FooterMateriais from "@/components/FooterMateriais";
 import WhatsAppButton from "@/components/WhatsAppButton";
 
 type ProdutoImagem = { caminho_imagem: string; is_capa: boolean | number };
@@ -65,14 +65,14 @@ export default function ProdutoDetalhes() {
   if (naoEncontrado) {
     return (
       <div className={`${pageClass} flex flex-col`} style={{ background: "#F8FAFC" }}>
-        <Navbar variant="light" />
+        <HeaderMateriais />
         <main className="container mx-auto px-4 lg:px-8 py-24 text-center">
           <h1 className="font-['Barlow_Condensed'] font-700 text-3xl uppercase">Produto não encontrado</h1>
           <Link href="/materiais" className="inline-flex items-center gap-2 mt-6 text-[#B8860B] hover:underline">
             <ArrowLeft className="w-4 h-4" /> Voltar ao catálogo
           </Link>
         </main>
-        <Footer />
+        <FooterMateriais />
       </div>
     );
   }
@@ -80,11 +80,11 @@ export default function ProdutoDetalhes() {
   if (!produto) {
     return (
       <div className={`${pageClass} flex flex-col`} style={{ background: "#F8FAFC" }}>
-        <Navbar variant="light" />
+        <HeaderMateriais />
         <main className="container mx-auto px-4 lg:px-8 py-24 text-center text-slate-500">
           Carregando produto...
         </main>
-        <Footer />
+        <FooterMateriais />
       </div>
     );
   }
@@ -108,9 +108,9 @@ export default function ProdutoDetalhes() {
 
   return (
     <div className={pageClass} style={{ background: "#F8FAFC" }}>
-      <Navbar variant="light" />
+      <HeaderMateriais />
 
-      <main className="container mx-auto px-4 lg:px-8 py-10 lg:py-14">
+      <main className="container mx-auto px-4 lg:px-8 pt-24 lg:pt-28 pb-10 lg:pb-14">
         {/* Voltar */}
         <Link href="/materiais" className="inline-flex items-center gap-2 text-slate-500 hover:text-[#B8860B] transition-colors mb-8">
           <ArrowLeft className="w-4 h-4" /> Voltar ao catálogo
@@ -226,7 +226,7 @@ export default function ProdutoDetalhes() {
         </div>
       </main>
 
-      <Footer />
+      <FooterMateriais />
       <WhatsAppButton />
     </div>
   );
