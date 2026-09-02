@@ -19,9 +19,18 @@ A **Leão North** é uma empresa de engenharia elétrica com sede em **Cornélio
    (chave/valor). O interesse é encaminhado via WhatsApp e há uma **página de detalhes** por produto
    com galeria, zoom ("lupa") e CTA de venda.
 
+> **Versão 2.0 (modelo relacional):** o catálogo de Materiais evoluiu de "strings soltas" para um
+> modelo **relacional**: as **Categorias** e os **Grupos** (famílias de produtos, ex.: *Painel de Led
+> Quadrado*) são agora **entidades no banco** (tabelas `categorias` e `grupos`), cada grupo com
+> **1 capa exclusiva** (`caminho_imagem_capa`), e os produtos referenciam **IDs** (`categoria_id` e
+> `grupo_id`) em vez de textos. A **vitrine** agrupa produtos por grupo (1 card por família) e o
+> **painel admin** foi seccionado em **"Leão Materiais"** (Categorias, Grupos, Produtos) ×
+> **"Leão Service"** (Portfólio, Depoimentos) × **Geral** (Mensagens).
+
 A experiência começa no **Portal Gateway** (split-screen), onde o visitante escolhe entre
 **Service** e **Materiais**. Há também o **Painel Administrativo** (`/admin`), que permite gerenciar
-portfólio, **produtos (criar, editar, excluir)**, mensagens e depoimentos.
+portfólio, **categorias**, **grupos** (com upload de capa), **produtos (criar, editar, excluir e
+duplicar)**, mensagens e depoimentos.
 
 O site é um **SPA em React** que roda na pasta do **XAMPP** (`c:/xampp/htdocs/leaonorth`) e conversa
 com uma **API em PHP** servida pelo Apache do XAMPP, persistindo dados em **MySQL**.
@@ -34,7 +43,7 @@ com uma **API em PHP** servida pelo Apache do XAMPP, persistindo dados em **MySQ
 | --- | --- |
 | Frontend | React 19 + TypeScript + Vite 7 |
 | Estilo | Tailwind CSS 4 + shadcn/ui (Radix UI) + tw-animate-css |
-| Roteamento | Wouter 3 (client-side routing; rotas dinâmicas `/materiais/:id`) |
+| Roteamento | Wouter 3 (client-side routing; rotas dinâmicas `/materiais/:id` e `/materiais/grupo/:id`) |
 | Animações | CSS + IntersectionObserver (scroll reveal) + tw-animate-css (Gateway) + zoom CSS (transform-origin) |
 | Backend | PHP 8 (PDO/MySQL) servido pelo Apache do XAMPP |
 | Banco de dados | MySQL — database `leao_north` |
@@ -57,31 +66,35 @@ flowchart LR
         A[Gateway Yin-Yang]
         B[Service page]
         C[Materiais page]
-        D[Produto Detalhes]
-        E[Admin panel]
+        D[Grupo Variacoes]
+        E[Produto Detalhes]
+        F[Admin panel]
     end
 
     subgraph XAMPP Apache :80
-        F[API PHP /api]
-        G[uploads/ imagens]
+        G[API PHP /api]
+        H[uploads/ imagens]
     end
 
     subgraph MySQL
-        H[(leao_north<br/>contatos portfolio depoimentos produtos admin_users<br/>produto_imagens produto_informacoes)]
+        I[(leao_north<br/>contatos portfolio depoimentos admin_users<br/>categorias grupos produtos<br/>produto_imagens produto_informacoes)]
     end
 
     A -->|escolha da frente| B
     A -->|escolha da frente| C
-    C -->|detalhes /materiais/id| D
-    B -->|fetch JSON| F
-    C -->|fetch produtos| F
-    D -->|fetch produtos| F
-    E -->|CRUD| F
-    F --> H
-    F -->|grava/remove arquivos| G
-    B -->|img src /uploads| G
-    C -->|img src /uploads| G
-    D -->|img src /uploads| G
+    C -->|detalhes do grupo| D
+    C -->|detalhes /materiais/id| E
+    B -->|fetch JSON| G
+    C -->|fetch produtos| G
+    D -->|fetch produtos| G
+    E -->|fetch produtos| G
+    F -->|CRUD| G
+    G --> I
+    G -->|grava/remove arquivos| H
+    B -->|img src /uploads| H
+    C -->|img src /uploads| H
+    D -->|img src /uploads| H
+    E -->|img src /uploads| H
 ```
 
 ### Fluxo de dados principal
@@ -90,16 +103,21 @@ flowchart LR
 2. Escolhe **Service** (`/service`): landing compõe Hero, About, Mission, Services, Portfolio,
    Differentials, **Sócios**, Testimonials e Contact. Seções dinâmicas (Portfólio, Depoimentos)
    buscam dados via `fetch` para a API PHP.
-3. Escolhe **Materiais** (`/materiais`): catálogo claro consumindo `api/produtos.php`, com cards de
-   **mini-carrossel**, filtro por categoria e botões "Mais Detalhes" e "Tenho Interesse" (WhatsApp).
-4. Clica em um produto → **`/materiais/:id`** (`ProdutoDetalhes.tsx`): galeria com zoom (lupa),
-   descrição, informações adicionais e CTA "Tenho Interesse".
-5. O visitante envia um formulário (orçamento, contato ou "falar com sócio") → `POST /api/contato.php`
+3. Escolhe **Materiais** (`/materiais`): catálogo claro consumindo `api/produtos.php`. A **vitrine é
+   agrupada** (Fases 13/19): produtos com `grupo_id` viram **1 card de grupo** (capa oficial do grupo
+   = `grupo_capa`), e produtos sem grupo aparecem como cards individuais.
+4. Clica em **"Ver Opções"** de um grupo → **`/materiais/grupo/:id`** (`GrupoVariacoes.tsx`): lista as
+   variações (produtos) daquele `grupo_id` com o card individual.
+5. Clica em um produto (individual ou variação) → **`/materiais/:id`** (`ProdutoDetalhes.tsx`):
+   galeria com zoom (lupa), descrição, informações adicionais e CTA "Tenho Interesse".
+6. O visitante envia um formulário (orçamento, contato ou "falar com sócio") → `POST /api/contato.php`
    → grava em `contatos` com `tipo_mensagem` (service | materiais | socio) e tenta disparar e-mail
    para `contato@leaonorth.com.br`.
-6. O administrador acessa `/admin` (login) → token no `localStorage` → `/admin/dashboard` para
-   gerenciar portfólio, **produtos (criar/editar/excluir, múltiplas imagens + capa + informações)**,
-   mensagens (com badges de origem) e depoimentos.
+7. O administrador acessa `/admin` (login) → token no `localStorage` → `/admin/dashboard`. O painel
+   tem **sidebar seccionado** ("Leão Materiais": Categorias/Grupos/Produtos · "Leão Service":
+   Portfólio/Depoimentos · "Geral": Mensagens) para gerenciar **categorias**, **grupos (com capa)**,
+   **produtos (criar/editar/excluir/duplicar, múltiplas imagens + capa + informações)** em listagem
+   com **drill-down em pastas**, além de mensagens (badges de origem) e depoimentos.
 
 ---
 
@@ -114,7 +132,10 @@ leaonorth/                          ← raiz do workspace (document root do site
 │   ├── contato.php                 ← POST: salva contato/orçamento + tipo_mensagem + e-mail
 │   ├── portfolio.php               ← GET: lista projetos do portfólio
 │   ├── depoimentos.php             ← GET: lista depoimentos
-│   ├── produtos.php                ← GET: lista produtos (imagens[], informacoes[], descricao; 3 queries sem N+1)
+│   ├── categorias.php              ← GET: lista categorias (relacional v2.0)
+│   ├── grupos.php                  ← GET: lista grupos (com categoria_nome, capa e total de produtos)
+│   ├── produtos.php                ← GET: lista produtos (LEFT JOIN categoria/grupo + imagens[]/informacoes[])
+│   ├── migracao_v2.sql             ← DDL + backfill da migração para o modelo relacional (Fase 15)
 │   └── admin/
 │       ├── login.php               ← POST: autentica admin (password_verify)
 │       ├── mensagens.php           ← GET: lista mensagens de contato (inclui tipo_mensagem)
@@ -123,13 +144,20 @@ leaonorth/                          ← raiz do workspace (document root do site
 │       ├── delete_depoimento.php   ← DELETE: remove depoimento
 │       ├── upload.php              ← POST: upload de imagem + insere no portfólio
 │       ├── delete.php              ← DELETE: remove projeto do portfólio
-│       ├── add_produto.php         ← POST: cadastra produto (múltiplas imagens + capa + informações; MIME/5MB)
+│       ├── add_categoria.php       ← POST: cria categoria
+│       ├── edit_categoria.php      ← POST: edita categoria
+│       ├── delete_categoria.php    ← DELETE: remove categoria (409 se tiver grupos)
+│       ├── add_grupo.php           ← POST: cria grupo (nome, categoria_id, capa única obrigatória)
+│       ├── edit_grupo.php          ← POST: edita grupo (nome, categoria_id, capa opcional)
+│       ├── delete_grupo.php        ← DELETE: remove grupo + capa física (produtos ficam sem grupo)
+│       ├── add_produto.php         ← POST: cadastra produto (categoria_id/grupo_id + múltiplas imagens; MIME/5MB)
 │       ├── edit_produto.php        ← POST: edita produto (imagens mantidas + novas; capa combinada)
+│       ├── duplicate_produto.php   ← POST: duplica produto (copia dados + ARQUIVOS FÍSICOS via copy())
 │       └── delete_produto.php      ← DELETE: remove produto (CASCADE) + todas as imagens físicas
 │
-├── uploads/                        ← imagens (portfólio e produtos)
+├── uploads/                        ← imagens (portfólio, produtos e capas de grupos)
 │
-├── zoo_code_docs/                  ← documentação de planejamento das fases (fase1..fase10)
+├── zoo_code_docs/                  ← documentação de planejamento das fases (fase1..fase19)
 │
 └── leao-north-site/                ← FRONTEND React (código-fonte do site)
     ├── package.json                ← dependências e scripts
@@ -141,23 +169,25 @@ leaonorth/                          ← raiz do workspace (document root do site
     │   ├── public/__manus__/       ← debug collector do Manus (dev tooling)
     │   └── src/
     │       ├── main.tsx            ← entry point React
-    │       ├── App.tsx             ← rotas (/, /service, /materiais, /materiais/:id, /admin, /admin/dashboard, /404)
+    │       ├── App.tsx             ← rotas (/, /service, /materiais, /materiais/grupo/:id, /materiais/:id, /admin, /admin/dashboard, /404)
     │       ├── index.css           ← design system (cores/tipografia/utilitários)
     │       ├── const.ts            ← constantes OAuth (não usado no fluxo atual)
     │       ├── pages/
     │       │   ├── Gateway.tsx     ← Portal Yin-Yang (escolha Service × Materiais)
     │       │   ├── Service.tsx     ← landing da Leão North Service (ex-Home)
-    │       │   ├── Materiais.tsx   ← catálogo de produtos (tema claro, cards com mini-carrossel)
+    │       │   ├── Materiais.tsx   ← vitrine de produtos agrupada (tema claro; cards de grupo × individuais)
+    │       │   ├── GrupoVariacoes.tsx ← página de variações de um grupo (/materiais/grupo/:id)
     │       │   ├── ProdutoDetalhes.tsx ← página de detalhes do produto (galeria + zoom/lupa)
     │       │   ├── NotFound.tsx    ← página 404
     │       │   └── admin/
     │       │       ├── Login.tsx   ← tela de login do painel
-    │       │       └── Dashboard.tsx ← painel (portfólio/produtos/mensagens/depoimentos)
+    │       │       └── Dashboard.tsx ← painel seccionado (categorias/grupos/produtos/portfólio/mensagens/depoimentos)
     │       ├── components/
     │       │   ├── Navbar.tsx      ← navbar fixa com blur; prop variant="dark" | "light"
     │       │   ├── Footer.tsx      ← rodapé escuro (mantido escuro em todas as páginas)
     │       │   ├── WhatsAppButton.tsx ← botão flutuante do WhatsApp
     │       │   ├── ErrorBoundary.tsx ← captura erros de renderização
+    │       │   ├── ProdutoCard.tsx ← card de produto compartilhado (mini-carrossel; usado em Materiais e GrupoVariacoes)
     │       │   ├── Map.tsx         ← componente Google Maps (do template; NÃO usado)
     │       │   ├── ManusDialog.tsx ← dialog de login do Manus (do template; NÃO usado)
     │       │   ├── sections/       ← seções da landing Service
@@ -190,12 +220,16 @@ leaonorth/                          ← raiz do workspace (document root do site
 > `leao_north`, user `root`, senha vazia. Todos liberam **CORS**
 > (`Access-Control-Allow-Origin: *`) e respondem **JSON**.
 
+### Catálogo relacional (Versão 2.0)
+
 | Endpoint | Método | O que faz | Retorno |
 | --- | --- | --- | --- |
 | [`api/contato.php`](api/contato.php) | POST | Valida `name`, `phone`, `message`; insere em `contatos` **incluindo `tipo_mensagem`** (whitelist `service`/`materiais`/`socio`, default `service`); tenta enviar e-mail com a origem | `200/400/500/503` + `mensagem` |
 | [`api/portfolio.php`](api/portfolio.php) | GET | `SELECT id, img, title, category, size FROM portfolio ORDER BY id DESC` | array JSON |
 | [`api/depoimentos.php`](api/depoimentos.php) | GET | `SELECT id, nome, estrelas, texto FROM depoimentos ORDER BY id DESC` | array JSON |
-| [`api/produtos.php`](api/produtos.php) | GET | Lista produtos com `descricao` e **arrays aninhados** `imagens[]` e `informacoes[]` (3 queries com `IN (ids)`, **sem N+1**); filtro opcional `?categoria=` | array JSON |
+| [`api/categorias.php`](api/categorias.php) | GET | Lista `categorias` (`id, nome ORDER BY nome`) — usada pela vitrine e pelo painel | array JSON |
+| [`api/grupos.php`](api/grupos.php) | GET | Lista `grupos` com `categoria_id`/`categoria_nome` (JOIN), `caminho_imagem_capa` e `total_produtos` (COUNT); filtro opcional `?categoria_id=` | array JSON |
+| [`api/produtos.php`](api/produtos.php) | GET | Lista produtos com **`LEFT JOIN`** de `categorias`/`grupos` (expondo `categoria_id`/`categoria_nome`/`grupo_id`/`grupo_nome`/`grupo_capa`), `descricao` e **arrays aninhados** `imagens[]`/`informacoes[]` (3 queries com `IN (ids)`, sem N+1); filtros `?categoria_id=`/`?grupo_id=` | array JSON |
 | [`api/admin/login.php`](api/admin/login.php) | POST | Busca usuário por e-mail em `admin_users`; confere senha com `password_verify` | `200` com `token` ou `401` |
 | [`api/admin/mensagens.php`](api/admin/mensagens.php) | GET | Lista `contatos` **incluindo `tipo_mensagem`** (id, nome, telefone, email, servico, mensagem, tipo_mensagem, data_envio) | array JSON |
 | [`api/admin/add_depoimento.php`](api/admin/add_depoimento.php) | POST | Insere em `depoimentos` (nome, estrelas, texto — texto opcional) | `200`/`500` |
@@ -203,9 +237,16 @@ leaonorth/                          ← raiz do workspace (document root do site
 | [`api/admin/delete_depoimento.php`](api/admin/delete_depoimento.php) | DELETE | `DELETE FROM depoimentos WHERE id` (id via query string) | `200`/`500` |
 | [`api/admin/upload.php`](api/admin/upload.php) | POST | Recebe imagem (`$_FILES['image']`) + `title`/`category`/`size`; salva em `../../uploads/` com nome `time()_nome`; insere `img` (`/uploads/...`) no `portfolio` | `200`/`400`/`500` |
 | [`api/admin/delete.php`](api/admin/delete.php) | DELETE | `DELETE FROM portfolio WHERE id` (id via query string) | `200`/`500` |
-| [`api/admin/add_produto.php`](api/admin/add_produto.php) | POST | Cadastra produto (nome, especificacao, categoria, **descricao**) com **1 a 8 imagens** (`$_FILES['imagens']`), `capa_index`, `informacoes` (JSON) — tudo em **transação**, com MIME real (`finfo`) e limite **5MB** por imagem | `200`/`400`/`500` |
-| [`api/admin/edit_produto.php`](api/admin/edit_produto.php) | POST | **Edita** produto (nome, especificacao, categoria, descricao); recebe `imagens_mantidas` (JSON de caminhos) + `novas_imagens` (`$_FILES`); exclui as removidas (banco + `unlink`), reordena mantidas e faz upload das novas; capa pela **lista combinada**; informações deletadas/reinseridas — em transação | `200`/`400`/`500` |
-| [`api/admin/delete_produto.php`](api/admin/delete_produto.php) | DELETE | Resgata **todas** as imagens de `produto_imagens` antes do `DELETE FROM produtos` (FKs `ON DELETE CASCADE` removem filhas); faz `unlink` de todos os arquivos | `200`/`400`/`500` |
+| [`api/admin/add_categoria.php`](api/admin/add_categoria.php) | POST | Cria `categorias` (`nome`, UNIQUE); `409` em duplicidade | `200`/`400`/`409`/`500` |
+| [`api/admin/edit_categoria.php`](api/admin/edit_categoria.php) | POST | `UPDATE categorias SET nome WHERE id` | `200`/`400`/`409`/`500` |
+| [`api/admin/delete_categoria.php`](api/admin/delete_categoria.php) | DELETE | `DELETE FROM categorias WHERE id`; `409` se houver grupos (FK `RESTRICT`) | `200`/`400`/`409`/`500` |
+| [`api/admin/add_grupo.php`](api/admin/add_grupo.php) | POST | Cria `grupos` (`nome`, `categoria_id`) + **1 capa obrigatória** (`$_FILES['capa']`, MIME real + 5MB); `409` em duplicidade na categoria | `200`/`400`/`409`/`500` |
+| [`api/admin/edit_grupo.php`](api/admin/edit_grupo.php) | POST | Edita `grupos` (`nome`, `categoria_id`); capa nova (substitui/`unlink` antiga) ou `remover_capa=1` | `200`/`400`/`404`/`409`/`500` |
+| [`api/admin/delete_grupo.php`](api/admin/delete_grupo.php) | DELETE | Exclui `grupos` + `unlink` da capa; produtos ficam sem grupo (`ON DELETE SET NULL`) | `200`/`400`/`500` |
+| [`api/admin/add_produto.php`](api/admin/add_produto.php) | POST | Cadastra produto (**`categoria_id` obrigatório**, `grupo_id` opcional, `descricao`) com **1 a 8 imagens** (`$_FILES['imagens']`), `capa_index`, `informacoes` (JSON) — transação, MIME real (`finfo`) e 5MB | `200`/`400`/`500` |
+| [`api/admin/edit_produto.php`](api/admin/edit_produto.php) | POST | **Edita** produto (`categoria_id`/`grupo_id`); `imagens_mantidas` (JSON) + `novas_imagens` (`$_FILES`); exclui removidas (banco + `unlink`); capa pela lista combinada; informações deletadas/reinseridas — transação | `200`/`400`/`500` |
+| [`api/admin/duplicate_produto.php`](api/admin/duplicate_produto.php) | POST | **Duplica** produto: `SELECT` completo (produto + imagens + informações) → `INSERT` novo com nome `" (Cópia)"` herdando `categoria_id`/`grupo_id`; **copia fisicamente os arquivos** de imagem via `copy()` (novos nomes `time()_indice_nome`) — transação + rollback com `unlink` | `200` (com `id`) /`400`/`404`/`500` |
+| [`api/admin/delete_produto.php`](api/admin/delete_produto.php) | DELETE | Resgata **todas** as imagens de `produto_imagens` antes do `DELETE FROM produtos` (FKs `ON DELETE CASCADE`); faz `unlink` de todos os arquivos | `200`/`400`/`500` |
 
 ### Sobre o campo `tipo_mensagem`
 
@@ -218,10 +259,13 @@ leaonorth/                          ← raiz do workspace (document root do site
 
 - **Login "frouxo":** o token (`base64(id + time())`) é guardado apenas no `localStorage`; **nenhum
   endpoint de admin valida de fato esse token** no servidor. A "proteção" é client-side.
-- **Injeção SQL:** todas as queries usam prepared statements (`bindParam`) — ok.
-- **Upload:** `add_produto.php` e `edit_produto.php` validam **MIME real via `finfo`** e **5MB** por
-  imagem; `upload.php` do portfólio continua sem validação no servidor (apenas `accept="image/*"`).
+- **Injeção SQL:** todas as queries usam prepared statements (`bindParam`/`bindValue`) — ok.
+- **Upload:** `add_produto.php`, `edit_produto.php`, `add_grupo.php` e `edit_grupo.php` validam
+  **MIME real via `finfo`** e **5MB**; `upload.php` do portfólio continua sem validação no servidor
+  (apenas `accept="image/*"`).
 - **Conexão:** credenciais do banco hardcoded (padrão XAMPP: root/senha vazia).
+- **Duplicação:** `duplicate_produto.php` usa `copy()` para criar **arquivos independentes** das
+  imagens, para que excluir o original não afete a cópia.
 
 ---
 
@@ -233,7 +277,8 @@ leaonorth/                          ← raiz do workspace (document root do site
 - [`client/src/App.tsx`](leao-north-site/client/src/App.tsx) — define o `Router` (wouter `Switch`):
   - `/` → **`Gateway`** (Portal Yin-Yang)
   - `/service` → **`Service`**
-  - `/materiais` → **`Materiais`**
+  - `/materiais` → **`Materiais`** (vitrine agrupada)
+  - `/materiais/grupo/:id` → **`GrupoVariacoes`** (variações de um grupo, por ID)
   - `/materiais/:id` → **`ProdutoDetalhes`** (rota dinâmica)
   - `/admin` → `Login`
   - `/admin/dashboard` → `Dashboard`
@@ -246,7 +291,8 @@ leaonorth/                          ← raiz do workspace (document root do site
 | --- | --- |
 | [`Gateway.tsx`](leao-north-site/client/src/pages/Gateway.tsx) | **Portal de escolha (Yin-Yang):** tela dividida em duas metades (lado a lado no desktop, empilhada no mobile). Lado esquerdo **Service** (fundo `#080808`, dourado, → `/service`) e lado direito **Materiais** (fundo claro `#F8FAFC`, dourado, → `/materiais`). Animações de entrada com `tw-animate-css` e hover com anel de brilho dourado + zoom. Não usa Navbar/Footer. |
 | [`Service.tsx`](leao-north-site/client/src/pages/Service.tsx) | **Leão North Service** (ex-`Home`): compõe `Navbar` → `Hero` → `About` → `Mission` → `Services` → `Portfolio` → `Differentials` → **`SociosSection`** → `Testimonials` → `Contact` → `Footer` → `WhatsAppButton`. Fundo geral `#080808`. |
-| [`Materiais.tsx`](leao-north-site/client/src/pages/Materiais.tsx) | **Leão North Materiais (tema claro):** Hero claro + **catálogo** consumindo `api/produtos.php`. Cards (`ProdutoCard`) com **mini-carrossel de imagens** (setas + contador, **capa no índice 0**) e dois botões: **"Mais Detalhes"** (`/materiais/:id`) e **"Tenho Interesse"** (WhatsApp `wa.me/5543999190467` citando o produto). Filtro por categoria (chips). Usa `<Navbar variant="light" />` e o `Footer` escuro (contraste). |
+| [`Materiais.tsx`](leao-north-site/client/src/pages/Materiais.tsx) | **Leão North Materiais (tema claro) — vitrine agrupada (Fases 13/19):** consumindo `api/produtos.php`, um `useMemo` separa a lista em **cards de grupo** (agrupados por `grupo_id`, título = `grupo_nome`, capa = **`grupo_capa`** oficial, badge "X opções disponíveis" e botão **"Ver Opções"** → `/materiais/grupo/:id`) e **cards individuais** (produtos sem grupo). Chips de filtro por `categoria_nome`. Usa `<Navbar variant="light" />` e o `Footer` escuro. |
+| [`GrupoVariacoes.tsx`](leao-north-site/client/src/pages/GrupoVariacoes.tsx) | **Variações de um grupo** (`/materiais/grupo/:id`): lê o `id` da URL, filtra os produtos por `grupo_id` (client-side) e exibe cada variação com o `ProdutoCard` individual; cabeçalho com `categoria_nome`/`grupo_nome` (nomes oficiais). |
 | [`ProdutoDetalhes.tsx`](leao-north-site/client/src/pages/ProdutoDetalhes.tsx) | **Detalhes do produto** (`/materiais/:id`): busca produto por `id` em `api/produtos.php`; **galeria** (foto principal + miniaturas + setas, capa por padrão) com **efeito de zoom "lupa"** (hover desktop: `scale(2)` + `transform-origin` no cursor, ícone `ZoomIn`); **descrição** com `whitespace-pre-line`; **informações adicionais** em tabela; **CTA gigante "Tenho Interesse"** (WhatsApp verde `#25D366`). |
 | [`NotFound.tsx`](leao-north-site/client/src/pages/NotFound.tsx) | Página 404. |
 
@@ -274,11 +320,17 @@ leaonorth/                          ← raiz do workspace (document root do site
   menu mobile hambúrguer, links âncora (Início, Sobre, Serviços, Portfólio, **Sócios**, Depoimentos,
   Contato). **Aceita a prop `variant?: "dark" | "light"`** (default `dark`): a variante `light` usa
   textos escuros, fundo branco com blur ao rolar e acentos dourados mais escuros (`#B8860B`) — usada
-  nas páginas Materiais e ProdutoDetalhes.
+  nas páginas Materiais, GrupoVariacoes e ProdutoDetalhes.
 - [`Footer.tsx`](leao-north-site/client/src/components/Footer.tsx) — rodapé escuro com colunas de
   marca, links, serviços e contato. Mantido escuro em todas as páginas (inclusive na Materiais).
 - [`WhatsAppButton.tsx`](leao-north-site/client/src/components/WhatsAppButton.tsx) — botão flutuante
   verde com pulso, link `https://wa.me/5543999190467`.
+- [`ProdutoCard.tsx`](leao-north-site/client/src/components/ProdutoCard.tsx) — **card de produto
+  compartilhado** (extraído na Fase 13): mini-carrossel de imagens (capa no índice 0), `categoria_nome`,
+  nome, especificação e botões "Mais Detalhes" e "Tenho Interesse". Exporta o tipo `Produto` (campos
+  relacionais `categoria_id`/`categoria_nome`/`grupo_id`/`grupo_nome`/`grupo_capa`) e o helper
+  `normalizarImagens`. Usado em [`Materiais.tsx`](leao-north-site/client/src/pages/Materiais.tsx) e
+  [`GrupoVariacoes.tsx`](leao-north-site/client/src/pages/GrupoVariacoes.tsx).
 - [`ErrorBoundary.tsx`](leao-north-site/client/src/components/ErrorBoundary.tsx) — captura erros e
   mostra tela com stack + "Reload Page".
 - [`Map.tsx`](leao-north-site/client/src/components/Map.tsx) e
@@ -292,16 +344,27 @@ leaonorth/                          ← raiz do workspace (document root do site
 - [`client/src/pages/admin/Login.tsx`](leao-north-site/client/src/pages/admin/Login.tsx) — tela de
   login. Envia `POST` para `api/admin/login.php`; em sucesso salva `admin_token` no `localStorage`.
 - [`client/src/pages/admin/Dashboard.tsx`](leao-north-site/client/src/pages/admin/Dashboard.tsx) —
-  painel com **sidebar** e 4 abas:
-  - **Portfólio:** upload (título, categoria, tamanho, imagem) → `upload.php`; lista + excluir → `delete.php`.
-  - **Catálogo de Produtos:** formulário rico (**modo Adicionar/Editar**) — múltiplas fotos com
-    preview e **seletor de capa**, descrição longa e **informações adicionais dinâmicas**
-    (título/texto). Envia `imagens[]`, `capa_index` e `informacoes` (JSON) para `add_produto.php`
-    (ou `novas_imagens[]` + `imagens_mantidas` para `edit_produto.php`). Listagem com capa via
-    `imagens.find(i => i.is_capa)`, botões **Editar** (`Pencil`) e **Excluir**.
-  - **Caixa de Entrada:** tabela de mensagens → `mensagens.php`, com **badge de `tipo_mensagem`**
-    (Service = dourado, Materiais = azul, Sócio = roxo) também presente no modal de leitura.
-  - **Depoimentos:** criar/editar (add/edit) e excluir → `delete_depoimento.php`.
+  painel com **sidebar seccionado** (labels por área) e abas:
+  - **LEÃO MATERIAIS:**
+    - **Categorias** (Fase 16): formulário (nome) + tabela com Editar/Excluir → `categorias.php`,
+      `add/edit/delete_categoria.php`.
+    - **Grupos** (Fase 17): formulário (nome + select categoria + **upload da capa** com preview
+      via `URL.createObjectURL`) + tabela com miniatura/nome/categoria/ações → `grupos.php`,
+      `add/edit/delete_grupo.php`.
+    - **Produtos** (Fases 6/7/9/12/14/18): formulário rico com **selects de Categoria e Grupo**
+      (relacional — grupo filtrado pela categoria selecionada), múltiplas fotos com seletor de capa,
+      descrição e informações dinâmicas; envia `categoria_id`/`grupo_id` + `imagens[]`/`capa_index`/
+      `informacoes` (ou `novas_imagens[]` + `imagens_mantidas`). Ações por card: **Editar**, **Duplicar**
+      (ícone `Copy`, Fase 12) e **Excluir**. A **listagem é em "pastas"** (drill-down, Fase 14): produtos
+      com grupo viram pasta (capa `grupo_capa`) com "Ver Variações"; produtos sem grupo aparecem
+      individualmente.
+  - **LEÃO SERVICE:**
+    - **Portfólio/Serviços:** upload (título, categoria, tamanho, imagem) → `upload.php`; lista +
+      excluir → `delete.php`.
+    - **Depoimentos:** criar/editar (add/edit) e excluir → `delete_depoimento.php`.
+  - **GERAL:**
+    - **Mensagens:** tabela de mensagens → `mensagens.php`, com **badge de `tipo_mensagem`**
+      (Service = dourado, Materiais = azul, Sócio = roxo) também presente no modal de leitura.
   - Redireciona para `/admin` se não existir `admin_token`.
 
 ### Contextos, hooks e utilitários
@@ -335,23 +398,27 @@ leaonorth/                          ← raiz do workspace (document root do site
 
 ## 7. Banco de Dados — Database `leao_north`
 
-O schema não está versionado em SQL no repositório (é criado manualmente no phpMyAdmin/XAMPP; há a
-referência DDL nos documentos de planejamento em `zoo_code_docs/`).
+O schema foi migrado para o **modelo relacional (Versão 2.0)** na Fase 15. O DDL completo (criação de
+`categorias`/`grupos`, `ALTER TABLE produtos` e **backfill** dos dados existentes) está em
+[`api/migracao_v2.sql`](api/migracao_v2.sql). **Pendência manual:** executar o `DROP COLUMN` das
+colunas antigas de texto após validar a vitrine
+(`ALTER TABLE produtos DROP COLUMN categoria, DROP COLUMN grupo;`).
 
 | Tabela | Colunas | Usada por |
 | --- | --- | --- |
 | `contatos` | `id`, `nome`, `telefone`, `email`, `servico`, `mensagem`, **`tipo_mensagem`** (ENUM `service`/`materiais`/`socio`, default `service`), `data_envio` | `contato.php` (insert), `mensagens.php` (select) |
 | `portfolio` | `id`, `img`, `title`, `category`, `size` | `portfolio.php` (select), `upload.php` (insert), `delete.php` (delete) |
 | `depoimentos` | `id`, `nome`, `estrelas`, `texto` | `depoimentos.php` (select), `add_depoimento.php`/`edit_depoimento.php` (insert/update), `delete_depoimento.php` (delete) |
-| `produtos` | `id`, `nome`, `especificacao`, **`descricao`** (TEXT, Fase 6), `categoria`, `data_cadastro` (TIMESTAMP default CURRENT_TIMESTAMP) — **sem coluna `imagem`** | `produtos.php` (select), `add_produto.php`/`edit_produto.php` (insert/update), `delete_produto.php` (delete) |
-| `produto_imagens` | `id`, `produto_id` (FK `ON DELETE CASCADE`), `caminho_imagem`, `is_capa` (TINYINT 0/1), `ordem` | `add_produto.php`/`edit_produto.php` (insert/update), `produtos.php` (select), `delete_produto.php` (delete) |
-| `produto_informacoes` | `id`, `produto_id` (FK `ON DELETE CASCADE`), `titulo`, `texto` | `add_produto.php`/`edit_produto.php` (insert/delete), `produtos.php` (select) |
+| `categorias` | `id`, `nome` (UNIQUE) | `categorias.php` (select), `add_categoria.php`/`edit_categoria.php` (insert/update), `delete_categoria.php` (delete) |
+| `grupos` | `id`, `nome`, `categoria_id` (FK → `categorias` `ON DELETE RESTRICT`), `caminho_imagem_capa` (capa exclusiva) — UNIQUE `(categoria_id, nome)` | `grupos.php` (select), `add_grupo.php`/`edit_grupo.php` (insert/update), `delete_grupo.php` (delete) |
+| `produtos` | `id`, `nome`, `especificacao`, **`descricao`** (TEXT), `categoria_id` (FK → `categorias` `ON DELETE SET NULL`), `grupo_id` (FK → `grupos` `ON DELETE SET NULL`), `data_cadastro` — (colunas legadas de texto `categoria`/`grupo` ainda presentes até o `DROP` manual) | `produtos.php` (select + LEFT JOIN), `add_produto.php`/`edit_produto.php`/`duplicate_produto.php` (insert/update), `delete_produto.php` (delete) |
+| `produto_imagens` | `id`, `produto_id` (FK `ON DELETE CASCADE`), `caminho_imagem`, `is_capa` (TINYINT 0/1), `ordem` | `add_produto.php`/`edit_produto.php` (insert/update), `produtos.php` (select), `delete_produto.php`/`duplicate_produto.php` (delete/copy) |
+| `produto_informacoes` | `id`, `produto_id` (FK `ON DELETE CASCADE`), `titulo`, `texto` | `add_produto.php`/`edit_produto.php`/`duplicate_produto.php` (insert/delete), `produtos.php` (select) |
 | `admin_users` | `id`, `email`, `password` | `login.php` (select + `password_verify`) |
 
 > **Nota:** a senha do admin deve ser gerada com `password_hash()` (ex.: `password_hash('123456',
-> PASSWORD_DEFAULT)`). Não há script de seed no repo. A coluna `tipo_mensagem` e a tabela `produtos`
-> foram adicionadas na Fase 1; a coluna `descricao` e as tabelas `produto_imagens`/
-> `produto_informacoes` na Fase 6 (DDLs documentados em `zoo_code_docs/`).
+> PASSWORD_DEFAULT)`). Não há script de seed no repo. As tabelas `categorias`/`grupos` e as colunas
+> `categoria_id`/`grupo_id` em `produtos` foram criadas na Fase 15 (DDL em [`api/migracao_v2.sql`](api/migracao_v2.sql)).
 
 ---
 
@@ -359,8 +426,10 @@ referência DDL nos documentos de planejamento em `zoo_code_docs/`).
 
 1. **Apache + MySQL** do XAMPP ligados.
 2. Criar o banco `leao_north` e as tabelas da §7 (no phpMyAdmin): `contatos` (com `tipo_mensagem`),
-   `portfolio`, `depoimentos`, `produtos` (com `descricao`), `produto_imagens`, `produto_informacoes`
-   e `admin_users`.
+   `portfolio`, `depoimentos`, `categorias`, `grupos`, `produtos`, `produto_imagens`,
+   `produto_informacoes` e `admin_users`. Para **bases já existentes**, executar
+   [`api/migracao_v2.sql`](api/migracao_v2.sql) (cria `categorias`/`grupos` e faz o backfill) e, por
+   fim, o `DROP COLUMN` manual das colunas antigas.
 3. Colocar o projeto em `C:\xampp\htdocs\leaonorth` (já é a raiz do workspace).
 4. A API PHP fica em `http://localhost/leaonorth/api/...` (testar no navegador).
 5. Frontend:
@@ -371,9 +440,9 @@ referência DDL nos documentos de planejamento em `zoo_code_docs/`).
    ```
    > O frontend **não funciona sozinho** sem a API: portfólio, depoimentos, produtos e formulários
    > dependem de `http://localhost/leaonorth/api/...`.
-6. **Rotas:** `/` (Gateway) → escolha Service (`/service`) ou Materiais (`/materiais`); detalhes de
-   produto em `/materiais/:id`. Painel admin em `/admin` (é preciso um registro em `admin_users` com
-   senha `password_hash`-ada).
+6. **Rotas:** `/` (Gateway) → escolha Service (`/service`) ou Materiais (`/materiais`); variações de
+   um grupo em `/materiais/grupo/:id`; detalhes de produto em `/materiais/:id`. Painel admin em
+   `/admin` (é preciso um registro em `admin_users` com senha `password_hash`-ada).
 
 ### Scripts do frontend (package.json)
 
@@ -408,29 +477,40 @@ referência DDL nos documentos de planejamento em `zoo_code_docs/`).
 
 1. **URLs hardcoded:** o frontend contém `http://localhost/leaonorth/...` fixo em vários arquivos
    (`PortfolioSection`, `TestimonialsSection`, `ContactSection`, `SociosSection`, `Materiais`,
-   `ProdutoDetalhes`, `Login`, `Dashboard`). Em produção isso precisaria apontar para
-   `https://leaonorth.com.br`.
+   `GrupoVariacoes`, `ProdutoDetalhes`, `Login`, `Dashboard`). Em produção isso precisaria apontar
+   para `https://leaonorth.com.br`.
 2. **Autenticação client-side apenas:** o `admin_token` não é validado no backend; qualquer endpoint
    admin pode ser chamado sem token. Recomendado implementar verificação de token/sessão no PHP.
 3. **Design por frente de negócio:** Service é **escuro** (`#080808` + dourado) e Materiais é
    **claro** (`bg-slate-50` + dourado). Mantenha consistência: use os tokens do
    [`index.css`](leao-north-site/client/src/index.css) e as fontes Barlow Condensed/DM Sans.
 4. **Navbar com variante:** a `Navbar` aceita `variant="dark"` (padrão) e `variant="light"` (usada
-   nas páginas Materiais e ProdutoDetalhes). Ao adicionar páginas novas, escolha a variante coerente
-   com o fundo.
+   nas páginas Materiais, GrupoVariacoes e ProdutoDetalhes). Ao adicionar páginas novas, escolha a
+   variante coerente com o fundo.
 5. **Credenciais do banco hardcoded** em todos os PHP (root/senha vazia) — padrão local XAMPP.
 6. **Upload de arquivos:** o caminho `../../uploads/` é relativo à pasta `api/admin/`, resolvendo
-   para `leaonorth/uploads/` (raiz do site). `add_produto.php` e `edit_produto.php` validam MIME/5MB;
-   o `upload.php` do portfólio ainda não valida no servidor.
+   para `leaonorth/uploads/` (raiz do site). Validações de MIME (`finfo`)/5MB existem em
+   `add_produto.php`, `edit_produto.php`, `add_grupo.php` e `edit_grupo.php`; o `upload.php` do
+   portfólio ainda não valida no servidor.
 7. **`tipo_mensagem`:** `contato.php` grava o valor com whitelist; o painel exibe badges (Service
    dourado, Materiais azul, Sócio roxo). Ao adicionar novas origens, atualizar o ENUM, o `contato.php`
    e a config de badges no `Dashboard.tsx`.
-8. **Produtos complexos:** produtos usam **múltiplas imagens** em `produto_imagens` (capa via
+8. **Catálogo relacional (Versão 2.0):** categorias e grupos são **entidades** (`categorias`/
+   `grupos`). Os produtos usam `categoria_id`/`grupo_id` (FKs) e **não mais** as strings antigas. As
+   APIs de produtos recebem/retornam **IDs** (`produtos.php` expõe também `categoria_nome`,
+   `grupo_nome` e `grupo_capa` via LEFT JOIN). A vitrine agrupa por `grupo_id` e o painel usa selects
+   relacionais. ⚠️ As colunas legadas `produtos.categoria`/`produtos.grupo` ainda existem no banco e
+   devem ser **removidas manualmente** (`DROP COLUMN`) **somente após** a vitrine atualizada (Fase 19)
+   — ver [`api/migracao_v2.sql`](api/migracao_v2.sql) e [`fase19_vitrine_relacional.md`](zoo_code_docs/fase19_vitrine_relacional.md).
+9. **Produtos complexos:** produtos usam **múltiplas imagens** em `produto_imagens` (capa via
    `is_capa`; `add`/`edit` enviam `imagens[]`/`novas_imagens[]` com colchetes no FormData) e
-   **informações adicionais** em `produto_informacoes`. A coluna `imagem` da tabela `produtos` **não
-   existe mais**. O `produtos.php` retorna `imagens[]` e `informacoes[]` aninhados (sem N+1).
-9. **Zoom na página de detalhes:** o efeito de lupa (`scale(2)` + `transform-origin`) funciona
-   apenas em **desktop (hover)** — no mobile, usa-se o gesto nativo de pinça.
-10. **Documentação por fases:** os planejamentos das Fases 1–10 estão em
-    [`zoo_code_docs/`](zoo_code_docs/) (`fase1_arquitetura.md` ... `fase10_zoom_imagem.md`).
-11. **Sem teste automatizado** no projeto (apenas `tsc --noEmit` via `pnpm check`).
+   **informações adicionais** em `produto_informacoes`. `produtos.php` retorna `imagens[]` e
+   `informacoes[]` aninhados (sem N+1). **Duplicação:** `duplicate_produto.php` copia os arquivos
+   físicos com `copy()` (novos nomes com `time()`), gerando produto independente com `" (Cópia)"`.
+10. **Zoom na página de detalhes:** o efeito de lupa (`scale(2)` + `transform-origin`) funciona
+    apenas em **desktop (hover)** — no mobile, usa-se o gesto nativo de pinça.
+11. **Documentação por fases:** os planejamentos das Fases 1–19 estão em
+    [`zoo_code_docs/`](zoo_code_docs/) (`fase1_arquitetura.md` ... `fase19_vitrine_relacional.md`).
+    As Fases 11–14 cobrem o agrupamento/duplicação/administração com grupos (strings); as Fases 15–19
+    cobrem a migração para o **modelo relacional** (categorias/grupos, painel e vitrine).
+12. **Sem teste automatizado** no projeto (apenas `tsc --noEmit` via `pnpm check`/`npx tsc --noEmit`).
