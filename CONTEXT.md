@@ -27,6 +27,17 @@ A **Leão North** é uma empresa de engenharia elétrica com sede em **Cornélio
 > **painel admin** foi seccionado em **"Leão Materiais"** (Categorias, Grupos, Produtos) ×
 > **"Leão Service"** (Portfólio, Depoimentos) × **Geral** (Mensagens).
 
+> **Fases 20–21 (UI/UX da vitrine Materiais):** a frente "Leão Materiais" passou a ter experiência
+> **própria e separada** da institucional. A **Fase 20** criou o header exclusivo
+> ([`HeaderMateriais.tsx`](leao-north-site/client/src/components/HeaderMateriais.tsx)) com **busca
+> global** (Enter → `/materiais?q=...`, lida via `window.location.search`), footer enxuto
+> ([`FooterMateriais.tsx`](leao-north-site/client/src/components/FooterMateriais.tsx)) e **sidebar
+> vertical de categorias** (desktop sticky / `Sheet` off-canvas no mobile). A **Fase 21** adicionou
+> **ordenação** (Padrão/A–Z/Z–A), **breadcrumbs** e **estado vazio persuasivo** com CTA de WhatsApp.
+> As rotas do catálogo (`/materiais*`) **não herdam** mais o menu institucional — o Service segue com
+> `Navbar`/`Footer`. Planejamentos: [`fase20_vitrine_ux.md`](zoo_code_docs/fase20_vitrine_ux.md) e
+> [`fase21_vitrine_refinamentos.md`](zoo_code_docs/fase21_vitrine_refinamentos.md).
+
 A experiência começa no **Portal Gateway** (split-screen), onde o visitante escolhe entre
 **Service** e **Materiais**. Há também o **Painel Administrativo** (`/admin`), que permite gerenciar
 portfólio, **categorias**, **grupos** (com upload de capa), **produtos (criar, editar, excluir e
@@ -43,7 +54,7 @@ com uma **API em PHP** servida pelo Apache do XAMPP, persistindo dados em **MySQ
 | --- | --- |
 | Frontend | React 19 + TypeScript + Vite 7 |
 | Estilo | Tailwind CSS 4 + shadcn/ui (Radix UI) + tw-animate-css |
-| Roteamento | Wouter 3 (client-side routing; rotas dinâmicas `/materiais/:id` e `/materiais/grupo/:id`) |
+| Roteamento | Wouter 3 (client-side routing; rotas dinâmicas `/materiais/:id` e `/materiais/grupo/:id`). ⚠️ `useLocation` retorna **apenas o pathname** — query string lida via `window.location.search` (ver §10.13) |
 | Animações | CSS + IntersectionObserver (scroll reveal) + tw-animate-css (Gateway) + zoom CSS (transform-origin) |
 | Backend | PHP 8 (PDO/MySQL) servido pelo Apache do XAMPP |
 | Banco de dados | MySQL — database `leao_north` |
@@ -105,7 +116,10 @@ flowchart LR
    buscam dados via `fetch` para a API PHP.
 3. Escolhe **Materiais** (`/materiais`): catálogo claro consumindo `api/produtos.php`. A **vitrine é
    agrupada** (Fases 13/19): produtos com `grupo_id` viram **1 card de grupo** (capa oficial do grupo
-   = `grupo_capa`), e produtos sem grupo aparecem como cards individuais.
+   = `grupo_capa`), e produtos sem grupo aparecem como cards individuais. A página usa **Header/
+   Footer exclusivos** (Fase 20) e oferece **busca global** (`?q=`), **sidebar de categorias**
+   (desktop/Sheet mobile), **ordenação** Padrão/A–Z/Z–A, **breadcrumbs** e **estado vazio com CTA de
+   WhatsApp** (Fases 20/21).
 4. Clica em **"Ver Opções"** de um grupo → **`/materiais/grupo/:id`** (`GrupoVariacoes.tsx`): lista as
    variações (produtos) daquele `grupo_id` com o card individual.
 5. Clica em um produto (individual ou variação) → **`/materiais/:id`** (`ProdutoDetalhes.tsx`):
@@ -157,7 +171,7 @@ leaonorth/                          ← raiz do workspace (document root do site
 │
 ├── uploads/                        ← imagens (portfólio, produtos e capas de grupos)
 │
-├── zoo_code_docs/                  ← documentação de planejamento das fases (fase1..fase19)
+├── zoo_code_docs/                  ← documentação de planejamento das fases (fase1..fase21)
 │
 └── leao-north-site/                ← FRONTEND React (código-fonte do site)
     ├── package.json                ← dependências e scripts
@@ -175,7 +189,7 @@ leaonorth/                          ← raiz do workspace (document root do site
     │       ├── pages/
     │       │   ├── Gateway.tsx     ← Portal Yin-Yang (escolha Service × Materiais)
     │       │   ├── Service.tsx     ← landing da Leão North Service (ex-Home)
-    │       │   ├── Materiais.tsx   ← vitrine de produtos agrupada (tema claro; cards de grupo × individuais)
+    │       │   ├── Materiais.tsx   ← vitrine Materiais (Fases 13/19/20/21): busca global, sidebar de categorias, ordenação, breadcrumbs, estado vazio com CTA
     │       │   ├── GrupoVariacoes.tsx ← página de variações de um grupo (/materiais/grupo/:id)
     │       │   ├── ProdutoDetalhes.tsx ← página de detalhes do produto (galeria + zoom/lupa)
     │       │   ├── NotFound.tsx    ← página 404
@@ -183,8 +197,10 @@ leaonorth/                          ← raiz do workspace (document root do site
     │       │       ├── Login.tsx   ← tela de login do painel
     │       │       └── Dashboard.tsx ← painel seccionado (categorias/grupos/produtos/portfólio/mensagens/depoimentos)
     │       ├── components/
-    │       │   ├── Navbar.tsx      ← navbar fixa com blur; prop variant="dark" | "light"
-    │       │   ├── Footer.tsx      ← rodapé escuro (mantido escuro em todas as páginas)
+    │       │   ├── HeaderMateriais.tsx ← header EXCLUSIVO da frente Materiais (Fase 20: logo, busca global, Início/Contato; sem menu institucional)
+    │       │   ├── FooterMateriais.tsx ← rodapé enxuto da frente Materiais (Fase 20: logo, redes sociais, direitos)
+    │       │   ├── Navbar.tsx      ← navbar institucional fixa com blur; prop variant="dark" | "light" (usada APENAS pelo Service)
+    │       │   ├── Footer.tsx      ← rodapé escuro institucional (usado APENAS pelo Service)
     │       │   ├── WhatsAppButton.tsx ← botão flutuante do WhatsApp
     │       │   ├── ErrorBoundary.tsx ← captura erros de renderização
     │       │   ├── ProdutoCard.tsx ← card de produto compartilhado (mini-carrossel; usado em Materiais e GrupoVariacoes)
@@ -291,9 +307,9 @@ leaonorth/                          ← raiz do workspace (document root do site
 | --- | --- |
 | [`Gateway.tsx`](leao-north-site/client/src/pages/Gateway.tsx) | **Portal de escolha (Yin-Yang):** tela dividida em duas metades (lado a lado no desktop, empilhada no mobile). Lado esquerdo **Service** (fundo `#080808`, dourado, → `/service`) e lado direito **Materiais** (fundo claro `#F8FAFC`, dourado, → `/materiais`). Animações de entrada com `tw-animate-css` e hover com anel de brilho dourado + zoom. Não usa Navbar/Footer. |
 | [`Service.tsx`](leao-north-site/client/src/pages/Service.tsx) | **Leão North Service** (ex-`Home`): compõe `Navbar` → `Hero` → `About` → `Mission` → `Services` → `Portfolio` → `Differentials` → **`SociosSection`** → `Testimonials` → `Contact` → `Footer` → `WhatsAppButton`. Fundo geral `#080808`. |
-| [`Materiais.tsx`](leao-north-site/client/src/pages/Materiais.tsx) | **Leão North Materiais (tema claro) — vitrine agrupada (Fases 13/19):** consumindo `api/produtos.php`, um `useMemo` separa a lista em **cards de grupo** (agrupados por `grupo_id`, título = `grupo_nome`, capa = **`grupo_capa`** oficial, badge "X opções disponíveis" e botão **"Ver Opções"** → `/materiais/grupo/:id`) e **cards individuais** (produtos sem grupo). Chips de filtro por `categoria_nome`. Usa `<Navbar variant="light" />` e o `Footer` escuro. |
-| [`GrupoVariacoes.tsx`](leao-north-site/client/src/pages/GrupoVariacoes.tsx) | **Variações de um grupo** (`/materiais/grupo/:id`): lê o `id` da URL, filtra os produtos por `grupo_id` (client-side) e exibe cada variação com o `ProdutoCard` individual; cabeçalho com `categoria_nome`/`grupo_nome` (nomes oficiais). |
-| [`ProdutoDetalhes.tsx`](leao-north-site/client/src/pages/ProdutoDetalhes.tsx) | **Detalhes do produto** (`/materiais/:id`): busca produto por `id` em `api/produtos.php`; **galeria** (foto principal + miniaturas + setas, capa por padrão) com **efeito de zoom "lupa"** (hover desktop: `scale(2)` + `transform-origin` no cursor, ícone `ZoomIn`); **descrição** com `whitespace-pre-line`; **informações adicionais** em tabela; **CTA gigante "Tenho Interesse"** (WhatsApp verde `#25D366`). |
+| [`Materiais.tsx`](leao-north-site/client/src/pages/Materiais.tsx) | **Leão North Materiais (tema claro) — vitrine agrupada (Fases 13/19) + UX de conversão (Fases 20/21):** consumindo `api/produtos.php`, um `useMemo` separa a lista em **cards de grupo** (agrupados por `grupo_id`, título = `grupo_nome`, capa = **`grupo_capa`** oficial, badge "X opções disponíveis" e botão **"Ver Opções"** → `/materiais/grupo/:id`) e **cards individuais** (produtos sem grupo). Usa **Header exclusivo** (`HeaderMateriais`, com **busca global** `?q=` lida via `window.location.search`) e **Footer enxuto** (`FooterMateriais`); **sidebar vertical** de categorias (desktop sticky `w-64` / `Sheet` off-canvas no mobile), **ordenação** Padrão/A–Z/Z–A, **breadcrumbs** (`Início > Catálogo > Categoria`) e **estado vazio persuasivo** com CTA verde de WhatsApp `#25D366`. |
+| [`GrupoVariacoes.tsx`](leao-north-site/client/src/pages/GrupoVariacoes.tsx) | **Variações de um grupo** (`/materiais/grupo/:id`): lê o `id` da URL, filtra os produtos por `grupo_id` (client-side) e exibe cada variação com o `ProdutoCard` individual; cabeçalho com `categoria_nome`/`grupo_nome` (nomes oficiais). Usa `HeaderMateriais`/`FooterMateriais` e **breadcrumb** `Início > Catálogo > Categoria > Grupo` (Fase 21). |
+| [`ProdutoDetalhes.tsx`](leao-north-site/client/src/pages/ProdutoDetalhes.tsx) | **Detalhes do produto** (`/materiais/:id`): busca produto por `id` em `api/produtos.php`; **galeria** (foto principal + miniaturas + setas, capa por padrão) com **efeito de zoom "lupa"** (hover desktop: `scale(2)` + `transform-origin` no cursor, ícone `ZoomIn`); **descrição** com `whitespace-pre-line`; **informações adicionais** em tabela; **CTA gigante "Tenho Interesse"** (WhatsApp verde `#25D366`). Usa `HeaderMateriais`/`FooterMateriais` (Fase 20). |
 | [`NotFound.tsx`](leao-north-site/client/src/pages/NotFound.tsx) | Página 404. |
 
 ### Seções (components/sections) — usadas pelo `Service`
@@ -316,13 +332,21 @@ leaonorth/                          ← raiz do workspace (document root do site
 
 ### Componentes compartilhados
 
+- [`HeaderMateriais.tsx`](leao-north-site/client/src/components/HeaderMateriais.tsx) — **header
+  EXCLUSIVO da frente Materiais (Fase 20)**, renderizado apenas nas rotas `/materiais*`. Logo "Leão"
+  → `/` (hub Gateway), **busca global** no centro (Enter → `/materiais?q=...`; termo vazio →
+  `/materiais`), links "Catálogo" (→ `/materiais`) e "Contato" (WhatsApp). **Não herda** o menu
+  institucional. Tema claro + dourado; no mobile a lupa abre a busca em linha.
+- [`FooterMateriais.tsx`](leao-north-site/client/src/components/FooterMateriais.tsx) — **rodapé
+  enxuto da frente Materiais (Fase 20)**: logo, redes sociais e direitos (sem âncoras
+  institucionais). Fundo escuro `#060606`.
 - [`Navbar.tsx`](leao-north-site/client/src/components/Navbar.tsx) — fixa, ganha blur ao rolar,
   menu mobile hambúrguer, links âncora (Início, Sobre, Serviços, Portfólio, **Sócios**, Depoimentos,
-  Contato). **Aceita a prop `variant?: "dark" | "light"`** (default `dark`): a variante `light` usa
-  textos escuros, fundo branco com blur ao rolar e acentos dourados mais escuros (`#B8860B`) — usada
-  nas páginas Materiais, GrupoVariacoes e ProdutoDetalhes.
-- [`Footer.tsx`](leao-north-site/client/src/components/Footer.tsx) — rodapé escuro com colunas de
-  marca, links, serviços e contato. Mantido escuro em todas as páginas (inclusive na Materiais).
+  Contato). **Usada APENAS pelo Service** (`variant="light"` deixou de ser usada nas páginas do
+  catálogo, que agora usam `HeaderMateriais`).
+- [`Footer.tsx`](leao-north-site/client/src/components/Footer.tsx) — rodapé escuro institucional com
+  colunas de marca, links, serviços e contato. **Usado APENAS pelo Service** (o catálogo usa
+  `FooterMateriais`).
 - [`WhatsAppButton.tsx`](leao-north-site/client/src/components/WhatsAppButton.tsx) — botão flutuante
   verde com pulso, link `https://wa.me/5543999190467`.
 - [`ProdutoCard.tsx`](leao-north-site/client/src/components/ProdutoCard.tsx) — **card de produto
@@ -484,9 +508,10 @@ colunas antigas de texto após validar a vitrine
 3. **Design por frente de negócio:** Service é **escuro** (`#080808` + dourado) e Materiais é
    **claro** (`bg-slate-50` + dourado). Mantenha consistência: use os tokens do
    [`index.css`](leao-north-site/client/src/index.css) e as fontes Barlow Condensed/DM Sans.
-4. **Navbar com variante:** a `Navbar` aceita `variant="dark"` (padrão) e `variant="light"` (usada
-   nas páginas Materiais, GrupoVariacoes e ProdutoDetalhes). Ao adicionar páginas novas, escolha a
-   variante coerente com o fundo.
+4. **Cabeçalhos por frente:** o `Service` usa a `Navbar`/`Footer` (institucional). As páginas do
+   catálogo (`/materiais`, `/materiais/grupo/:id`, `/materiais/:id`) usam **`HeaderMateriais`** +
+   **`FooterMateriais`** (Fase 20) — o antigo uso de `<Navbar variant="light" />` nessas páginas foi
+   substituído. Mantenha cada frente no seu cabeçalho ao adicionar páginas novas.
 5. **Credenciais do banco hardcoded** em todos os PHP (root/senha vazia) — padrão local XAMPP.
 6. **Upload de arquivos:** o caminho `../../uploads/` é relativo à pasta `api/admin/`, resolvendo
    para `leaonorth/uploads/` (raiz do site). Validações de MIME (`finfo`)/5MB existem em
@@ -509,8 +534,15 @@ colunas antigas de texto após validar a vitrine
    físicos com `copy()` (novos nomes com `time()`), gerando produto independente com `" (Cópia)"`.
 10. **Zoom na página de detalhes:** o efeito de lupa (`scale(2)` + `transform-origin`) funciona
     apenas em **desktop (hover)** — no mobile, usa-se o gesto nativo de pinça.
-11. **Documentação por fases:** os planejamentos das Fases 1–19 estão em
-    [`zoo_code_docs/`](zoo_code_docs/) (`fase1_arquitetura.md` ... `fase19_vitrine_relacional.md`).
+11. **Documentação por fases:** os planejamentos das Fases 1–21 estão em
+    [`zoo_code_docs/`](zoo_code_docs/) (`fase1_arquitetura.md` ... `fase21_vitrine_refinamentos.md`).
     As Fases 11–14 cobrem o agrupamento/duplicação/administração com grupos (strings); as Fases 15–19
-    cobrem a migração para o **modelo relacional** (categorias/grupos, painel e vitrine).
+    cobrem a migração para o **modelo relacional** (categorias/grupos, painel e vitrine); as Fases
+    20–21 cobrem a **UI/UX da vitrine pública** (header/footer exclusivos, busca global, sidebar,
+    ordenação, breadcrumbs e estado vazio com CTA) — 100% frontend.
 12. **Sem teste automatizado** no projeto (apenas `tsc --noEmit` via `pnpm check`/`npx tsc --noEmit`).
+13. **Wouter v3 — query string fora do `useLocation`:** o `useLocation` retorna **apenas o pathname**.
+    A leitura de `?q=` (busca global) é feita com `window.location.search`, reagindo aos eventos
+    `popstate`/`pushState`/`replaceState`/`hashchange` que o wouter dispara ao navegar — ver
+    [`Materiais.tsx`](leao-north-site/client/src/pages/Materiais.tsx) e
+    [`HeaderMateriais.tsx`](leao-north-site/client/src/components/HeaderMateriais.tsx).
