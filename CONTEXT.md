@@ -82,6 +82,31 @@ A **Leão North** é uma empresa de engenharia elétrica com sede em **Cornélio
 > [`api/migracao_service.sql`](api/migracao_service.sql) (ALTERs), e a página
 > [`pages/Depoimentos.tsx`](leao-north-site/client/src/pages/Depoimentos.tsx).
 
+> **Fases 28–30 (feedback visual, blindagem de segurança e SEO dinâmico):**
+> - **Fase 28 (feedbacks visuais):** removidos todos os `window.alert()`/`window.confirm()` do painel
+>   Admin e os 4 `alert` de erro públicos, substituídos por **toasts (sonner)** e pelo novo wrapper
+>   [`ConfirmDeleteDialog.tsx`](leao-north-site/client/src/pages/admin/ConfirmDeleteDialog.tsx) (sobre o
+>   `AlertDialog` shadcn, tema escuro consistente com o `AdminDialog`) —
+>   [`fase28_ui_feedbacks.md`](zoo_code_docs/fase28_ui_feedbacks.md).
+> - **Fase 29 (blindagem de segurança):** validação **real no servidor** via **Bearer Token em
+>   `admin_users`** (`token` 64-hex + `token_expiracao` +24h). Novo middleware
+>   [`api/admin/auth.php`](api/admin/auth.php) exigido no topo de **todos** os endpoints de
+>   `api/admin/*` e `api/admin/service/*` (exceto `login.php`) — **401 + exit** se inválido; novo
+>   [`api/admin/logout.php`](api/admin/logout.php) revoga o token; endpoint **privado**
+>   [`api/admin/depoimentos.php`](api/admin/depoimentos.php) e `?admin=1` **removido** do
+>   [`api/depoimentos.php`](api/depoimentos.php) público. Frontend usa o helper
+>   [`client/src/lib/adminFetch.ts`](leao-north-site/client/src/lib/adminFetch.ts) (envia `Authorization:
+>   Bearer` e, em **401**, limpa o `localStorage` e redireciona para `/admin`; logout chama `logout.php`).
+>   DDL: [`api/migracao_admin_seguranca.sql`](api/migracao_admin_seguranca.sql) —
+>   [`fase29_seguranca_backend.md`](zoo_code_docs/fase29_seguranca_backend.md).
+> - **Fase 30 (SEO/Open Graph dinâmico):** front controller **`index.php`** + **`.htaccess`** na raiz do
+>   docroot. Para `/service/portfolio/:id`, `/service/socio/:id` e `/materiais/:id` o `index.php` consulta
+>   o banco e injeta `<meta property="og:...">`/`twitter:`/`canonical` (título, descrição e **imagem da
+>   capa**, absoluta via `$BASE_URL`) **antes** de devolver o HTML do React — crawlers (WhatsApp/Facebook)
+>   leem o preview sem executar JS. Config `$BASE_URL`/`$BASE_PATH` no topo do arquivo. Build do SPA sai
+>   em `leao-north-site/dist/public/` (copiado ao lado de `/api`, `/uploads`, `.htaccess` e `index.php`
+>   na produção) — [`fase30_seo_dinamico.md`](zoo_code_docs/fase30_seo_dinamico.md).
+
 A experiência começa no **Portal Gateway** (split-screen), onde o visitante escolhe entre **Service**
 e **Materiais**. Há também o **Painel Administrativo** (`/admin`), que permite gerenciar
 **categorias**, **grupos** (com upload de capa), **produtos (criar, editar, excluir e duplicar)**,
@@ -198,23 +223,30 @@ flowchart LR
 ```
 leaonorth/                          ← raiz do workspace (document root do site no XAMPP)
 ├── CONTEXT.md                      ← este documento
+├── index.php                       ← FASE 30: front controller SEO/OG (injeta og: por rota; lê o index.html ao lado)
+├── .htaccess                       ← FASE 30: fallback do SPA p/ index.php (exclui /api, /uploads, /assets)
+├── index.html                      ← shell estático de teste (Fase 30); em produção é o build do Vite
 ├── .gitignore
 │
 ├── api/                            ← BACKEND PHP (usado de verdade pelo frontend)
 │   ├── contato.php                 ← POST: salva contato/orçamento + tipo_mensagem + e-mail
 │   ├── portfolio.php               ← GET: lista projetos do portfólio — LEGADO (sem uso desde a Fase 24)
-│   ├── depoimentos.php             ← GET: depoimentos (curadoria: default visivel=1; filtros ?destaque=1 e ?admin=1)
+│   ├── depoimentos.php             ← GET: depoimentos (curadoria: default visivel=1; filtro ?destaque=1 — o ?admin=1 foi REMOVIDO na Fase 29)
 │   ├── categorias.php              ← GET: lista categorias (relacional v2.0)
 │   ├── grupos.php                  ← GET: lista grupos (com categoria_nome, capa e total de produtos)
 │   ├── produtos.php                ← GET: lista produtos (LEFT JOIN categoria/grupo + imagens[]/informacoes[])
 │   ├── migracao_v2.sql             ← DDL + backfill da migração para o modelo relacional (Fase 15)
 │   ├── migracao_service.sql        ← migração Leão Service (base Fase 22 + ALTERs Fase 27: socios.whatsapp, depoimentos.visivel/destaque)
+│   ├── migracao_admin_seguranca.sql ← FASE 29: ALTER admin_users ADD token VARCHAR(64), token_expiracao DATETIME
 │   ├── service/                    ← APIs PÚBLICAS da Leão Service (Fase 22/24)
 │   │   ├── categorias.php          ← GET: lista serviços/categorias (servicos_categorias)
 │   │   ├── socios.php              ← GET: lista sócios (inclui whatsapp)
 │   │   └── portfolio.php           ← GET: projetos + categoria_nome (JOIN) + imagens[] + capa (raiz)
 │   └── admin/
-│       ├── login.php               ← POST: autentica admin (password_verify)
+│       ├── login.php               ← POST: autentica admin (password_verify) e grava token (Fase 29)
+│       ├── auth.php                ← FASE 29: middleware Bearer Token (OPTIONS + valida token/expiração em admin_users; 401 se inválido)
+│       ├── logout.php              ← FASE 29: zera o token do admin autenticado
+│       ├── depoimentos.php         ← FASE 29: GET PRIVADO p/ o painel (lista TODOS, inclusive ocultos)
 │       ├── mensagens.php           ← GET: lista mensagens de contato (inclui tipo_mensagem)
 │       ├── add_depoimento.php / edit_depoimento.php / delete_depoimento.php ← CRUD depoimentos
 │       ├── toggle_depoimento.php   ← POST: alterna visivel/destaque de um depoimento (atalho rápido)
@@ -256,6 +288,7 @@ leaonorth/                          ← raiz do workspace (document root do site
     │       │   └── admin/
     │       │       ├── Login.tsx    ← tela de login do painel
     │       │       ├── AdminDialog.tsx ← wrapper do Dialog shadcn (Fase 25: modais dos CRUDs)
+    │       │       ├── ConfirmDeleteDialog.tsx ← Fase 28: confirmação de excluir/duplicar (AlertDialog escuro)
     │       │       ├── Dashboard.tsx ← ORQUESTRADOR (token + sidebar + activeTab + monta abas) — Fase 26
     │       │       ├── materiais/   ← painel Leão Materiais (Fase 26)
     │       │       │   ├── AdminCategorias.tsx ← CRUD Categorias (Modal sm)
@@ -285,7 +318,8 @@ leaonorth/                          ← raiz do workspace (document root do site
     │       │   └── ThemeContext.tsx ← provider de tema claro/escuro (app usa dark)
     │       ├── hooks/              ← useScrollReveal, useMobile, useComposition, usePersistFn (utils)
     │       └── lib/
-    │           └── utils.ts        ← helpers `cn()` (clsx + tailwind-merge) e `formatPhoneBR` (máscara (XX) XXXXX-XXXX)
+    │           ├── utils.ts        ← helpers `cn()` (clsx + tailwind-merge) e `formatPhoneBR` (máscara (XX) XXXXX-XXXX)
+    │           └── adminFetch.ts   ← FASE 29: fetch admin injetando `Authorization: Bearer` e tratando 401 (redirect p/ /admin)
     ├── server/index.ts             ← servidor Express placeholder (template; NÃO usado)
     ├── shared/const.ts             ← constantes compartilhadas (template)
     ├── patches/wouter@3.7.1.patch  ← patch do wouter (registra rotas no window)
@@ -299,6 +333,12 @@ leaonorth/                          ← raiz do workspace (document root do site
 > `AdminDepoimentos`/`AdminMensagens` em [`pages/admin/geral/`](leao-north-site/client/src/pages/admin/geral/AdminDepoimentos.tsx);
 > endpoint [`api/admin/toggle_depoimento.php`](api/admin/toggle_depoimento.php) e a página pública
 > [`pages/Depoimentos.tsx`](leao-north-site/client/src/pages/Depoimentos.tsx) (`/service/depoimentos`).
+
+> **Fases 28–30 — arquivos novos:** [`ConfirmDeleteDialog.tsx`](leao-north-site/client/src/pages/admin/ConfirmDeleteDialog.tsx),
+> [`client/src/lib/adminFetch.ts`](leao-north-site/client/src/lib/adminFetch.ts),
+> [`api/admin/auth.php`](api/admin/auth.php), [`api/admin/logout.php`](api/admin/logout.php),
+> [`api/admin/depoimentos.php`](api/admin/depoimentos.php), [`api/migracao_admin_seguranca.sql`](api/migracao_admin_seguranca.sql),
+> e, na raiz do docroot: [`index.php`](index.php), [`.htaccess`](.htaccess) e `index.html` (shell de teste).
 
 ---
 
@@ -368,8 +408,13 @@ leaonorth/                          ← raiz do workspace (document root do site
 
 ### Observações de segurança/qualidade (importantes para quem for mexer)
 
-- **Login "frouxo":** o token (`base64(id + time())`) é guardado apenas no `localStorage`; **nenhum
-  endpoint de admin valida de fato esse token** no servidor. A "proteção" é client-side.
+- **Autenticação do admin (Fase 29):** [`login.php`](api/admin/login.php) gera `bin2hex(random_bytes(32))`
+  e o guarda em `admin_users` (`token` + `token_expiracao` +24h); o middleware
+  [`api/admin/auth.php`](api/admin/auth.php) é exigido no topo de **todos** os endpoints de `api/admin/`
+  e `api/admin/service/` (exceto `login.php`) — valida `Authorization: Bearer` no banco e devolve
+  **401 + exit** se ausente/inválido/expirado. [`logout.php`](api/admin/logout.php) zera o token.
+  O frontend envia o header via [`client/src/lib/adminFetch.ts`](leao-north-site/client/src/lib/adminFetch.ts)
+  e, em 401, limpa o `localStorage` e redireciona para `/admin`.
 - **Injeção SQL:** todas as queries usam prepared statements (`bindParam`/`bindValue`) — ok.
 - **Upload:** endpoints de produto/grupo/serviço validam **MIME real via `finfo`** e **5MB**.
 - **Conexão:** credenciais do banco hardcoded (padrão XAMPP: root/senha vazia).
@@ -550,7 +595,10 @@ Schema relacional da Versão 2.0 (Materiais — [`api/migracao_v2.sql`](api/migr
 1. **URLs hardcoded:** o frontend contém `http://localhost/leaonorth/...` fixo em vários arquivos
    (seções do Service, catálogo, painel, detalhes). Em produção isso precisaria apontar para
    `https://leaonorth.com.br`.
-2. **Autenticação client-side apenas:** o `admin_token` não é validado no backend.
+2. **Autenticação server-side (Fase 29):** o `admin_token` (no `localStorage`) agora é **validado no
+   backend** por [`api/admin/auth.php`](api/admin/auth.php) (Bearer + expiração em `admin_users`);
+   CRUDs sem token válido respondem **401**. A senha local do admin pode ser recriada com
+   `password_hash()` (padrão usado no ambiente: `123456`).
 3. **Design por frente:** Service é **escuro** (`#080808` + dourado) e Materiais é **claro**.
 4. **Cabeçalhos por frente:** o Service usa `Navbar`/`Footer` (institucional). As páginas do catálogo
    (`/materiais*`) usam `HeaderMateriais`/`FooterMateriais`. As subpáginas `/service/portfolio/:id`,
@@ -572,9 +620,9 @@ Schema relacional da Versão 2.0 (Materiais — [`api/migracao_v2.sql`](api/migr
     apresentação no banco; em Sócios existe a coluna `whatsapp`, Fase 27). Portfólio tem 1..N imagens
     com **1 capa** (`is_capa`), garantida no backend.
 11. **Zoom na página de detalhes:** funciona apenas em **desktop (hover)**; mobile usa pinça.
-12. **Documentação por fases:** planejamentos das Fases 1–27 em [`zoo_code_docs/`](zoo_code_docs/)
-    (`fase1_arquitetura.md` ... `fase27_refinamentos.md` — ver
-    `fase25_admin_ux_refactor.md`, `fase26_admin_modularizacao.md` e `fase27_refinamentos.md`).
+12. **Documentação por fases:** planejamentos das Fases 1–30 em [`zoo_code_docs/`](zoo_code_docs/)
+    (`fase1_arquitetura.md` ... `fase30_seo_dinamico.md`). Destaques recentes:
+    `fase28_ui_feedbacks.md`, `fase29_seguranca_backend.md` e `fase30_seo_dinamico.md`.
 13. **Sem teste automatizado** no projeto (apenas `tsc --noEmit` via `pnpm check`).
 14. **Wouter v3 — query string fora do `useLocation`:** `useLocation` retorna **apenas o pathname**;
     a leitura de `?q=` (busca global) é feita com `window.location.search` (ver §10.13/`Materiais`).
@@ -592,3 +640,14 @@ Schema relacional da Versão 2.0 (Materiais — [`api/migracao_v2.sql`](api/migr
     [`api/admin/toggle_depoimento.php`](api/admin/toggle_depoimento.php). WhatsApp por sócio
     (`socios.whatsapp`) com `wa.me` no sucesso do form "Falar com sócio". Mapa usa iframe embed
     genérico (sem API key) no [`ContactSection.tsx`](leao-north-site/client/src/components/sections/ContactSection.tsx).
+18. **Fase 28 (feedback visual):** todos os `window.alert`/`window.confirm` do painel foram trocados
+    por **toasts (sonner)** e pelo wrapper [`ConfirmDeleteDialog.tsx`](leao-north-site/client/src/pages/admin/ConfirmDeleteDialog.tsx);
+    os `alert` de erro públicos de [`ContactSection.tsx`](leao-north-site/client/src/components/sections/ContactSection.tsx)
+    e [`SociosSection.tsx`](leao-north-site/client/src/components/sections/SociosSection.tsx) viraram `toast.error`.
+19. **Fase 29 (segurança) e Fase 30 (SEO):** o painel exige **Bearer Token** (veja §10.2) e a raiz do
+    docroot ganhou [`index.php`](index.php)/[`.htaccess`](.htaccess): o `.htaccess` roteia apenas deep-links
+    do SPA para o `index.php` (deixa `/api`, `/uploads`, `/assets` intactos); o `index.php` injeta OG por
+    rota lendo o banco e **deve** apontar `$BASE_URL`/`$BASE_PATH` para o ambiente (produção:
+    `https://leaonorth.com.br`/`/`). Em produção, copiar o build (`leao-north-site/dist/public/*`) para a
+    raiz (o `index.html` da raiz é substituído pelo do build). O dev do SPA continua no Vite (`:3000`),
+    sem efeito desses arquivos.
