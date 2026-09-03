@@ -9,6 +9,7 @@
 import { useEffect, useState } from "react";
 import { Plus, Upload, Pencil, Trash2, User, ImageIcon, X } from "lucide-react";
 import AdminDialog from "../AdminDialog";
+import { formatPhoneBR } from "@/lib/utils";
 
 const BASE = "http://localhost/leaonorth";
 
@@ -17,6 +18,7 @@ type Socio = {
   nome: string;
   subtitulo?: string | null;
   descricao?: string | null;
+  whatsapp?: string | null;
   caminho_foto?: string | null;
 };
 
@@ -30,10 +32,11 @@ const secondaryButtonClass =
 
 export default function AdminSocios() {
   const [socios, setSocios] = useState<Socio[]>([]);
-  const [form, setForm] = useState<{ nome: string; subtitulo: string; descricao: string }>({
+  const [form, setForm] = useState<{ nome: string; subtitulo: string; descricao: string; whatsapp: string }>({
     nome: "",
     subtitulo: "",
     descricao: "",
+    whatsapp: "",
   });
   // Fase 25: editandoId (null = modo "novo") + isModalOpen (controla o Dialog)
   const [editandoId, setEditandoId] = useState<number | null>(null);
@@ -73,7 +76,7 @@ export default function AdminSocios() {
 
   const resetForm = () => {
     revogarPreview();
-    setForm({ nome: "", subtitulo: "", descricao: "" });
+    setForm({ nome: "", subtitulo: "", descricao: "", whatsapp: "" });
     setEditandoId(null);
     setFotoFile(null);
     setFotoPreview(null);
@@ -94,7 +97,12 @@ export default function AdminSocios() {
   const abrirEdicao = (s: Socio) => {
     revogarPreview();
     setEditandoId(s.id);
-    setForm({ nome: s.nome, subtitulo: s.subtitulo || "", descricao: s.descricao || "" });
+    setForm({
+      nome: s.nome,
+      subtitulo: s.subtitulo || "",
+      descricao: s.descricao || "",
+      whatsapp: s.whatsapp || "",
+    });
     setFotoFile(null);
     setRemoverFoto(false);
     // Preview da foto atual do servidor
@@ -124,6 +132,8 @@ export default function AdminSocios() {
     fd.append("nome", form.nome);
     fd.append("subtitulo", form.subtitulo);
     fd.append("descricao", form.descricao);
+    // Fase 27 — WhatsApp do sócio (opcional; backend normaliza para dígitos)
+    if (form.whatsapp.trim() !== "") fd.append("whatsapp", form.whatsapp);
     // Foto: só envia arquivo se houver um novo; senão, na edição, permite remover
     if (fotoFile) {
       fd.append("foto", fotoFile);
@@ -281,6 +291,24 @@ export default function AdminSocios() {
               onChange={(e) => setForm({ ...form, descricao: e.target.value })}
               className={`${inputClass} min-h-[160px] resize-none`}
               placeholder="Mini-biografia do sócio..."
+            />
+          </div>
+
+          {/* WhatsApp (Fase 27) — máscara automática (XX) XXXXX-XXXX, max. 11 dígitos */}
+          <div>
+            <label className="block text-white/40 text-xs tracking-widest uppercase mb-1.5">WhatsApp (opcional)</label>
+            <input
+              type="tel"
+              inputMode="numeric"
+              value={formatPhoneBR(form.whatsapp)}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  whatsapp: e.target.value.replace(/\D/g, "").slice(0, 11), // guarda só dígitos
+                })
+              }
+              className={inputClass}
+              placeholder="(00) 00000-0000 — abre o wa.me ao falar com o sócio"
             />
           </div>
 

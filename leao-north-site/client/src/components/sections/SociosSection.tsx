@@ -7,14 +7,19 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
 import { Send, X, User, CheckCircle2, ChevronRight } from "lucide-react";
+import { formatPhoneBR } from "@/lib/utils";
 
 const BASE = "http://localhost/leaonorth";
+
+// Fase 27 — número da empresa usado como fallback quando o sócio não tem WhatsApp próprio
+const WHATSAPP_FALLBACK = "5543999190467";
 
 type Socio = {
   id: number;
   nome: string;
   subtitulo?: string | null;
   descricao?: string | null;
+  whatsapp?: string | null;
   caminho_foto?: string | null;
 };
 
@@ -85,6 +90,11 @@ export default function SociosSection() {
 
       if (response.ok) {
         setEnviado(true);
+        // Fase 27 — além de salvar no painel (POST acima), abre o WhatsApp do sócio
+        // com mensagem pré-pronta. Usa o whatsapp do sócio ou cai para o número da empresa.
+        const numero = (socioAtivo.whatsapp || WHATSAPP_FALLBACK).replace(/\D/g, "");
+        const texto = `Olá, ${socioAtivo.nome}! Sou ${form.name}. ${form.message}`;
+        window.open(`https://wa.me/${numero}?text=${encodeURIComponent(texto)}`, "_blank", "noopener,noreferrer");
       } else {
         alert("Ocorreu um erro ao enviar sua mensagem. Tente novamente mais tarde.");
       }
@@ -224,8 +234,9 @@ export default function SociosSection() {
                 </div>
                 <div>
                   <label className="block text-white/40 text-xs font-['DM_Sans'] font-medium tracking-[0.12em] uppercase mb-1.5">Telefone *</label>
-                  <input type="tel" required placeholder="(43) 99999-9999" className={inputClass}
-                    value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+                  <input type="tel" required inputMode="numeric" placeholder="(00) 00000-0000" className={inputClass}
+                    value={formatPhoneBR(form.phone)}
+                    onChange={(e) => setForm({ ...form, phone: e.target.value.replace(/\D/g, "").slice(0, 11) })} />
                 </div>
                 <div>
                   <label className="block text-white/40 text-xs font-['DM_Sans'] font-medium tracking-[0.12em] uppercase mb-1.5">Mensagem *</label>

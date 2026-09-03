@@ -22,6 +22,10 @@ $nome = trim($_POST['nome']);
 // ---- Campos opcionais ----
 $subtitulo = (isset($_POST['subtitulo']) && trim($_POST['subtitulo']) !== '') ? $_POST['subtitulo'] : null;
 $descricao = (isset($_POST['descricao']) && trim($_POST['descricao']) !== '') ? $_POST['descricao'] : null;
+// Fase 27 — WhatsApp do sócio (opcional; normaliza para apenas dígitos p/ wa.me)
+$whatsapp = (isset($_POST['whatsapp']) && trim($_POST['whatsapp']) !== '')
+  ? preg_replace('/\D/', '', $_POST['whatsapp'])
+  : null;
 
 // ---- Foto ÚNICA (opcional; MIME real via finfo + 5MB) ----
 $tipos_permitidos = array("image/jpeg", "image/png", "image/webp", "image/avif");
@@ -74,14 +78,16 @@ try {
     }
 
     $stmt = $conn->prepare(
-        "INSERT INTO socios (nome, subtitulo, descricao, caminho_foto)
-         VALUES (:nome, :subtitulo, :descricao, :foto)"
+        "INSERT INTO socios (nome, subtitulo, descricao, whatsapp, caminho_foto)
+         VALUES (:nome, :subtitulo, :descricao, :whatsapp, :foto)"
     );
     $stmt->bindParam(":nome", $nome);
     if ($subtitulo === null) { $stmt->bindValue(":subtitulo", null, PDO::PARAM_NULL); }
     else { $stmt->bindParam(":subtitulo", $subtitulo); }
     if ($descricao === null) { $stmt->bindValue(":descricao", null, PDO::PARAM_NULL); }
     else { $stmt->bindParam(":descricao", $descricao); }
+    if ($whatsapp === null) { $stmt->bindValue(":whatsapp", null, PDO::PARAM_NULL); }
+    else { $stmt->bindParam(":whatsapp", $whatsapp); }
     if ($caminho_foto === null) { $stmt->bindValue(":foto", null, PDO::PARAM_NULL); }
     else { $stmt->bindParam(":foto", $caminho_foto); }
     $stmt->execute();

@@ -28,6 +28,10 @@ $nome = trim($_POST['nome']);
 
 $subtitulo = (isset($_POST['subtitulo']) && trim($_POST['subtitulo']) !== '') ? $_POST['subtitulo'] : null;
 $descricao = (isset($_POST['descricao']) && trim($_POST['descricao']) !== '') ? $_POST['descricao'] : null;
+// Fase 27 — WhatsApp do sócio (opcional; normaliza para apenas dígitos p/ wa.me)
+$whatsapp = (isset($_POST['whatsapp']) && trim($_POST['whatsapp']) !== '')
+  ? preg_replace('/\D/', '', $_POST['whatsapp'])
+  : null;
 
 // ---- Nova foto ou remoção da foto ----
 $remover_foto = isset($_POST['remover_foto']) && $_POST['remover_foto'] === '1';
@@ -82,12 +86,14 @@ try {
     }
 
     // 2) UPDATE dos dados básicos
-    $stmt = $conn->prepare("UPDATE socios SET nome = :nome, subtitulo = :subtitulo, descricao = :descricao WHERE id = :id");
+    $stmt = $conn->prepare("UPDATE socios SET nome = :nome, subtitulo = :subtitulo, descricao = :descricao, whatsapp = :whatsapp WHERE id = :id");
     $stmt->bindParam(":nome", $nome);
     if ($subtitulo === null) { $stmt->bindValue(":subtitulo", null, PDO::PARAM_NULL); }
     else { $stmt->bindParam(":subtitulo", $subtitulo); }
     if ($descricao === null) { $stmt->bindValue(":descricao", null, PDO::PARAM_NULL); }
     else { $stmt->bindParam(":descricao", $descricao); }
+    if ($whatsapp === null) { $stmt->bindValue(":whatsapp", null, PDO::PARAM_NULL); }
+    else { $stmt->bindParam(":whatsapp", $whatsapp); }
     $stmt->bindParam(":id", $id, PDO::PARAM_INT);
     $stmt->execute();
 

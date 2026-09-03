@@ -3,7 +3,8 @@
  * Design: Dark cards, star ratings, Google rating highlight, DB Fetch Integration
  */
 import { useEffect, useRef, useState } from "react";
-import { Star, Quote } from "lucide-react";
+import { Link } from "wouter";
+import { Star, Quote, ChevronRight } from "lucide-react";
 
 function StarRating({ rating }: { rating: number }) {
   return (
@@ -24,8 +25,8 @@ export default function TestimonialsSection() {
   const [averageRating, setAverageRating] = useState("5,0");
 
   useEffect(() => {
-    // Busca depoimentos reais do banco
-    fetch('http://localhost/leaonorth/api/depoimentos.php')
+    // Fase 27 — Home busca apenas os depoimentos em DESTAQUE (curadoria)
+    fetch('http://localhost/leaonorth/api/depoimentos.php?destaque=1')
       .then(response => response.json())
       .then(data => {
         if (Array.isArray(data)) {
@@ -60,6 +61,9 @@ export default function TestimonialsSection() {
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
+
+  // Fase 27 — limita a 6 destaques; a 7ª célula do grid vira o botão "Ver mais depoimentos"
+  const destaques = testimonials.slice(0, 6);
 
   return (
     <section
@@ -125,9 +129,9 @@ export default function TestimonialsSection() {
           </div>
         </div>
 
-        {/* Testimonials Grid Dinâmico */}
+        {/* Testimonials Grid Dinâmico (Fase 27 — só destaques, 6 + CTA) */}
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
-          {testimonials.map((t, i) => (
+          {destaques.map((t, i) => (
             <div
               key={t.id}
               className="reveal service-card group flex flex-col gap-4 p-6 rounded-sm border border-white/10 bg-[#0F0F0F]"
@@ -155,6 +159,27 @@ export default function TestimonialsSection() {
               </div>
             </div>
           ))}
+
+          {/* Fase 27 — 7ª célula: card-botão para a página completa de depoimentos */}
+          {testimonials.length > 0 && (
+            <Link
+              href="/service/depoimentos"
+              className="reveal group flex flex-col items-center justify-center gap-3 p-6 rounded-sm border border-dashed border-[#F0B429]/30 bg-[#F0B429]/5 hover:border-[#F0B429]/60 hover:bg-[#F0B429]/10 transition-colors text-center"
+              style={{
+                opacity: 0,
+                transform: "translateY(24px)",
+                transition: `all 0.6s cubic-bezier(0.23,1,0.32,1) ${destaques.length * 100}ms`,
+              }}
+            >
+              <span className="text-[#F0B429] text-xs font-['DM_Sans'] font-medium tracking-[0.2em] uppercase">
+                Todas as avaliações
+              </span>
+              <span className="font-['Barlow_Condensed'] font-700 text-xl text-white uppercase group-hover:text-[#F0B429] transition-colors">
+                Ver mais depoimentos
+              </span>
+              <ChevronRight className="w-6 h-6 text-[#F0B429] group-hover:translate-x-1 transition-transform" />
+            </Link>
+          )}
         </div>
       </div>
     </section>

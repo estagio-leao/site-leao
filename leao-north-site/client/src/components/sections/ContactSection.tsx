@@ -4,6 +4,7 @@
  */
 import { useEffect, useRef, useState } from "react";
 import { MapPin, Phone, Mail, Send, CheckCircle2 } from "lucide-react";
+import { formatPhoneBR } from "@/lib/utils";
 
 export default function ContactSection() {
   const sectionRef = useRef<HTMLElement>(null);
@@ -59,6 +60,12 @@ export default function ContactSection() {
   };
 
   const inputClass = "w-full bg-[#111111] border border-white/10 rounded-sm px-4 py-3 text-white text-sm font-['DM_Sans'] placeholder-white/30 focus:outline-none focus:border-[#F0B429]/50 focus:ring-1 focus:ring-[#F0B429]/30 transition-all duration-200";
+
+  // Fase 27 — embed genérico do Google Maps (sem API key) apontando para o endereço exato da empresa
+  const MAPA_URL =
+    "https://maps.google.com/maps?q=" +
+    encodeURIComponent("R. Paraíba, 830 - Centro, Cornélio Procópio - PR") +
+    "&t=&z=16&ie=UTF8&iwloc=B&output=embed";
 
   return (
     <section
@@ -225,10 +232,11 @@ export default function ContactSection() {
                     <input
                       type="tel"
                       required
-                      placeholder="(43) 99999-9999"
+                      inputMode="numeric"
+                      placeholder="(00) 00000-0000"
                       className={inputClass}
-                      value={formState.phone}
-                      onChange={(e) => setFormState({ ...formState, phone: e.target.value })}
+                      value={formatPhoneBR(formState.phone)}
+                      onChange={(e) => setFormState({ ...formState, phone: e.target.value.replace(/\D/g, "").slice(0, 11) })}
                     />
                   </div>
                 </div>
@@ -299,7 +307,7 @@ export default function ContactSection() {
           style={{ opacity: 0, transform: "translateY(24px)", transition: "all 0.6s cubic-bezier(0.23,1,0.32,1) 300ms" }}
         >
           <iframe
-            src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3655.0!2d-50.6468!3d-23.1742!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x94e6f0e6b0a0a0a1%3A0x0!2sR.%20Para%C3%ADba%2C%20830%20-%20Centro%2C%20Corn%C3%A9lio%20Proc%C3%B3pio%20-%20PR!5e0!3m2!1spt-BR!2sbr!4v1700000000000!5m2!1spt-BR!2sbr"
+            src={MAPA_URL}
             width="100%"
             height="380"
             style={{ border: 0, filter: "invert(90%) hue-rotate(180deg)" }}

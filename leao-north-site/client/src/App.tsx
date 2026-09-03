@@ -11,6 +11,7 @@ import ProdutoDetalhes from "./pages/ProdutoDetalhes";
 import GrupoVariacoes from "./pages/GrupoVariacoes";
 import PortfolioDetalhes from "./pages/PortfolioDetalhes";
 import SocioDetalhes from "./pages/SocioDetalhes";
+import Depoimentos from "./pages/Depoimentos";
 
 // Importações adicionadas para o Painel Administrativo
 import Login from "./pages/admin/Login";
@@ -25,6 +26,8 @@ function Router() {
       {/* Fase 24 — páginas de detalhes da Leão Service */}
       <Route path={"/service/portfolio/:id"} component={PortfolioDetalhes} />
       <Route path={"/service/socio/:id"} component={SocioDetalhes} />
+      {/* Fase 27 — página completa de depoimentos */}
+      <Route path={"/service/depoimentos"} component={Depoimentos} />
       <Route path={"/materiais"} component={Materiais} />
       <Route path={"/materiais/grupo/:id"} component={GrupoVariacoes} />
       <Route path={"/materiais/:id"} component={ProdutoDetalhes} />
