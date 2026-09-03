@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "wouter";
 import { LogOut, Upload, Trash2, Plus, Image as ImageIcon, LayoutDashboard, Mail, Star, FolderOpen, Package, X, Pencil, Copy, ArrowLeft, Tag, Wrench, Users } from "lucide-react";
+import AdminDialog from "./AdminDialog";
 import AdminServicos from "./service/AdminServicos";
 import AdminSocios from "./service/AdminSocios";
 import AdminPortfolio from "./service/AdminPortfolio";
@@ -13,8 +14,10 @@ export default function Dashboard() {
   const [mensagens, setMensagens] = useState<any[]>([]);
   const [selectedMsg, setSelectedMsg] = useState<any>(null); // Estado que controla o Modal de Leitura
   const [depoimentos, setDepoimentos] = useState<any[]>([]);
-  const [depForm, setDepForm] = useState<{ id?: number; nome: string; estrelas: number; texto: string; }>({ nome: "", estrelas: 5, texto: "" });
+  const [depForm, setDepForm] = useState<{ nome: string; estrelas: number; texto: string }>({ nome: "", estrelas: 5, texto: "" });
   const [loadingDep, setLoadingDep] = useState(false);
+  const [editandoDepId, setEditandoDepId] = useState<number | null>(null); // Fase 25: id em edição (null = novo)
+  const [depModalOpen, setDepModalOpen] = useState(false); // Fase 25: abre/fecha o Dialog
 
   // Estados do Catálogo de Produtos (formato complexo - Fase 6/7)
   const [produtos, setProdutos] = useState<any[]>([]);
@@ -25,13 +28,15 @@ export default function Dashboard() {
     categoria_id: "" as number | "", // Fase 18: id da categoria
     grupo_id: "" as number | "",     // Fase 18: id do grupo, opcional
   });
-  const [prodFiles, setProdFiles] = useState<File[]>([]);
+  // Fase 25: guarda File + ObjectURL para revogar previews no reset
+  const [prodFiles, setProdFiles] = useState<{ file: File; url: string }[]>([]);
   const [capaIndex, setCapaIndex] = useState(0);
   const [infoList, setInfoList] = useState<{ titulo: string; texto: string }[]>([]);
   const [loadingProd, setLoadingProd] = useState(false);
 
   // Modo edição de produto (Fase 9)
   const [produtoEditandoId, setProdutoEditandoId] = useState<number | null>(null); // null = modo adicionar
+  const [prodModalOpen, setProdModalOpen] = useState(false); // Fase 25: abre/fecha o Dialog de produto
   const [imgsMantidas, setImgsMantidas] = useState<{ caminho_imagem: string; is_capa: boolean | number }[]>([]);
 
   // Navegação em "pastas" da listagem (Fase 14): null = visão raiz | nome do grupo = dentro da pasta
@@ -39,18 +44,22 @@ export default function Dashboard() {
 
   // Estados de Categorias (Fase 16)
   const [categorias, setCategorias] = useState<any[]>([]);
-  const [catForm, setCatForm] = useState<{ id?: number; nome: string }>({ nome: "" });
+  const [catForm, setCatForm] = useState<{ nome: string }>({ nome: "" });
   const [loadingCat, setLoadingCat] = useState(false);
+  const [editandoCatId, setEditandoCatId] = useState<number | null>(null); // Fase 25: id em edição (null = novo)
+  const [catModalOpen, setCatModalOpen] = useState(false); // Fase 25: abre/fecha o Dialog
 
   // Estados de Grupos (Fase 17)
   const [grupos, setGrupos] = useState<any[]>([]);
-  const [grupoForm, setGrupoForm] = useState<{ id?: number; nome: string; categoria_id: number | "" }>({
+  const [grupoForm, setGrupoForm] = useState<{ nome: string; categoria_id: number | "" }>({
     nome: "",
     categoria_id: "",
   });
   const [grupoFile, setGrupoFile] = useState<File | null>(null);       // arquivo da capa
   const [grupoPreview, setGrupoPreview] = useState<string | null>(null); // URL de preview da capa
   const [loadingGrupo, setLoadingGrupo] = useState(false);
+  const [editandoGrupoId, setEditandoGrupoId] = useState<number | null>(null); // Fase 25: id em edição (null = novo)
+  const [grupoModalOpen, setGrupoModalOpen] = useState(false); // Fase 25: abre/fecha o Dialog
 
   useEffect(() => {
     if (!localStorage.getItem("admin_token")) {
@@ -102,20 +111,46 @@ export default function Dashboard() {
     setLocation("/admin");
   };
 
-  // --- FUNÇÕES DE DEPOIMENTOS ---
-  const handleAddDepoimento = async (e: React.FormEvent) => {
+  // --- FUNÇÕES DE DEPOIMENTOS (Fase 25: modal + editandoDepId) ---
+  const resetDepForm = () => {
+    setDepForm({ nome: "", estrelas: 5, texto: "" });
+    setEditandoDepId(null);
+  };
+
+  // Única porta de saída: limpa o formulário e fecha o modal
+  const fecharDepModal = () => {
+    resetDepForm();
+    setDepModalOpen(false);
+  };
+
+  const abrirNovoDepoimento = () => {
+    resetDepForm();
+    setDepModalOpen(true);
+  };
+
+  const abrirEdicaoDepoimento = (dep: any) => {
+    setEditandoDepId(dep.id);
+    setDepForm({ nome: dep.nome, estrelas: dep.estrelas, texto: dep.texto || "" });
+    setDepModalOpen(true);
+  };
+
+  const handleSaveDepoimento = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoadingDep(true);
+    const isEdit = editandoDepId != null;
+    const url = isEdit
+      ? "http://localhost/leaonorth/api/admin/edit_depoimento.php"
+      : "http://localhost/leaonorth/api/admin/add_depoimento.php";
     try {
-      const res = await fetch("http://localhost/leaonorth/api/admin/add_depoimento.php", {
-        method: "POST",
+      const res = await fetch(url, {
+        method: isEdit ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(depForm),
+        body: JSON.stringify(isEdit ? { ...depForm, id: editandoDepId } : depForm),
       });
       if (res.ok) {
-        setDepForm({ nome: "", estrelas: 5, texto: "" });
+        fecharDepModal();
         fetchDepoimentos();
-        alert("Depoimento adicionado!");
+        alert(isEdit ? "Depoimento atualizado!" : "Depoimento adicionado!");
       }
     } catch (err) { alert("Erro ao salvar depoimento."); } finally { setLoadingDep(false); }
   };
@@ -128,47 +163,51 @@ export default function Dashboard() {
     } catch (err) { alert("Erro ao excluir."); }
   };
 
-  // --- FUNÇÕES DE CATEGORIAS (Fase 16) ---
-  const handleAddCategoria = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!catForm.nome.trim()) return alert("Informe o nome da categoria.");
-    setLoadingCat(true);
-    const formData = new FormData();
-    formData.append("nome", catForm.nome);
-    try {
-      const res = await fetch("http://localhost/leaonorth/api/admin/add_categoria.php", {
-        method: "POST", body: formData,
-      });
-      if (res.ok) {
-        setCatForm({ nome: "" });
-        fetchCategorias();
-        alert("Categoria adicionada!");
-      } else {
-        const err = await res.json().catch(() => null);
-        alert(err?.mensagem || "Erro ao salvar categoria.");
-      }
-    } catch (err) { alert("Erro ao enviar."); } finally { setLoadingCat(false); }
+  // --- FUNÇÕES DE CATEGORIAS (Fase 25: modal + editandoCatId) ---
+  const resetCatForm = () => {
+    setCatForm({ nome: "" });
+    setEditandoCatId(null);
   };
 
-  const handleEditCategoria = async (e: React.FormEvent) => {
+  // Única porta de saída: limpa o formulário e fecha o modal
+  const fecharCatModal = () => {
+    resetCatForm();
+    setCatModalOpen(false);
+  };
+
+  const abrirNovaCategoria = () => {
+    resetCatForm();
+    setCatModalOpen(true);
+  };
+
+  const abrirEdicaoCategoria = (cat: any) => {
+    setEditandoCatId(cat.id);
+    setCatForm({ nome: cat.nome });
+    setCatModalOpen(true);
+  };
+
+  const handleSaveCategoria = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!catForm.id) return;
     if (!catForm.nome.trim()) return alert("Informe o nome da categoria.");
     setLoadingCat(true);
+    const isEdit = editandoCatId != null;
     const formData = new FormData();
-    formData.append("id", String(catForm.id));
+    if (isEdit) formData.append("id", String(editandoCatId));
     formData.append("nome", catForm.nome);
     try {
-      const res = await fetch("http://localhost/leaonorth/api/admin/edit_categoria.php", {
-        method: "POST", body: formData,
-      });
+      const res = await fetch(
+        isEdit
+          ? "http://localhost/leaonorth/api/admin/edit_categoria.php"
+          : "http://localhost/leaonorth/api/admin/add_categoria.php",
+        { method: "POST", body: formData }
+      );
       if (res.ok) {
-        setCatForm({ nome: "" });
+        fecharCatModal();
         fetchCategorias();
-        alert("Categoria atualizada!");
+        alert(isEdit ? "Categoria atualizada!" : "Categoria adicionada!");
       } else {
         const err = await res.json().catch(() => null);
-        alert(err?.mensagem || "Erro ao atualizar categoria.");
+        alert(err?.mensagem || (isEdit ? "Erro ao atualizar categoria." : "Erro ao salvar categoria."));
       }
     } catch (err) { alert("Erro ao enviar."); } finally { setLoadingCat(false); }
   };
@@ -186,15 +225,27 @@ export default function Dashboard() {
     } catch (err) { alert("Erro ao excluir."); }
   };
 
-  // --- FUNÇÕES DE GRUPOS (Fase 17) ---
+  // --- FUNÇÕES DE GRUPOS (Fase 25: modal + editandoGrupoId) ---
   const resetGrupoForm = () => {
     // Revoga o ObjectURL do preview local (se vier de um arquivo selecionado)
     if (grupoFile && grupoPreview) {
       URL.revokeObjectURL(grupoPreview);
     }
     setGrupoForm({ nome: "", categoria_id: "" });
+    setEditandoGrupoId(null);
     setGrupoFile(null);
     setGrupoPreview(null);
+  };
+
+  // Única porta de saída: limpa o formulário (revogando preview) e fecha o modal
+  const fecharGrupoModal = () => {
+    resetGrupoForm();
+    setGrupoModalOpen(false);
+  };
+
+  const abrirNovoGrupo = () => {
+    resetGrupoForm();
+    setGrupoModalOpen(true);
   };
 
   const handleGrupoFileChange = (file: File | null) => {
@@ -206,67 +257,46 @@ export default function Dashboard() {
     setGrupoPreview(file ? URL.createObjectURL(file) : null);
   };
 
-  const entrarEdicaoGrupo = (g: any) => {
+  const abrirEdicaoGrupo = (g: any) => {
     if (grupoFile && grupoPreview) {
       URL.revokeObjectURL(grupoPreview);
     }
-    setGrupoForm({ id: g.id, nome: g.nome, categoria_id: g.categoria_id });
+    setEditandoGrupoId(g.id);
+    setGrupoForm({ nome: g.nome, categoria_id: g.categoria_id });
     setGrupoFile(null);
     setGrupoPreview(g.caminho_imagem_capa ? `http://localhost/leaonorth${g.caminho_imagem_capa}` : null);
+    setGrupoModalOpen(true);
   };
 
-  const handleAddGrupo = async (e: React.FormEvent) => {
+  const handleSaveGrupo = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!grupoForm.nome.trim()) return alert("Informe o nome do grupo.");
     if (!grupoForm.categoria_id) return alert("Selecione uma categoria.");
-    if (!grupoFile) return alert("A capa do grupo é obrigatória.");
+    const isEdit = editandoGrupoId != null;
+    if (!isEdit && !grupoFile) return alert("A capa do grupo é obrigatória.");
     setLoadingGrupo(true);
 
     const formData = new FormData();
+    if (isEdit) formData.append("id", String(editandoGrupoId));
     formData.append("nome", grupoForm.nome);
     formData.append("categoria_id", String(grupoForm.categoria_id));
-    formData.append("capa", grupoFile);   // upload ÚNICO da capa
-
-    try {
-      const res = await fetch("http://localhost/leaonorth/api/admin/add_grupo.php", {
-        method: "POST", body: formData,
-      });
-      if (res.ok) {
-        resetGrupoForm();
-        fetchGrupos();
-        alert("Grupo criado com sucesso!");
-      } else {
-        const err = await res.json().catch(() => null);
-        alert(err?.mensagem || "Erro ao criar grupo.");
-      }
-    } catch (err) { alert("Erro ao enviar."); } finally { setLoadingGrupo(false); }
-  };
-
-  const handleEditGrupo = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!grupoForm.id) return;
-    if (!grupoForm.nome.trim()) return alert("Informe o nome do grupo.");
-    if (!grupoForm.categoria_id) return alert("Selecione uma categoria.");
-    setLoadingGrupo(true);
-
-    const formData = new FormData();
-    formData.append("id", String(grupoForm.id));
-    formData.append("nome", grupoForm.nome);
-    formData.append("categoria_id", String(grupoForm.categoria_id));
-    // Só anexa a capa se houver um novo arquivo selecionado
+    // Só anexa a capa se houver um novo arquivo selecionado (no cadastro é obrigatória)
     if (grupoFile) formData.append("capa", grupoFile);
 
     try {
-      const res = await fetch("http://localhost/leaonorth/api/admin/edit_grupo.php", {
-        method: "POST", body: formData,
-      });
+      const res = await fetch(
+        isEdit
+          ? "http://localhost/leaonorth/api/admin/edit_grupo.php"
+          : "http://localhost/leaonorth/api/admin/add_grupo.php",
+        { method: "POST", body: formData }
+      );
       if (res.ok) {
-        resetGrupoForm();
+        fecharGrupoModal();
         fetchGrupos();
-        alert("Grupo atualizado!");
+        alert(isEdit ? "Grupo atualizado!" : "Grupo criado com sucesso!");
       } else {
         const err = await res.json().catch(() => null);
-        alert(err?.mensagem || "Erro ao atualizar grupo.");
+        alert(err?.mensagem || (isEdit ? "Erro ao atualizar grupo." : "Erro ao criar grupo."));
       }
     } catch (err) { alert("Erro ao enviar."); } finally { setLoadingGrupo(false); }
   };
@@ -294,17 +324,21 @@ export default function Dashboard() {
   };
 
   // Adiciona arquivos selecionados ao array (limite de 8, considerando mantidas + novas)
+  // Fase 25: guarda o ObjectURL junto ao File para revogar no reset (evita memory leak)
   const handleAddProdFiles = (files: FileList | null) => {
     if (!files) return;
     const novos = Array.from(files);
     const total = imgsMantidas.length + prodFiles.length + novos.length;
     if (total > 8) return alert("Máximo de 8 imagens por produto.");
-    setProdFiles(prev => [...prev, ...novos]);
+    const novasComUrl = novos.map(file => ({ file, url: URL.createObjectURL(file) }));
+    setProdFiles(prev => [...prev, ...novasComUrl]);
   };
 
   // Remove uma NOVA imagem (índice relativo às prodFiles) e recalcula a capa
   const handleRemoveProdFile = (index: number) => {
     setProdFiles(prev => {
+      const alvo = prev[index];
+      if (alvo) URL.revokeObjectURL(alvo.url); // revoga o ObjectURL removido
       const novo = prev.filter((_, i) => i !== index);
       const combinado = imgsMantidas.length + index; // posição na lista combinada
       setCapaIndex(prevCapa => {
@@ -339,8 +373,10 @@ export default function Dashboard() {
   const handleRemoveInfo = (index: number) =>
     setInfoList(prev => prev.filter((_, i) => i !== index));
 
-  // Reset do formulário (sai do modo edição e volta para "Adicionar")
+  // Reset do formulário (sai do modo edição e volta para "Adicionar") — Fase 25
   const resetProdForm = () => {
+    // Revoga os ObjectURLs das novas imagens locais para evitar memory leak
+    prodFiles.forEach(p => URL.revokeObjectURL(p.url));
     setProdutoEditandoId(null);
     setImgsMantidas([]);
     setProdForm({ nome: "", especificacao: "", descricao: "", categoria_id: "", grupo_id: "" });
@@ -349,8 +385,21 @@ export default function Dashboard() {
     setInfoList([]);
   };
 
-  // Entra no modo edição preenchendo o formulário com os dados do produto
+  // Fase 25: única porta de saída do modal de produto
+  const fecharProdModal = () => {
+    resetProdForm();
+    setProdModalOpen(false);
+  };
+
+  const abrirNovoProduto = () => {
+    resetProdForm();
+    setProdModalOpen(true);
+  };
+
+  // Entra no modo edição preenchendo o formulário e abre o Modal (Fase 25)
   const entrarEdicao = (prod: any) => {
+    // Revoga imagens novas locais pendentes antes de preencher (caso haja)
+    prodFiles.forEach(p => URL.revokeObjectURL(p.url));
     setProdutoEditandoId(prod.id);
     setProdForm({
       nome: prod.nome || "",
@@ -364,7 +413,7 @@ export default function Dashboard() {
     const capaIdx = (prod.imagens || []).findIndex((i: any) => i.is_capa === true || i.is_capa === 1);
     setCapaIndex(capaIdx >= 0 ? capaIdx : 0);
     setInfoList(prod.informacoes || []);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    setProdModalOpen(true);
   };
 
   const handleEditProduto = async (e: React.FormEvent) => {
@@ -386,14 +435,14 @@ export default function Dashboard() {
     formData.append("capa_index", String(capaIndex));
     formData.append("informacoes", JSON.stringify(infoList));
     // 🚨 CRÍTICO: "novas_imagens[]" com colchetes para o PHP ler como Array (mesmo padrão do add_produto)
-    prodFiles.forEach(file => formData.append("novas_imagens[]", file));
+    prodFiles.forEach(p => formData.append("novas_imagens[]", p.file));
 
     try {
       const res = await fetch("http://localhost/leaonorth/api/admin/edit_produto.php", {
         method: "POST", body: formData,
       });
       if (res.ok) {
-        resetProdForm();
+        fecharProdModal();
         fetchProdutos();
         alert("Produto atualizado!");
       } else {
@@ -411,7 +460,7 @@ export default function Dashboard() {
     const formData = new FormData();
     
     // A MÁGICA ESTÁ AQUI: "imagens[]" com colchetes para o PHP ler como Array!
-    prodFiles.forEach(file => formData.append("imagens[]", file));
+    prodFiles.forEach(p => formData.append("imagens[]", p.file));
     
     formData.append("capa_index", String(capaIndex));
     formData.append("informacoes", JSON.stringify(infoList)); // string JSON
@@ -428,7 +477,7 @@ export default function Dashboard() {
       });
       
       if (res.ok) {
-        resetProdForm();
+        fecharProdModal();
         fetchProdutos();
         alert("Produto adicionado!");
       } else {
@@ -658,17 +707,108 @@ export default function Dashboard() {
         {/* ABA: SÓCIOS (Fase 23) */}
         {activeTab === "socios" && <AdminSocios />}
 
-        {/* ABA: CATÁLOGO DE PRODUTOS */}
+        {/* ABA: CATÁLOGO DE PRODUTOS (Fase 25: full-width + modal XL) */}
         {activeTab === "produtos" && (
-          <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-            <div className="md:col-span-1 bg-[#111111] border border-white/10 rounded-sm p-6 h-fit">
-              <h2 className="text-white font-['Barlow_Condensed'] text-xl uppercase font-600 mb-6 flex items-center gap-2">
-                <Plus className="w-5 h-5 text-[#F0B429]" /> {produtoEditandoId !== null ? "Editar Produto" : "Adicionar Produto"}
+          <div className="w-full">
+            {/* Header da aba: título + botão Novo */}
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-white font-['Barlow_Condensed'] text-2xl uppercase font-600">
+                Produtos Cadastrados
               </h2>
-              <form onSubmit={produtoEditandoId !== null ? handleEditProduto : handleAddProduto} className="space-y-4">
-                <div>
-                  <label className="block text-white/40 text-xs tracking-widest uppercase mb-1.5">Nome</label>
-                  <input type="text" required value={prodForm.nome} onChange={e => setProdForm({...prodForm, nome: e.target.value})} className={inputClass} placeholder="Ex: Disjuntor 63A" />
+              <button
+                onClick={abrirNovoProduto}
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#F0B429] text-[#080808] font-['Barlow_Condensed'] font-700 uppercase rounded-sm hover:bg-[#FFD060] transition-colors"
+              >
+                <Plus className="w-4 h-4" /> Novo Produto
+              </button>
+            </div>
+
+            {/* Botão voltar quando dentro de um grupo (Fase 14) */}
+            {grupoAtivo !== null && (
+              <button
+                onClick={() => setGrupoAtivo(null)}
+                className="inline-flex items-center gap-2 text-sky-400 text-sm uppercase tracking-wider hover:text-white transition-colors mb-4"
+              >
+                <ArrowLeft className="w-4 h-4" /> Voltar para a listagem principal
+              </button>
+            )}
+
+            {/* Listagem full-width */}
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {grupoAtivo === null ? (
+                /* ===== VISÃO RAIZ ===== */
+                <>
+                  {avulsos.map(renderProdutoCard)}
+                  {gruposPasta.map(([grupoId, variacoes]) => renderGrupoPasta(grupoId, variacoes))}
+                  {produtos.length === 0 && (
+                    <div className="col-span-full text-center text-white/40 py-10 border border-dashed border-white/10 rounded-sm">
+                      Nenhum produto cadastrado.
+                    </div>
+                  )}
+                </>
+              ) : produtosDoGrupo.length > 0 ? (
+                /* ===== VISÃO DENTRO DO GRUPO ===== */
+                produtosDoGrupo.map(renderProdutoCard)
+              ) : (
+                /* Pasta vazia (ex.: excluiu a última variação) */
+                <div className="col-span-full text-center text-white/40 py-10 border border-dashed border-white/10 rounded-sm">
+                  Nenhuma variação neste grupo.
+                </div>
+              )}
+            </div>
+
+            {/* Modal de cadastro/edição (Fase 25) — Modal XL para upload múltiplo */}
+            <AdminDialog
+              open={prodModalOpen}
+              onOpenChange={(open) => {
+                if (!open) fecharProdModal();
+              }}
+              title={produtoEditandoId !== null ? "Editar Produto" : "Novo Produto"}
+              description="Cadastro de produto com múltiplas fotos e informações"
+              size="xl"
+              footer={
+                <>
+                  <button type="submit" form="admin-produto-form" disabled={loadingProd} className="flex-1 py-3 bg-[#F0B429] text-[#080808] font-['Barlow_Condensed'] font-700 uppercase rounded-sm hover:bg-[#FFD060] transition-colors flex items-center justify-center gap-2 disabled:opacity-50">
+                    {loadingProd ? "Salvando..." : <><Upload className="w-4 h-4" /> {produtoEditandoId !== null ? "Salvar Alterações" : "Salvar Produto"}</>}
+                  </button>
+                  <button type="button" onClick={fecharProdModal} className="px-5 py-3 bg-white/5 text-white/60 font-['Barlow_Condensed'] font-700 uppercase rounded-sm hover:bg-white/10 hover:text-white transition-colors">
+                    Cancelar
+                  </button>
+                </>
+              }
+            >
+              <form id="admin-produto-form" onSubmit={produtoEditandoId !== null ? handleEditProduto : handleAddProduto} className="space-y-4">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className="block text-white/40 text-xs tracking-widest uppercase mb-1.5">Nome</label>
+                    <input type="text" required value={prodForm.nome} onChange={e => setProdForm({...prodForm, nome: e.target.value})} className={inputClass} placeholder="Ex: Disjuntor 63A" />
+                  </div>
+                  <div>
+                    <label className="block text-white/40 text-xs tracking-widest uppercase mb-1.5">Categoria</label>
+                    <select
+                      required
+                      value={prodForm.categoria_id}
+                      onChange={e => {
+                        const novaCategoria = Number(e.target.value);
+                        // UX: ao trocar de categoria, limpa o grupo se ele não pertencer à nova categoria
+                        setProdForm(prev => ({
+                          ...prev,
+                          categoria_id: novaCategoria,
+                          grupo_id:
+                            prev.grupo_id !== "" &&
+                            grupos.some(g => g.id === prev.grupo_id && g.categoria_id === novaCategoria)
+                              ? prev.grupo_id
+                              : "",
+                        }));
+                      }}
+                      className={inputClass}
+                    >
+                      <option value="" disabled>Selecione uma categoria...</option>
+                      {categorias.map(cat => (
+                        <option key={cat.id} value={cat.id}>{cat.nome}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
                 <div>
                   <label className="block text-white/40 text-xs tracking-widest uppercase mb-1.5">Grupo (Família) — Opcional</label>
@@ -692,33 +832,7 @@ export default function Dashboard() {
                 </div>
                 <div>
                   <label className="block text-white/40 text-xs tracking-widest uppercase mb-1.5">Descrição</label>
-                  <textarea value={prodForm.descricao} onChange={e => setProdForm({...prodForm, descricao: e.target.value})} className={`${inputClass} min-h-[100px] resize-none`} placeholder="Descrição longa do produto. Quebras de linha são preservadas." />
-                </div>
-                <div>
-                  <label className="block text-white/40 text-xs tracking-widest uppercase mb-1.5">Categoria</label>
-                  <select
-                    required
-                    value={prodForm.categoria_id}
-                    onChange={e => {
-                      const novaCategoria = Number(e.target.value);
-                      // UX: ao trocar de categoria, limpa o grupo se ele não pertencer à nova categoria
-                      setProdForm(prev => ({
-                        ...prev,
-                        categoria_id: novaCategoria,
-                        grupo_id:
-                          prev.grupo_id !== "" &&
-                          grupos.some(g => g.id === prev.grupo_id && g.categoria_id === novaCategoria)
-                            ? prev.grupo_id
-                            : "",
-                      }));
-                    }}
-                    className={inputClass}
-                  >
-                    <option value="" disabled>Selecione uma categoria...</option>
-                    {categorias.map(cat => (
-                      <option key={cat.id} value={cat.id}>{cat.nome}</option>
-                    ))}
-                  </select>
+                  <textarea value={prodForm.descricao} onChange={e => setProdForm({...prodForm, descricao: e.target.value})} className={`${inputClass} min-h-[180px] resize-none`} placeholder="Descrição longa do produto. Quebras de linha são preservadas." />
                 </div>
                 <div>
                   <label className="block text-white/40 text-xs tracking-widest uppercase mb-1.5">
@@ -738,7 +852,7 @@ export default function Dashboard() {
                   </div>
 
                   {(imgsMantidas.length > 0 || prodFiles.length > 0) && (
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
                       {/* Imagens antigas mantidas */}
                       {imgsMantidas.map((img, i) => (
                         <div
@@ -747,7 +861,7 @@ export default function Dashboard() {
                           className={`relative rounded-sm overflow-hidden cursor-pointer border-2 transition-all ${i === capaIndex ? "border-[#F0B429]" : "border-transparent"}`}
                           title={i === capaIndex ? "Capa" : "Clique para definir como Capa"}
                         >
-                          <img src={`http://localhost/leaonorth${img.caminho_imagem}`} alt={`Foto ${i + 1}`} className="w-full h-16 object-cover" />
+                          <img src={`http://localhost/leaonorth${img.caminho_imagem}`} alt={`Foto ${i + 1}`} className="w-full h-20 object-cover" />
                           {i === capaIndex && (
                             <span className="absolute top-0 left-0 bg-[#F0B429] text-[#080808] text-[9px] font-bold px-1 uppercase">Capa</span>
                           )}
@@ -761,8 +875,8 @@ export default function Dashboard() {
                           </button>
                         </div>
                       ))}
-                      {/* Novas imagens */}
-                      {prodFiles.map((file, i) => {
+                      {/* Novas imagens (ObjectURL gerenciado) */}
+                      {prodFiles.map((p, i) => {
                         const indice = imgsMantidas.length + i;
                         return (
                           <div
@@ -771,7 +885,7 @@ export default function Dashboard() {
                             className={`relative rounded-sm overflow-hidden cursor-pointer border-2 transition-all ${indice === capaIndex ? "border-[#F0B429]" : "border-transparent"}`}
                             title={indice === capaIndex ? "Capa" : "Clique para definir como Capa"}
                           >
-                            <img src={URL.createObjectURL(file)} alt={`Nova ${i + 1}`} className="w-full h-16 object-cover" />
+                            <img src={p.url} alt={`Nova ${i + 1}`} className="w-full h-20 object-cover" />
                             {indice === capaIndex && (
                               <span className="absolute top-0 left-0 bg-[#F0B429] text-[#080808] text-[9px] font-bold px-1 uppercase">Capa</span>
                             )}
@@ -807,7 +921,7 @@ export default function Dashboard() {
                           type="text"
                           value={info.titulo}
                           onChange={e => handleUpdateInfo(i, "titulo", e.target.value)}
-                          className={`${inputClass} !w-2/5`}
+                          className={`${inputClass} sm:!w-2/5`}
                           placeholder="Título (ex.: Temperatura)"
                         />
                         <input
@@ -832,54 +946,8 @@ export default function Dashboard() {
                     )}
                   </div>
                 </div>
-                <div className="flex gap-2 mt-4">
-                  <button type="submit" disabled={loadingProd} className="flex-1 py-3 bg-[#F0B429] text-[#080808] font-['Barlow_Condensed'] font-700 uppercase rounded-sm hover:bg-[#FFD060] transition-colors flex items-center justify-center gap-2 disabled:opacity-50">
-                    {loadingProd ? "Salvando..." : <><Upload className="w-4 h-4"/> {produtoEditandoId !== null ? "Salvar Alterações" : "Salvar Produto"}</>}
-                  </button>
-                  {produtoEditandoId !== null && (
-                    <button type="button" onClick={resetProdForm} className="px-4 py-3 bg-white/5 text-white/60 font-['Barlow_Condensed'] font-700 uppercase rounded-sm hover:bg-white/10 hover:text-white transition-colors">
-                      Cancelar
-                    </button>
-                  )}
-                </div>
               </form>
-            </div>
-            <div className="md:col-span-2">
-              <h2 className="text-white font-['Barlow_Condensed'] text-xl uppercase font-600 mb-6">Produtos Cadastrados</h2>
-
-              {/* Botão voltar quando dentro de um grupo (Fase 14) */}
-              {grupoAtivo !== null && (
-                <button
-                  onClick={() => setGrupoAtivo(null)}
-                  className="inline-flex items-center gap-2 text-sky-400 text-sm uppercase tracking-wider hover:text-white transition-colors mb-4"
-                >
-                  <ArrowLeft className="w-4 h-4" /> Voltar para a listagem principal
-                </button>
-              )}
-
-              <div className="grid sm:grid-cols-2 gap-4">
-                {grupoAtivo === null ? (
-                  /* ===== VISÃO RAIZ ===== */
-                  <>
-                    {avulsos.map(renderProdutoCard)}
-                    {gruposPasta.map(([grupoId, variacoes]) => renderGrupoPasta(grupoId, variacoes))}
-                    {produtos.length === 0 && (
-                      <div className="col-span-2 text-center text-white/40 py-10 border border-dashed border-white/10 rounded-sm">
-                        Nenhum produto cadastrado.
-                      </div>
-                    )}
-                  </>
-                ) : produtosDoGrupo.length > 0 ? (
-                  /* ===== VISÃO DENTRO DO GRUPO ===== */
-                  produtosDoGrupo.map(renderProdutoCard)
-                ) : (
-                  /* Pasta vazia (ex.: excluiu a última variação) */
-                  <div className="col-span-2 text-center text-white/40 py-10 border border-dashed border-white/10 rounded-sm">
-                    Nenhuma variação neste grupo.
-                  </div>
-                )}
-              </div>
-            </div>
+            </AdminDialog>
           </div>
         )}
 
@@ -1003,34 +1071,79 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* ABA: DEPOIMENTOS */}
+        {/* ABA: DEPOIMENTOS (Fase 25: full-width + modal) */}
         {activeTab === "depoimentos" && (
-          <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-            <div className="md:col-span-1 bg-[#111111] border border-white/10 rounded-sm p-6 h-fit">
-              <h2 className="text-white font-['Barlow_Condensed'] text-xl uppercase font-600 mb-6 flex items-center gap-2">
-                <Plus className="w-5 h-5 text-[#F0B429]" /> {depForm.hasOwnProperty('id') ? "Editar Depoimento" : "Novo Depoimento"}
+          <div className="w-full">
+            {/* Header da aba: título + botão Novo */}
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-white font-['Barlow_Condensed'] text-2xl uppercase font-600">
+                Depoimentos no Site
               </h2>
-              <form onSubmit={async (e) => {
-                  e.preventDefault();
-                  setLoadingDep(true);
-                  const isEdit = depForm.hasOwnProperty('id');
-                  const url = isEdit 
-                    ? "http://localhost/leaonorth/api/admin/edit_depoimento.php" 
-                    : "http://localhost/leaonorth/api/admin/add_depoimento.php";
-                  
-                  try {
-                    const res = await fetch(url, {
-                      method: isEdit ? "PUT" : "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify(depForm),
-                    });
-                    if (res.ok) {
-                      setDepForm({ nome: "", estrelas: 5, texto: "" });
-                      fetchDepoimentos();
-                      alert(isEdit ? "Depoimento atualizado!" : "Depoimento adicionado!");
-                    }
-                  } catch (err) { alert("Erro ao salvar depoimento."); } finally { setLoadingDep(false); }
-              }} className="space-y-4">
+              <button
+                onClick={abrirNovoDepoimento}
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#F0B429] text-[#080808] font-['Barlow_Condensed'] font-700 uppercase rounded-sm hover:bg-[#FFD060] transition-colors"
+              >
+                <Plus className="w-4 h-4" /> Novo Depoimento
+              </button>
+            </div>
+
+            {/* Listagem full-width */}
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {depoimentos.map(dep => (
+                <div
+                  key={dep.id}
+                  onClick={() => abrirEdicaoDepoimento(dep)}
+                  className="bg-[#111111] border border-white/10 rounded-sm p-5 flex flex-col relative group cursor-pointer hover:border-[#F0B429]/50 hover:-translate-y-1 hover:bg-white/5 transition-all"
+                  title="Clique para editar"
+                >
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation(); // Impede que o clique acione a edição
+                      handleDeleteDepoimento(dep.id);
+                    }}
+                    className="absolute top-4 right-4 text-red-500/50 hover:text-red-500 transition-colors z-10"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                  <div className="flex gap-1 mb-3">
+                    {Array(dep.estrelas).fill(0).map((_, i) => <Star key={i} className="w-4 h-4 fill-[#F0B429] text-[#F0B429]" />)}
+                  </div>
+                  {dep.texto ? (
+                    <p className="text-white/80 text-sm mb-4 flex-1 italic line-clamp-4">"{dep.texto}"</p>
+                  ) : (
+                    <p className="text-white/30 text-xs mb-4 flex-1 italic">Sem comentário escrito.</p>
+                  )}
+                  <p className="text-[#F0B429] font-medium text-sm">{dep.nome}</p>
+                </div>
+              ))}
+              {depoimentos.length === 0 && (
+                <div className="col-span-full text-center text-white/40 py-10 border border-dashed border-white/10 rounded-sm">
+                  Nenhum depoimento cadastrado.
+                </div>
+              )}
+            </div>
+
+            {/* Modal de cadastro/edição (Fase 25) */}
+            <AdminDialog
+              open={depModalOpen}
+              onOpenChange={(open) => {
+                if (!open) fecharDepModal();
+              }}
+              title={editandoDepId != null ? "Editar Depoimento" : "Novo Depoimento"}
+              description="Cadastro de depoimento exibido no site"
+              size="sm"
+              footer={
+                <>
+                  <button type="submit" form="admin-depoimento-form" disabled={loadingDep} className="flex-1 py-3 bg-[#F0B429] text-[#080808] font-['Barlow_Condensed'] font-700 uppercase rounded-sm hover:bg-[#FFD060] transition-colors flex items-center justify-center disabled:opacity-50">
+                    {loadingDep ? "Salvando..." : "Salvar"}
+                  </button>
+                  <button type="button" onClick={fecharDepModal} className="px-5 py-3 bg-white/5 text-white/60 font-['Barlow_Condensed'] font-700 uppercase rounded-sm hover:bg-white/10 hover:text-white transition-colors">
+                    Cancelar
+                  </button>
+                </>
+              }
+            >
+              <form id="admin-depoimento-form" onSubmit={handleSaveDepoimento} className="space-y-4">
                 <div>
                   <label className="block text-white/40 text-xs tracking-widest uppercase mb-1.5">Nome do Cliente</label>
                   <input type="text" required value={depForm.nome} onChange={e => setDepForm({...depForm, nome: e.target.value})} className={inputClass} placeholder="Ex: João Silva" />
@@ -1047,65 +1160,90 @@ export default function Dashboard() {
                 </div>
                 <div>
                   <label className="block text-white/40 text-xs tracking-widest uppercase mb-1.5">Texto da Avaliação (Opcional)</label>
-                  <textarea value={depForm.texto} onChange={e => setDepForm({...depForm, texto: e.target.value})} className={`${inputClass} min-h-[120px] resize-none`} placeholder="Deixe em branco se for apenas nota..." />
-                </div>
-                <div className="flex gap-2 mt-4">
-                    <button type="submit" disabled={loadingDep} className="flex-1 py-3 bg-[#F0B429] text-[#080808] font-['Barlow_Condensed'] font-700 uppercase rounded-sm hover:bg-[#FFD060] transition-colors flex items-center justify-center">
-                      {loadingDep ? "Salvando..." : "Salvar"}
-                    </button>
-                    {depForm.hasOwnProperty('id') && (
-                        <button type="button" onClick={() => setDepForm({ nome: "", estrelas: 5, texto: "" })} className="px-4 py-3 bg-white/5 text-white/60 font-['Barlow_Condensed'] font-700 uppercase rounded-sm hover:bg-white/10 hover:text-white transition-colors">
-                            Cancelar
-                        </button>
-                    )}
+                  <textarea value={depForm.texto} onChange={e => setDepForm({...depForm, texto: e.target.value})} className={`${inputClass} min-h-[160px] resize-none`} placeholder="Deixe em branco se for apenas nota..." />
                 </div>
               </form>
-            </div>
-            
-            <div className="md:col-span-2">
-              <h2 className="text-white font-['Barlow_Condensed'] text-xl uppercase font-600 mb-6">Depoimentos no Site</h2>
-              <div className="grid sm:grid-cols-2 gap-4">
-                {depoimentos.map(dep => (
-                  <div 
-                    key={dep.id} 
-                    onClick={() => setDepForm({ id: dep.id, nome: dep.nome, estrelas: dep.estrelas, texto: dep.texto || "" })}
-                    className="bg-[#111111] border border-white/10 rounded-sm p-5 flex flex-col relative group cursor-pointer hover:border-[#F0B429]/50 hover:-translate-y-1 hover:bg-white/5 transition-all"
-                    title="Clique para editar"
-                  >
-                    <button 
-                        onClick={(e) => {
-                            e.stopPropagation(); // Impede que o clique acione a edição
-                            handleDeleteDepoimento(dep.id);
-                        }} 
-                        className="absolute top-4 right-4 text-red-500/50 hover:text-red-500 transition-colors z-10"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                    <div className="flex gap-1 mb-3">
-                      {Array(dep.estrelas).fill(0).map((_, i) => <Star key={i} className="w-4 h-4 fill-[#F0B429] text-[#F0B429]" />)}
-                    </div>
-                    {dep.texto ? (
-                        <p className="text-white/80 text-sm mb-4 flex-1 italic line-clamp-4">"{dep.texto}"</p>
-                    ) : (
-                        <p className="text-white/30 text-xs mb-4 flex-1 italic">Sem comentário escrito.</p>
-                    )}
-                    <p className="text-[#F0B429] font-medium text-sm">{dep.nome}</p>
-                  </div>
-                ))}
-                {depoimentos.length === 0 && <div className="col-span-2 text-center text-white/40 py-10 border border-dashed border-white/10 rounded-sm">Nenhum depoimento cadastrado.</div>}
-              </div>
-            </div>
+            </AdminDialog>
           </div>
         )}
 
-        {/* ABA: CATEGORIAS (Fase 16) */}
+        {/* ABA: CATEGORIAS (Fase 25: full-width + modal) */}
         {activeTab === "categorias" && (
-          <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-            <div className="md:col-span-1 bg-[#111111] border border-white/10 rounded-sm p-6 h-fit">
-              <h2 className="text-white font-['Barlow_Condensed'] text-xl uppercase font-600 mb-6 flex items-center gap-2">
-                <Plus className="w-5 h-5 text-[#F0B429]" /> {catForm.hasOwnProperty('id') ? "Editar Categoria" : "Nova Categoria"}
+          <div className="w-full">
+            {/* Header da aba: título + botão Novo */}
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-white font-['Barlow_Condensed'] text-2xl uppercase font-600">
+                Categorias Cadastradas
               </h2>
-              <form onSubmit={catForm.hasOwnProperty('id') ? handleEditCategoria : handleAddCategoria} className="space-y-4">
+              <button
+                onClick={abrirNovaCategoria}
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#F0B429] text-[#080808] font-['Barlow_Condensed'] font-700 uppercase rounded-sm hover:bg-[#FFD060] transition-colors"
+              >
+                <Plus className="w-4 h-4" /> Nova Categoria
+              </button>
+            </div>
+
+            {/* Listagem full-width */}
+            <div className="bg-[#111111] border border-white/10 rounded-sm overflow-hidden">
+              <table className="w-full text-left text-sm text-white/80">
+                <thead className="bg-[#1A1A1A] text-white/50 text-xs uppercase tracking-wider">
+                  <tr>
+                    <th className="px-6 py-4 font-medium border-b border-white/5">Nome</th>
+                    <th className="px-6 py-4 font-medium border-b border-white/5 text-right">Ações</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                  {categorias.map(cat => (
+                    <tr key={cat.id} className="hover:bg-white/5 transition-colors">
+                      <td className="px-6 py-4 text-white/80">{cat.nome}</td>
+                      <td className="px-6 py-4 text-right whitespace-nowrap">
+                        <button
+                          onClick={() => abrirEdicaoCategoria(cat)}
+                          className="bg-[#F0B429]/20 text-[#F0B429] p-2 rounded-full hover:bg-[#F0B429] hover:text-[#080808] transition-all"
+                          title="Editar categoria"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteCategoria(cat.id)}
+                          className="bg-red-500/20 text-red-500 p-2 rounded-full hover:bg-red-500 hover:text-white transition-all ml-2"
+                          title="Excluir categoria"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                  {categorias.length === 0 && (
+                    <tr>
+                      <td colSpan={2} className="px-6 py-8 text-center text-white/40">Nenhuma categoria cadastrada.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Modal de cadastro/edição (Fase 25) */}
+            <AdminDialog
+              open={catModalOpen}
+              onOpenChange={(open) => {
+                if (!open) fecharCatModal();
+              }}
+              title={editandoCatId != null ? "Editar Categoria" : "Nova Categoria"}
+              description="Cadastro de categoria de produtos"
+              size="sm"
+              footer={
+                <>
+                  <button type="submit" form="admin-categoria-form" disabled={loadingCat} className="flex-1 py-3 bg-[#F0B429] text-[#080808] font-['Barlow_Condensed'] font-700 uppercase rounded-sm hover:bg-[#FFD060] transition-colors flex items-center justify-center disabled:opacity-50">
+                    {loadingCat ? "Salvando..." : "Salvar"}
+                  </button>
+                  <button type="button" onClick={fecharCatModal} className="px-5 py-3 bg-white/5 text-white/60 font-['Barlow_Condensed'] font-700 uppercase rounded-sm hover:bg-white/10 hover:text-white transition-colors">
+                    Cancelar
+                  </button>
+                </>
+              }
+            >
+              <form id="admin-categoria-form" onSubmit={handleSaveCategoria} className="space-y-4">
                 <div>
                   <label className="block text-white/40 text-xs tracking-widest uppercase mb-1.5">Nome</label>
                   <input
@@ -1116,100 +1254,132 @@ export default function Dashboard() {
                     placeholder="Ex: Iluminação"
                   />
                 </div>
-                <div className="flex gap-2 mt-4">
-                  <button type="submit" disabled={loadingCat} className="flex-1 py-3 bg-[#F0B429] text-[#080808] font-['Barlow_Condensed'] font-700 uppercase rounded-sm hover:bg-[#FFD060] transition-colors flex items-center justify-center">
-                    {loadingCat ? "Salvando..." : "Salvar"}
-                  </button>
-                  {catForm.hasOwnProperty('id') && (
-                    <button type="button" onClick={() => setCatForm({ nome: "" })} className="px-4 py-3 bg-white/5 text-white/60 font-['Barlow_Condensed'] font-700 uppercase rounded-sm hover:bg-white/10 hover:text-white transition-colors">
-                      Cancelar
-                    </button>
-                  )}
-                </div>
               </form>
-            </div>
-
-            <div className="md:col-span-2">
-              <h2 className="text-white font-['Barlow_Condensed'] text-xl uppercase font-600 mb-6">Categorias Cadastradas</h2>
-              <div className="bg-[#111111] border border-white/10 rounded-sm overflow-hidden">
-                <table className="w-full text-left text-sm text-white/80">
-                  <thead className="bg-[#1A1A1A] text-white/50 text-xs uppercase tracking-wider">
-                    <tr>
-                      <th className="px-6 py-4 font-medium border-b border-white/5">Nome</th>
-                      <th className="px-6 py-4 font-medium border-b border-white/5 text-right">Ações</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-white/5">
-                    {categorias.map(cat => (
-                      <tr key={cat.id} className="hover:bg-white/5 transition-colors">
-                        <td className="px-6 py-4 text-white/80">{cat.nome}</td>
-                        <td className="px-6 py-4 text-right whitespace-nowrap">
-                          <button
-                            onClick={() => setCatForm({ id: cat.id, nome: cat.nome })}
-                            className="bg-[#F0B429]/20 text-[#F0B429] p-2 rounded-full hover:bg-[#F0B429] hover:text-[#080808] transition-all"
-                            title="Editar categoria"
-                          >
-                            <Pencil className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteCategoria(cat.id)}
-                            className="bg-red-500/20 text-red-500 p-2 rounded-full hover:bg-red-500 hover:text-white transition-all ml-2"
-                            title="Excluir categoria"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                    {categorias.length === 0 && (
-                      <tr>
-                        <td colSpan={2} className="px-6 py-8 text-center text-white/40">Nenhuma categoria cadastrada.</td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+            </AdminDialog>
           </div>
         )}
 
-        {/* ABA: GRUPOS (Fase 17) */}
+        {/* ABA: GRUPOS (Fase 25: full-width + modal) */}
         {activeTab === "grupos" && (
-          <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-            <div className="md:col-span-1 bg-[#111111] border border-white/10 rounded-sm p-6 h-fit">
-              <h2 className="text-white font-['Barlow_Condensed'] text-xl uppercase font-600 mb-6 flex items-center gap-2">
-                <Plus className="w-5 h-5 text-[#F0B429]" /> {grupoForm.hasOwnProperty('id') ? "Editar Grupo" : "Novo Grupo"}
+          <div className="w-full">
+            {/* Header da aba: título + botão Novo */}
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-white font-['Barlow_Condensed'] text-2xl uppercase font-600">
+                Grupos Cadastrados
               </h2>
-              <form onSubmit={grupoForm.hasOwnProperty('id') ? handleEditGrupo : handleAddGrupo} className="space-y-4">
-                {/* Nome */}
-                <div>
-                  <label className="block text-white/40 text-xs tracking-widest uppercase mb-1.5">Nome</label>
-                  <input
-                    type="text" required
-                    value={grupoForm.nome}
-                    onChange={e => setGrupoForm({ ...grupoForm, nome: e.target.value })}
-                    className={inputClass}
-                    placeholder="Ex: Painel de Led Quadrado"
-                  />
-                </div>
-                {/* Categoria */}
-                <div>
-                  <label className="block text-white/40 text-xs tracking-widest uppercase mb-1.5">Categoria</label>
-                  <select
-                    required
-                    value={grupoForm.categoria_id}
-                    onChange={e => setGrupoForm({ ...grupoForm, categoria_id: Number(e.target.value) })}
-                    className={inputClass}
-                  >
-                    <option value="" disabled>Selecione uma categoria...</option>
-                    {categorias.map(cat => (
-                      <option key={cat.id} value={cat.id}>{cat.nome}</option>
-                    ))}
-                  </select>
+              <button
+                onClick={abrirNovoGrupo}
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#F0B429] text-[#080808] font-['Barlow_Condensed'] font-700 uppercase rounded-sm hover:bg-[#FFD060] transition-colors"
+              >
+                <Plus className="w-4 h-4" /> Novo Grupo
+              </button>
+            </div>
+
+            {/* Listagem full-width */}
+            <div className="bg-[#111111] border border-white/10 rounded-sm overflow-hidden">
+              <table className="w-full text-left text-sm text-white/80">
+                <thead className="bg-[#1A1A1A] text-white/50 text-xs uppercase tracking-wider">
+                  <tr>
+                    <th className="px-6 py-4 font-medium border-b border-white/5">Capa</th>
+                    <th className="px-6 py-4 font-medium border-b border-white/5">Nome</th>
+                    <th className="px-6 py-4 font-medium border-b border-white/5">Categoria</th>
+                    <th className="px-6 py-4 font-medium border-b border-white/5 text-right">Ações</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                  {grupos.map(g => (
+                    <tr key={g.id} className="hover:bg-white/5 transition-colors">
+                      <td className="px-6 py-3">
+                        {g.caminho_imagem_capa ? (
+                          <img src={`http://localhost/leaonorth${g.caminho_imagem_capa}`} alt={g.nome} className="w-14 h-14 object-cover rounded-sm" />
+                        ) : (
+                          <div className="w-14 h-14 bg-[#080808] flex items-center justify-center text-white/20 rounded-sm">
+                            <ImageIcon className="w-6 h-6" />
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-6 py-3 text-white/80">{g.nome}</td>
+                      <td className="px-6 py-3 text-white/50">{g.categoria_nome || "—"}</td>
+                      <td className="px-6 py-3 text-right whitespace-nowrap">
+                        <button
+                          onClick={() => abrirEdicaoGrupo(g)}
+                          className="bg-[#F0B429]/20 text-[#F0B429] p-2 rounded-full hover:bg-[#F0B429] hover:text-[#080808] transition-all"
+                          title="Editar grupo"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteGrupo(g.id)}
+                          className="bg-red-500/20 text-red-500 p-2 rounded-full hover:bg-red-500 hover:text-white transition-all ml-2"
+                          title="Excluir grupo"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                  {grupos.length === 0 && (
+                    <tr>
+                      <td colSpan={4} className="px-6 py-8 text-center text-white/40">Nenhum grupo cadastrado.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Modal de cadastro/edição (Fase 25) */}
+            <AdminDialog
+              open={grupoModalOpen}
+              onOpenChange={(open) => {
+                if (!open) fecharGrupoModal();
+              }}
+              title={editandoGrupoId != null ? "Editar Grupo" : "Novo Grupo"}
+              description="Cadastro de grupo de produtos com capa"
+              size="lg"
+              footer={
+                <>
+                  <button type="submit" form="admin-grupo-form" disabled={loadingGrupo} className="flex-1 py-3 bg-[#F0B429] text-[#080808] font-['Barlow_Condensed'] font-700 uppercase rounded-sm hover:bg-[#FFD060] transition-colors flex items-center justify-center disabled:opacity-50">
+                    {loadingGrupo ? "Salvando..." : "Salvar"}
+                  </button>
+                  <button type="button" onClick={fecharGrupoModal} className="px-5 py-3 bg-white/5 text-white/60 font-['Barlow_Condensed'] font-700 uppercase rounded-sm hover:bg-white/10 hover:text-white transition-colors">
+                    Cancelar
+                  </button>
+                </>
+              }
+            >
+              <form id="admin-grupo-form" onSubmit={handleSaveGrupo} className="space-y-4">
+                {/* Nome + Categoria (lado a lado no modal largo) */}
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className="block text-white/40 text-xs tracking-widest uppercase mb-1.5">Nome</label>
+                    <input
+                      type="text" required
+                      value={grupoForm.nome}
+                      onChange={e => setGrupoForm({ ...grupoForm, nome: e.target.value })}
+                      className={inputClass}
+                      placeholder="Ex: Painel de Led Quadrado"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-white/40 text-xs tracking-widest uppercase mb-1.5">Categoria</label>
+                    <select
+                      required
+                      value={grupoForm.categoria_id}
+                      onChange={e => setGrupoForm({ ...grupoForm, categoria_id: Number(e.target.value) })}
+                      className={inputClass}
+                    >
+                      <option value="" disabled>Selecione uma categoria...</option>
+                      {categorias.map(cat => (
+                        <option key={cat.id} value={cat.id}>{cat.nome}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
                 {/* Capa (upload único + preview) */}
                 <div>
-                  <label className="block text-white/40 text-xs tracking-widest uppercase mb-1.5">Capa (obrigatória)</label>
+                  <label className="block text-white/40 text-xs tracking-widest uppercase mb-1.5">
+                    Capa ({editandoGrupoId != null ? "opcional — substituir" : "obrigatória"})
+                  </label>
                   <div className="relative overflow-hidden">
                     <input
                       type="file" accept="image/*"
@@ -1222,75 +1392,11 @@ export default function Dashboard() {
                   </div>
                   {/* Preview: capa atual (edição) ou foto recém-selecionada */}
                   {grupoPreview && (
-                    <img src={grupoPreview} alt="Capa do grupo" className="mt-3 w-full h-32 object-cover rounded-sm border border-white/10" />
-                  )}
-                </div>
-                <div className="flex gap-2 mt-4">
-                  <button type="submit" disabled={loadingGrupo} className="flex-1 py-3 bg-[#F0B429] text-[#080808] font-['Barlow_Condensed'] font-700 uppercase rounded-sm hover:bg-[#FFD060] transition-colors flex items-center justify-center">
-                    {loadingGrupo ? "Salvando..." : "Salvar"}
-                  </button>
-                  {grupoForm.hasOwnProperty('id') && (
-                    <button type="button" onClick={resetGrupoForm} className="px-4 py-3 bg-white/5 text-white/60 font-['Barlow_Condensed'] font-700 uppercase rounded-sm hover:bg-white/10 hover:text-white transition-colors">
-                      Cancelar
-                    </button>
+                    <img src={grupoPreview} alt="Capa do grupo" className="mt-3 w-full max-h-56 object-cover rounded-sm border border-white/10" />
                   )}
                 </div>
               </form>
-            </div>
-
-            <div className="md:col-span-2">
-              <h2 className="text-white font-['Barlow_Condensed'] text-xl uppercase font-600 mb-6">Grupos Cadastrados</h2>
-              <div className="bg-[#111111] border border-white/10 rounded-sm overflow-hidden">
-                <table className="w-full text-left text-sm text-white/80">
-                  <thead className="bg-[#1A1A1A] text-white/50 text-xs uppercase tracking-wider">
-                    <tr>
-                      <th className="px-6 py-4 font-medium border-b border-white/5">Capa</th>
-                      <th className="px-6 py-4 font-medium border-b border-white/5">Nome</th>
-                      <th className="px-6 py-4 font-medium border-b border-white/5">Categoria</th>
-                      <th className="px-6 py-4 font-medium border-b border-white/5 text-right">Ações</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-white/5">
-                    {grupos.map(g => (
-                      <tr key={g.id} className="hover:bg-white/5 transition-colors">
-                        <td className="px-6 py-3">
-                          {g.caminho_imagem_capa ? (
-                            <img src={`http://localhost/leaonorth${g.caminho_imagem_capa}`} alt={g.nome} className="w-14 h-14 object-cover rounded-sm" />
-                          ) : (
-                            <div className="w-14 h-14 bg-[#080808] flex items-center justify-center text-white/20 rounded-sm">
-                              <ImageIcon className="w-6 h-6" />
-                            </div>
-                          )}
-                        </td>
-                        <td className="px-6 py-3 text-white/80">{g.nome}</td>
-                        <td className="px-6 py-3 text-white/50">{g.categoria_nome || "—"}</td>
-                        <td className="px-6 py-3 text-right whitespace-nowrap">
-                          <button
-                            onClick={() => entrarEdicaoGrupo(g)}
-                            className="bg-[#F0B429]/20 text-[#F0B429] p-2 rounded-full hover:bg-[#F0B429] hover:text-[#080808] transition-all"
-                            title="Editar grupo"
-                          >
-                            <Pencil className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteGrupo(g.id)}
-                            className="bg-red-500/20 text-red-500 p-2 rounded-full hover:bg-red-500 hover:text-white transition-all ml-2"
-                            title="Excluir grupo"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                    {grupos.length === 0 && (
-                      <tr>
-                        <td colSpan={4} className="px-6 py-8 text-center text-white/40">Nenhum grupo cadastrado.</td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+            </AdminDialog>
           </div>
         )}
 

@@ -1,7 +1,11 @@
 /*
- * LEÃO NORTH — Painel Admin: Portfólio (Projetos) — Fase 23
+ * LEÃO NORTH — Painel Admin: Portfólio (Projetos) — Fase 23 / 25
  * CRUD relacional (portfolio_projetos + portfolio_imagens) com upload
  * MÚLTIPLO de imagens e seleção de Capa — mesma lógica visual de Produtos.
+ *
+ * Fase 25 (UX): listagem full-width + botão "Novo Projeto" no topo + formulário
+ * em Modal (AdminDialog, size xl). Previews de novas imagens usam ObjectURL
+ * gerenciado e são revogados no fechamento (resetForm) para evitar memory leaks.
  *
  * Consumo:
  *   GET    api/service/portfolio.php        (lista projetos + imagens[] + capa)
@@ -12,6 +16,7 @@
  */
 import { useEffect, useState } from "react";
 import { Plus, Upload, Pencil, Trash2, ImageIcon, X } from "lucide-react";
+import AdminDialog from "../AdminDialog";
 
 const BASE = "http://localhost/leaonorth";
 
@@ -33,23 +38,34 @@ type Projeto = {
   capa?: string | null;
 };
 
+// Imagem nova local: guarda o ObjectURL junto para revogar no reset
+type NovaImagem = { file: File; url: string };
+
 const inputClass =
   "w-full bg-[#080808] border border-white/10 rounded-sm px-4 py-2.5 text-white text-sm font-['DM_Sans'] focus:border-[#F0B429]/50 focus:outline-none transition-all";
+
+const goldButtonClass =
+  "flex-1 py-3 bg-[#F0B429] text-[#080808] font-['Barlow_Condensed'] font-700 uppercase rounded-sm hover:bg-[#FFD060] transition-colors flex items-center justify-center gap-2 disabled:opacity-50";
+const secondaryButtonClass =
+  "px-5 py-3 bg-white/5 text-white/60 font-['Barlow_Condensed'] font-700 uppercase rounded-sm hover:bg-white/10 hover:text-white transition-colors";
 
 export default function AdminPortfolio() {
   const [projetos, setProjetos] = useState<Projeto[]>([]);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [form, setForm] = useState<{
-    id?: number;
     titulo: string;
     subtitulo: string;
     descricao: string;
     servico_categoria_id: number | "";
   }>({ titulo: "", subtitulo: "", descricao: "", servico_categoria_id: "" });
 
-  // Fotos: mantidas (já no servidor) + novas (File) — capa pela LISTA COMBINADA
+  // Fase 25: editandoId (null = modo "novo") + isModalOpen (controla o Dialog)
+  const [editandoId, setEditandoId] = useState<number | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // Fotos: mantidas (já no servidor) + novas (File com ObjectURL) — capa pela LISTA COMBINADA
   const [mantidas, setMantidas] = useState<ImagemProjeto[]>([]);
-  const [novas, setNovas] = useState<File[]>([]);
+  const [novas, setNovas] = useState<NovaImagem[]>([]);
   const [capaIndex, setCapaIndex] = useState(0);
   const [loading, setLoading] = useState(false);
 
@@ -80,18 +96,29 @@ export default function AdminPortfolio() {
 
   const totalFotos = mantidas.length + novas.length;
 
+  // Revoga TODOS os ObjectURLs das imagens novas locais
+  const revogarNovas = () => {
+    novas.forEach((n) => URL.revokeObjectURL(n.url));
+  };
+
   // Adiciona novas fotos (respeitando o limite de 8 no total)
   const handleAddFiles = (files: FileList | null) => {
     if (!files) return;
     const novos = Array.from(files);
     const total = mantidas.length + novas.length + novos.length;
     if (total > 8) return alert("Máximo de 8 imagens por projeto.");
-    setNovas((prev) => [...prev, ...novos]);
+    const novasComUrl: NovaImagem[] = novos.map((file) => ({
+      file,
+      url: URL.createObjectURL(file),
+    }));
+    setNovas((prev) => [...prev, ...novasComUrl]);
   };
 
   // Remove uma NOVA imagem (índice relativo a `novas`) e recalcula a capa
   const handleRemoveNova = (index: number) => {
     setNovas((prev) => {
+      const alvo = prev[index];
+      if (alvo) URL.revokeObjectURL(alvo.url);
       const novo = prev.filter((_, i) => i !== index);
       const combinado = mantidas.length + index; // posição na lista combinada
       setCapaIndex((prevCapa) => {
@@ -116,16 +143,31 @@ export default function AdminPortfolio() {
     });
   };
 
+  // Fase 25: limpeza completa (revogando ObjectURLs) — chamada em TODO fechamento do modal
   const resetForm = () => {
+    revogarNovas();
     setForm({ titulo: "", subtitulo: "", descricao: "", servico_categoria_id: "" });
+    setEditandoId(null);
     setMantidas([]);
     setNovas([]);
     setCapaIndex(0);
   };
 
-  const entrarEdicao = (proj: Projeto) => {
+  // Única porta de saída: limpa o formulário e fecha o modal
+  const fecharModal = () => {
+    resetForm();
+    setIsModalOpen(false);
+  };
+
+  const abrirNovo = () => {
+    resetForm();
+    setIsModalOpen(true);
+  };
+
+  const abrirEdicao = (proj: Projeto) => {
+    revogarNovas();
+    setEditandoId(proj.id);
     setForm({
-      id: proj.id,
       titulo: proj.titulo || "",
       subtitulo: proj.subtitulo || "",
       descricao: proj.descricao || "",
@@ -135,69 +177,47 @@ export default function AdminPortfolio() {
     setNovas([]);
     const capaIdx = (proj.imagens || []).findIndex((i) => i.is_capa === true || i.is_capa === 1);
     setCapaIndex(capaIdx >= 0 ? capaIdx : 0);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    setIsModalOpen(true);
   };
 
-  const handleAdd = async (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    const isEdit = editandoId != null;
     if (!form.titulo.trim()) return alert("Informe o título do projeto.");
-    if (novas.length === 0) return alert("Selecione pelo menos uma imagem!");
+    if (!isEdit && novas.length === 0) return alert("Selecione pelo menos uma imagem!");
+    if (isEdit && totalFotos === 0) return alert("O projeto deve ter ao menos 1 imagem.");
     setLoading(true);
 
     const fd = new FormData();
+    if (isEdit) fd.append("id", String(editandoId));
     fd.append("titulo", form.titulo);
     fd.append("subtitulo", form.subtitulo);
     fd.append("descricao", form.descricao);
     if (form.servico_categoria_id !== "") fd.append("servico_categoria_id", String(form.servico_categoria_id));
-    // "imagens[]" com colchetes p/ o PHP ler como Array (padrão add_produto)
-    novas.forEach((file) => fd.append("imagens[]", file));
     fd.append("capa_index", String(capaIndex));
+    if (isEdit) {
+      // Lista combinada em ordem: mantidas primeiro, depois novas
+      fd.append("imagens_mantidas", JSON.stringify(mantidas.map((i) => i.caminho_imagem)));
+      // "novas_imagens[]" com colchetes p/ o PHP ler como Array
+      novas.forEach((n) => fd.append("novas_imagens[]", n.file));
+    } else {
+      // No cadastro, o endpoint espera "imagens[]" (com colchetes) — sem imagens_mantidas
+      novas.forEach((n) => fd.append("imagens[]", n.file));
+    }
+
+    const url = isEdit
+      ? `${BASE}/api/admin/service/edit_projeto.php`
+      : `${BASE}/api/admin/service/add_projeto.php`;
 
     try {
-      const res = await fetch(`${BASE}/api/admin/service/add_projeto.php`, { method: "POST", body: fd });
+      const res = await fetch(url, { method: "POST", body: fd });
       if (res.ok) {
-        resetForm();
+        fecharModal();
         fetchProjetos();
-        alert("Projeto adicionado!");
+        alert(isEdit ? "Projeto atualizado!" : "Projeto adicionado!");
       } else {
         const err = await res.json().catch(() => null);
         alert(err?.mensagem || "Erro ao salvar projeto.");
-      }
-    } catch (err) {
-      alert("Erro ao enviar.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleEdit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (form.id == null) return;
-    if (!form.titulo.trim()) return alert("Informe o título do projeto.");
-    if (totalFotos === 0) return alert("O projeto deve ter ao menos 1 imagem.");
-    setLoading(true);
-
-    const fd = new FormData();
-    fd.append("id", String(form.id));
-    fd.append("titulo", form.titulo);
-    fd.append("subtitulo", form.subtitulo);
-    fd.append("descricao", form.descricao);
-    if (form.servico_categoria_id !== "") fd.append("servico_categoria_id", String(form.servico_categoria_id));
-    // Lista combinada em ordem: mantidas primeiro, depois novas
-    fd.append("imagens_mantidas", JSON.stringify(mantidas.map((i) => i.caminho_imagem)));
-    fd.append("capa_index", String(capaIndex));
-    // "novas_imagens[]" com colchetes p/ o PHP ler como Array
-    novas.forEach((file) => fd.append("novas_imagens[]", file));
-
-    try {
-      const res = await fetch(`${BASE}/api/admin/service/edit_projeto.php`, { method: "POST", body: fd });
-      if (res.ok) {
-        resetForm();
-        fetchProjetos();
-        alert("Projeto atualizado!");
-      } else {
-        const err = await res.json().catch(() => null);
-        alert(err?.mensagem || "Erro ao atualizar projeto.");
       }
     } catch (err) {
       alert("Erro ao enviar.");
@@ -222,23 +242,116 @@ export default function AdminPortfolio() {
   };
 
   return (
-    <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-      {/* Formulário */}
-      <div className="md:col-span-1 bg-[#111111] border border-white/10 rounded-sm p-6 h-fit">
-        <h2 className="text-white font-['Barlow_Condensed'] text-xl uppercase font-600 mb-6 flex items-center gap-2">
-          <Plus className="w-5 h-5 text-[#F0B429]" /> {form.id != null ? "Editar Projeto" : "Novo Projeto"}
+    <div className="w-full">
+      {/* Header da aba: título + botão Novo (Fase 25) */}
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-white font-['Barlow_Condensed'] text-2xl uppercase font-600">
+          Projetos no Site
         </h2>
-        <form onSubmit={form.id != null ? handleEdit : handleAdd} className="space-y-4">
-          <div>
-            <label className="block text-white/40 text-xs tracking-widest uppercase mb-1.5">Título</label>
-            <input
-              type="text"
-              required
-              value={form.titulo}
-              onChange={(e) => setForm({ ...form, titulo: e.target.value })}
-              className={inputClass}
-              placeholder="Ex: Casa Alto Padrão — Cornélio Procópio"
-            />
+        <button
+          onClick={abrirNovo}
+          className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#F0B429] text-[#080808] font-['Barlow_Condensed'] font-700 uppercase rounded-sm hover:bg-[#FFD060] transition-colors"
+        >
+          <Plus className="w-4 h-4" /> Novo Projeto
+        </button>
+      </div>
+
+      {/* Listagem full-width */}
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {projetos.map((proj) => {
+          const capa = proj.capa || proj.imagens?.[0]?.caminho_imagem;
+          return (
+            <div key={proj.id} className="bg-[#111111] border border-white/10 rounded-sm overflow-hidden group flex flex-col">
+              <div className="h-44 overflow-hidden relative bg-[#080808]">
+                {capa ? (
+                  <img src={`${BASE}${capa}`} alt={proj.titulo} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-white/20">
+                    <ImageIcon className="w-10 h-10" />
+                  </div>
+                )}
+                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
+                  <button
+                    onClick={() => abrirEdicao(proj)}
+                    className="bg-[#F0B429]/20 text-[#F0B429] p-2 rounded-full hover:bg-[#F0B429] hover:text-[#080808] transition-all"
+                    title="Editar projeto"
+                  >
+                    <Pencil className="w-5 h-5" />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(proj.id)}
+                    className="bg-red-500/20 text-red-500 p-2 rounded-full hover:bg-red-500 hover:text-white transition-all"
+                    title="Excluir projeto"
+                  >
+                    <Trash2 className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+              <div className="p-4 flex-1">
+                <span className="text-[#F0B429] text-[10px] tracking-widest uppercase">
+                  {proj.categoria_nome || "Sem categoria"} • {proj.imagens?.length || 0} foto(s)
+                </span>
+                <h3 className="text-white font-medium text-sm mt-1">{proj.titulo}</h3>
+                {proj.subtitulo && <p className="text-white/50 text-xs mt-1 line-clamp-2">{proj.subtitulo}</p>}
+              </div>
+            </div>
+          );
+        })}
+        {projetos.length === 0 && (
+          <div className="col-span-full text-center text-white/40 py-10 border border-dashed border-white/10 rounded-sm">
+            Nenhum projeto cadastrado.
+          </div>
+        )}
+      </div>
+
+      {/* Modal de cadastro/edição (Fase 25) — Modal XL para upload múltiplo */}
+      <AdminDialog
+        open={isModalOpen}
+        onOpenChange={(open) => {
+          if (!open) fecharModal();
+        }}
+        title={editandoId != null ? "Editar Projeto" : "Novo Projeto"}
+        description="Cadastro de projeto de portfólio com múltiplas fotos"
+        size="xl"
+        footer={
+          <>
+            <button type="submit" form="admin-portfolio-form" disabled={loading} className={goldButtonClass}>
+              {loading ? "Salvando..." : <><Upload className="w-4 h-4" /> {editandoId != null ? "Salvar Alterações" : "Salvar Projeto"}</>}
+            </button>
+            <button type="button" onClick={fecharModal} className={secondaryButtonClass}>
+              Cancelar
+            </button>
+          </>
+        }
+      >
+        <form id="admin-portfolio-form" onSubmit={handleSave} className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className="block text-white/40 text-xs tracking-widest uppercase mb-1.5">Título</label>
+              <input
+                type="text"
+                required
+                value={form.titulo}
+                onChange={(e) => setForm({ ...form, titulo: e.target.value })}
+                className={inputClass}
+                placeholder="Ex: Casa Alto Padrão — Cornélio Procópio"
+              />
+            </div>
+            <div>
+              <label className="block text-white/40 text-xs tracking-widest uppercase mb-1.5">Categoria (Serviço)</label>
+              <select
+                value={form.servico_categoria_id}
+                onChange={(e) =>
+                  setForm({ ...form, servico_categoria_id: e.target.value === "" ? "" : Number(e.target.value) })
+                }
+                className={inputClass}
+              >
+                <option value="">Sem categoria</option>
+                {categorias.map((c) => (
+                  <option key={c.id} value={c.id}>{c.nome}</option>
+                ))}
+              </select>
+            </div>
           </div>
           <div>
             <label className="block text-white/40 text-xs tracking-widest uppercase mb-1.5">Subtítulo</label>
@@ -251,26 +364,11 @@ export default function AdminPortfolio() {
             />
           </div>
           <div>
-            <label className="block text-white/40 text-xs tracking-widest uppercase mb-1.5">Categoria (Serviço)</label>
-            <select
-              value={form.servico_categoria_id}
-              onChange={(e) =>
-                setForm({ ...form, servico_categoria_id: e.target.value === "" ? "" : Number(e.target.value) })
-              }
-              className={inputClass}
-            >
-              <option value="">Sem categoria</option>
-              {categorias.map((c) => (
-                <option key={c.id} value={c.id}>{c.nome}</option>
-              ))}
-            </select>
-          </div>
-          <div>
             <label className="block text-white/40 text-xs tracking-widest uppercase mb-1.5">Descrição</label>
             <textarea
               value={form.descricao}
               onChange={(e) => setForm({ ...form, descricao: e.target.value })}
-              className={`${inputClass} min-h-[110px] resize-none`}
+              className={`${inputClass} min-h-[160px] resize-none`}
               placeholder="Detalhes do projeto..."
             />
           </div>
@@ -294,7 +392,7 @@ export default function AdminPortfolio() {
             </div>
 
             {totalFotos > 0 && (
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
                 {/* Imagens antigas mantidas */}
                 {mantidas.map((img, i) => (
                   <div
@@ -303,7 +401,7 @@ export default function AdminPortfolio() {
                     className={`relative rounded-sm overflow-hidden cursor-pointer border-2 transition-all ${i === capaIndex ? "border-[#F0B429]" : "border-transparent"}`}
                     title={i === capaIndex ? "Capa" : "Clique para definir como Capa"}
                   >
-                    <img src={`${BASE}${img.caminho_imagem}`} alt={`Foto ${i + 1}`} className="w-full h-16 object-cover" />
+                    <img src={`${BASE}${img.caminho_imagem}`} alt={`Foto ${i + 1}`} className="w-full h-20 object-cover" />
                     {i === capaIndex && (
                       <span className="absolute top-0 left-0 bg-[#F0B429] text-[#080808] text-[9px] font-bold px-1 uppercase">Capa</span>
                     )}
@@ -319,7 +417,7 @@ export default function AdminPortfolio() {
                 ))}
 
                 {/* Novas imagens */}
-                {novas.map((file, i) => {
+                {novas.map((n, i) => {
                   const indice = mantidas.length + i;
                   return (
                     <div
@@ -328,7 +426,7 @@ export default function AdminPortfolio() {
                       className={`relative rounded-sm overflow-hidden cursor-pointer border-2 transition-all ${indice === capaIndex ? "border-[#F0B429]" : "border-transparent"}`}
                       title={indice === capaIndex ? "Capa" : "Clique para definir como Capa"}
                     >
-                      <img src={URL.createObjectURL(file)} alt={`Nova ${i + 1}`} className="w-full h-16 object-cover" />
+                      <img src={n.url} alt={`Nova ${i + 1}`} className="w-full h-20 object-cover" />
                       {indice === capaIndex && (
                         <span className="absolute top-0 left-0 bg-[#F0B429] text-[#080808] text-[9px] font-bold px-1 uppercase">Capa</span>
                       )}
@@ -346,78 +444,8 @@ export default function AdminPortfolio() {
               </div>
             )}
           </div>
-
-          <div className="flex gap-2 mt-4">
-            <button
-              type="submit"
-              disabled={loading}
-              className="flex-1 py-3 bg-[#F0B429] text-[#080808] font-['Barlow_Condensed'] font-700 uppercase rounded-sm hover:bg-[#FFD060] transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
-            >
-              {loading ? "Salvando..." : <><Upload className="w-4 h-4" /> {form.id != null ? "Salvar Alterações" : "Salvar Projeto"}</>}
-            </button>
-            {form.id != null && (
-              <button
-                type="button"
-                onClick={resetForm}
-                className="px-4 py-3 bg-white/5 text-white/60 font-['Barlow_Condensed'] font-700 uppercase rounded-sm hover:bg-white/10 hover:text-white transition-colors"
-              >
-                Cancelar
-              </button>
-            )}
-          </div>
         </form>
-      </div>
-
-      {/* Listagem */}
-      <div className="md:col-span-2">
-        <h2 className="text-white font-['Barlow_Condensed'] text-xl uppercase font-600 mb-6">Projetos no Site</h2>
-        <div className="grid sm:grid-cols-2 gap-4">
-          {projetos.map((proj) => {
-            const capa = proj.capa || proj.imagens?.[0]?.caminho_imagem;
-            return (
-              <div key={proj.id} className="bg-[#111111] border border-white/10 rounded-sm overflow-hidden group flex flex-col">
-                <div className="h-40 overflow-hidden relative bg-[#080808]">
-                  {capa ? (
-                    <img src={`${BASE}${capa}`} alt={proj.titulo} className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-white/20">
-                      <ImageIcon className="w-10 h-10" />
-                    </div>
-                  )}
-                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
-                    <button
-                      onClick={() => entrarEdicao(proj)}
-                      className="bg-[#F0B429]/20 text-[#F0B429] p-2 rounded-full hover:bg-[#F0B429] hover:text-[#080808] transition-all"
-                      title="Editar projeto"
-                    >
-                      <Pencil className="w-5 h-5" />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(proj.id)}
-                      className="bg-red-500/20 text-red-500 p-2 rounded-full hover:bg-red-500 hover:text-white transition-all"
-                      title="Excluir projeto"
-                    >
-                      <Trash2 className="w-5 h-5" />
-                    </button>
-                  </div>
-                </div>
-                <div className="p-4 flex-1">
-                  <span className="text-[#F0B429] text-[10px] tracking-widest uppercase">
-                    {proj.categoria_nome || "Sem categoria"} • {proj.imagens?.length || 0} foto(s)
-                  </span>
-                  <h3 className="text-white font-medium text-sm mt-1">{proj.titulo}</h3>
-                  {proj.subtitulo && <p className="text-white/50 text-xs mt-1 line-clamp-2">{proj.subtitulo}</p>}
-                </div>
-              </div>
-            );
-          })}
-          {projetos.length === 0 && (
-            <div className="col-span-2 text-center text-white/40 py-10 border border-dashed border-white/10 rounded-sm">
-              Nenhum projeto cadastrado.
-            </div>
-          )}
-        </div>
-      </div>
+      </AdminDialog>
     </div>
   );
 }
