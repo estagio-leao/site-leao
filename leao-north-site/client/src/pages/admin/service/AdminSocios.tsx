@@ -8,7 +8,10 @@
  */
 import { useEffect, useState } from "react";
 import { Plus, Upload, Pencil, Trash2, User, ImageIcon, X } from "lucide-react";
+import { toast } from "sonner";
+import { adminFetch } from "@/lib/adminFetch";
 import AdminDialog from "../AdminDialog";
+import ConfirmDeleteDialog from "../ConfirmDeleteDialog";
 import { formatPhoneBR } from "@/lib/utils";
 
 const BASE = "http://localhost/leaonorth";
@@ -45,6 +48,7 @@ export default function AdminSocios() {
   const [fotoPreview, setFotoPreview] = useState<string | null>(null);
   const [removerFoto, setRemoverFoto] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [excluirId, setExcluirId] = useState<number | null>(null); // Fase 28 — id aguardando confirmação
 
   const fetchSocios = async () => {
     try {
@@ -119,7 +123,7 @@ export default function AdminSocios() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.nome.trim()) return alert("Informe o nome do sócio.");
+    if (!form.nome.trim()) return toast.warning("Informe o nome do sócio.");
     setLoading(true);
 
     const isEdit = editandoId != null;
@@ -142,34 +146,35 @@ export default function AdminSocios() {
     }
 
     try {
-      const res = await fetch(url, { method: "POST", body: fd });
+      const res = await adminFetch(url, { method: "POST", body: fd });
       if (res.ok) {
         fecharModal();
         fetchSocios();
-        alert(isEdit ? "Sócio atualizado!" : "Sócio criado!");
+        toast.success(isEdit ? "Sócio atualizado!" : "Sócio criado!");
       } else {
         const err = await res.json().catch(() => null);
-        alert(err?.mensagem || "Erro ao salvar sócio.");
+        toast.error(err?.mensagem || "Erro ao salvar sócio.");
       }
     } catch (err) {
-      alert("Erro ao enviar.");
+      toast.error("Erro ao enviar.");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm("Excluir este sócio? A foto também será removida.")) return;
+  // Fase 28 — executada somente após a confirmação do ConfirmDeleteDialog
+  const executarExclusaoSocio = async (id: number) => {
     try {
-      const res = await fetch(`${BASE}/api/admin/service/delete_socio.php?id=${id}`, { method: "DELETE" });
+      const res = await adminFetch(`${BASE}/api/admin/service/delete_socio.php?id=${id}`, { method: "DELETE" });
       if (res.ok) {
         fetchSocios();
+        toast.success("Sócio excluído com sucesso.");
       } else {
         const err = await res.json().catch(() => null);
-        alert(err?.mensagem || "Erro ao excluir sócio.");
+        toast.error(err?.mensagem || "Erro ao excluir sócio.");
       }
     } catch (err) {
-      alert("Erro ao excluir.");
+      toast.error("Erro ao excluir.");
     }
   };
 
@@ -222,7 +227,7 @@ export default function AdminSocios() {
                     <Pencil className="w-4 h-4" />
                   </button>
                   <button
-                    onClick={() => handleDelete(s.id)}
+                    onClick={() => setExcluirId(s.id)}
                     className="bg-red-500/20 text-red-500 p-2 rounded-full hover:bg-red-500 hover:text-white transition-all ml-2"
                     title="Excluir sócio"
                   >
@@ -354,6 +359,20 @@ export default function AdminSocios() {
           </div>
         </form>
       </AdminDialog>
+
+      {/* Fase 28 — confirmação de exclusão (substitui o window.confirm) */}
+      <ConfirmDeleteDialog
+        open={excluirId != null}
+        onOpenChange={(open) => {
+          if (!open) setExcluirId(null);
+        }}
+        title="Excluir Sócio"
+        description="Excluir este sócio? A foto também será removida."
+        confirmLabel="Excluir"
+        onConfirm={async () => {
+          if (excluirId != null) await executarExclusaoSocio(excluirId);
+        }}
+      />
     </div>
   );
 }

@@ -1,4 +1,6 @@
 <?php
+// FASE 29 — exige Bearer Token válido (auth.php): responde OPTIONS e devolve 401 se inválido.
+require_once __DIR__ . '/../auth.php';
 // FASE 22 — Leão Service: exclui um Serviço/Categoria (servicos_categorias)
 // FK portfolio_projetos.servico_categoria_id = ON DELETE SET NULL → excluir a
 // categoria NÃO apaga os projetos (eles ficam sem categoria).

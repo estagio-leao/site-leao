@@ -7,6 +7,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
 import { Send, X, User, CheckCircle2, ChevronRight } from "lucide-react";
+import { toast } from "sonner";
 import { formatPhoneBR } from "@/lib/utils";
 
 const BASE = "http://localhost/leaonorth";
@@ -96,11 +97,11 @@ export default function SociosSection() {
         const texto = `Olá, ${socioAtivo.nome}! Sou ${form.name}. ${form.message}`;
         window.open(`https://wa.me/${numero}?text=${encodeURIComponent(texto)}`, "_blank", "noopener,noreferrer");
       } else {
-        alert("Ocorreu um erro ao enviar sua mensagem. Tente novamente mais tarde.");
+        toast.error("Ocorreu um erro ao enviar sua mensagem. Tente novamente mais tarde.");
       }
     } catch (error) {
       console.error("Erro na requisição:", error);
-      alert("Erro de conexão com o servidor.");
+      toast.error("Erro de conexão com o servidor.");
     } finally {
       setEnviando(false);
     }

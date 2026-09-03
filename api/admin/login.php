@@ -33,8 +33,19 @@ if (!empty($dados->email) && !empty($dados->password)) {
         if ($stmt->rowCount() > 0) {
             $row = $stmt->fetch(PDO::FETCH_ASSOC);
             if (password_verify($dados->password, $row['password'])) {
+                // FASE 29 — token forte, aleatório e com validade no servidor (revogável)
+                $token = bin2hex(random_bytes(32)); // 64 hex
+                $expiracao = date('Y-m-d H:i:s', strtotime('+24 hours'));
+
+                $upd = "UPDATE admin_users SET token = :token, token_expiracao = :expiracao WHERE id = :id";
+                $stmtUpd = $conn->prepare($upd);
+                $stmtUpd->bindParam(":token", $token);
+                $stmtUpd->bindParam(":expiracao", $expiracao);
+                $stmtUpd->bindParam(":id", $row['id']);
+                $stmtUpd->execute();
+
                 http_response_code(200);
-                echo json_encode(array("token" => base64_encode($row['id'] . time()), "mensagem" => "Logado com sucesso."));
+                echo json_encode(array("token" => $token, "mensagem" => "Logado com sucesso."));
             } else {
                 http_response_code(401);
                 echo json_encode(array("mensagem" => "Senha incorreta."));

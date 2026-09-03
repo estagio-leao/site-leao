@@ -11,7 +11,10 @@
  */
 import { useEffect, useState } from "react";
 import { Plus, Trash2, Star } from "lucide-react";
+import { toast } from "sonner";
+import { adminFetch } from "@/lib/adminFetch";
 import AdminDialog from "../AdminDialog";
+import ConfirmDeleteDialog from "../ConfirmDeleteDialog";
 import { Switch } from "@/components/ui/switch";
 
 const inputClass =
@@ -35,11 +38,13 @@ export default function AdminDepoimentos() {
   const [loadingDep, setLoadingDep] = useState(false);
   const [editandoDepId, setEditandoDepId] = useState<number | null>(null); // null = modo novo
   const [depModalOpen, setDepModalOpen] = useState(false);
+  const [excluirId, setExcluirId] = useState<number | null>(null); // Fase 28 — id aguardando confirmação
 
   const fetchDepoimentos = async () => {
     try {
-      // Fase 27 — o painel precisa listar TODOS (inclusive ocultos p/ curadoria)
-      const res = await fetch("http://localhost/leaonorth/api/depoimentos.php?admin=1");
+      // Fase 29 — listagem privada via api/admin/depoimentos.php (evita o "vazamento"
+      // dos depoimentos ocultos pelo endpoint público ?admin=1) — exige Bearer Token.
+      const res = await adminFetch("http://localhost/leaonorth/api/admin/depoimentos.php");
       const data = await res.json();
       if (Array.isArray(data)) setDepoimentos(data);
     } catch (err) { console.error("Erro depoimentos", err); }
@@ -85,7 +90,7 @@ export default function AdminDepoimentos() {
       ? "http://localhost/leaonorth/api/admin/edit_depoimento.php"
       : "http://localhost/leaonorth/api/admin/add_depoimento.php";
     try {
-      const res = await fetch(url, {
+      const res = await adminFetch(url, {
         method: isEdit ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(isEdit ? { ...depForm, id: editandoDepId } : depForm),
@@ -93,32 +98,33 @@ export default function AdminDepoimentos() {
       if (res.ok) {
         fecharDepModal();
         fetchDepoimentos();
-        alert(isEdit ? "Depoimento atualizado!" : "Depoimento adicionado!");
+        toast.success(isEdit ? "Depoimento atualizado!" : "Depoimento adicionado!");
       }
-    } catch (err) { alert("Erro ao salvar depoimento."); } finally { setLoadingDep(false); }
+    } catch (err) { toast.error("Erro ao salvar depoimento."); } finally { setLoadingDep(false); }
   };
 
-  const handleDeleteDepoimento = async (id: number) => {
-    if (!confirm("Apagar este depoimento?")) return;
+  // Fase 28 — executada somente após a confirmação do ConfirmDeleteDialog
+  const executarExclusaoDepoimento = async (id: number) => {
     try {
-      await fetch(`http://localhost/leaonorth/api/admin/delete_depoimento.php?id=${id}`, { method: "DELETE" });
+      await adminFetch(`http://localhost/leaonorth/api/admin/delete_depoimento.php?id=${id}`, { method: "DELETE" });
       fetchDepoimentos();
-    } catch (err) { alert("Erro ao excluir."); }
+      toast.success("Depoimento excluído com sucesso.");
+    } catch (err) { toast.error("Erro ao excluir."); }
   };
 
   // Fase 27 — atalho: alterna visivel/destaque direto no card (sem abrir o modal)
   const handleToggleDepoimento = async (id: number, campo: "visivel" | "destaque", valor: boolean) => {
     try {
-      const res = await fetch("http://localhost/leaonorth/api/admin/toggle_depoimento.php", {
+      const res = await adminFetch("http://localhost/leaonorth/api/admin/toggle_depoimento.php", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id, campo, valor: valor ? 1 : 0 }),
       });
-      if (!res.ok) alert("Erro ao atualizar o depoimento.");
+      if (!res.ok) toast.error("Erro ao atualizar o depoimento.");
       fetchDepoimentos(); // recarrega badges/toggles
     } catch (err) {
       console.error("Erro ao alternar depoimento", err);
-      alert("Erro ao atualizar o depoimento.");
+      toast.error("Erro ao atualizar o depoimento.");
     }
   };
 
@@ -167,7 +173,7 @@ export default function AdminDepoimentos() {
                 <button
                   onClick={(e) => {
                     e.stopPropagation(); // Impede que o clique acione a edição
-                    handleDeleteDepoimento(dep.id);
+                    setExcluirId(dep.id);
                   }}
                   className="text-red-500/50 hover:text-red-500 transition-colors p-1"
                   title="Excluir depoimento"
@@ -277,6 +283,20 @@ export default function AdminDepoimentos() {
           </div>
         </form>
       </AdminDialog>
+
+      {/* Fase 28 — confirmação de exclusão (substitui o window.confirm) */}
+      <ConfirmDeleteDialog
+        open={excluirId != null}
+        onOpenChange={(open) => {
+          if (!open) setExcluirId(null);
+        }}
+        title="Excluir Depoimento"
+        description="Apagar este depoimento?"
+        confirmLabel="Excluir"
+        onConfirm={async () => {
+          if (excluirId != null) await executarExclusaoDepoimento(excluirId);
+        }}
+      />
     </div>
   );
 }

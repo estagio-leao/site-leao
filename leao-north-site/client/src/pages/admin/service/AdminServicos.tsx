@@ -8,7 +8,10 @@
  */
 import { useEffect, useState } from "react";
 import { Plus, Upload, Pencil, Trash2 } from "lucide-react";
+import { toast } from "sonner";
+import { adminFetch } from "@/lib/adminFetch";
 import AdminDialog from "../AdminDialog";
+import ConfirmDeleteDialog from "../ConfirmDeleteDialog";
 
 const BASE = "http://localhost/leaonorth";
 
@@ -36,6 +39,7 @@ export default function AdminServicos() {
   const [editandoId, setEditandoId] = useState<number | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [excluirId, setExcluirId] = useState<number | null>(null); // Fase 28 — id aguardando confirmação
 
   const fetchServicos = async () => {
     try {
@@ -75,7 +79,7 @@ export default function AdminServicos() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.nome.trim()) return alert("Informe o nome do serviço.");
+    if (!form.nome.trim()) return toast.warning("Informe o nome do serviço.");
     setLoading(true);
 
     const isEdit = editandoId != null;
@@ -89,36 +93,37 @@ export default function AdminServicos() {
     fd.append("descricao", form.descricao);
 
     try {
-      const res = await fetch(url, { method: "POST", body: fd });
+      const res = await adminFetch(url, { method: "POST", body: fd });
       if (res.ok) {
         fecharModal();
         fetchServicos();
-        alert(isEdit ? "Serviço atualizado!" : "Serviço criado!");
+        toast.success(isEdit ? "Serviço atualizado!" : "Serviço criado!");
       } else {
         const err = await res.json().catch(() => null);
-        alert(err?.mensagem || "Erro ao salvar serviço.");
+        toast.error(err?.mensagem || "Erro ao salvar serviço.");
       }
     } catch (err) {
-      alert("Erro ao enviar.");
+      toast.error("Erro ao enviar.");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm("Excluir este serviço? Projetos desta categoria ficarão sem categoria.")) return;
+  // Fase 28 — executada somente após a confirmação do ConfirmDeleteDialog
+  const executarExclusaoServico = async (id: number) => {
     try {
-      const res = await fetch(`${BASE}/api/admin/service/delete_categoria.php?id=${id}`, {
+      const res = await adminFetch(`${BASE}/api/admin/service/delete_categoria.php?id=${id}`, {
         method: "DELETE",
       });
       if (res.ok) {
         fetchServicos();
+        toast.success("Serviço excluído com sucesso.");
       } else {
         const err = await res.json().catch(() => null);
-        alert(err?.mensagem || "Erro ao excluir serviço.");
+        toast.error(err?.mensagem || "Erro ao excluir serviço.");
       }
     } catch (err) {
-      alert("Erro ao excluir.");
+      toast.error("Erro ao excluir.");
     }
   };
 
@@ -161,7 +166,7 @@ export default function AdminServicos() {
                     <Pencil className="w-4 h-4" />
                   </button>
                   <button
-                    onClick={() => handleDelete(s.id)}
+                    onClick={() => setExcluirId(s.id)}
                     className="bg-red-500/20 text-red-500 p-2 rounded-full hover:bg-red-500 hover:text-white transition-all ml-2"
                     title="Excluir serviço"
                   >
@@ -222,6 +227,20 @@ export default function AdminServicos() {
           </div>
         </form>
       </AdminDialog>
+
+      {/* Fase 28 — confirmação de exclusão (substitui o window.confirm) */}
+      <ConfirmDeleteDialog
+        open={excluirId != null}
+        onOpenChange={(open) => {
+          if (!open) setExcluirId(null);
+        }}
+        title="Excluir Serviço"
+        description="Excluir este serviço? Projetos desta categoria ficarão sem categoria."
+        confirmLabel="Excluir"
+        onConfirm={async () => {
+          if (excluirId != null) await executarExclusaoServico(excluirId);
+        }}
+      />
     </div>
   );
 }

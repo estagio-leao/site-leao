@@ -1,4 +1,6 @@
 <?php
+// FASE 29 — exige Bearer Token válido (auth.php): responde OPTIONS e devolve 401 se inválido.
+require_once __DIR__ . '/auth.php';
 // FASE 27 — Leão Service: alterna RÁPIDO um campo booleano de depoimento
 // (visivel | destaque) sem precisar abrir/editar o registro completo.
 // Corpo: JSON { "id": 1, "campo": "visivel" | "destaque", "valor": 0 | 1 }

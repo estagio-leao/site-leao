@@ -8,6 +8,7 @@
  */
 import { useEffect, useState } from "react";
 import { Mail, X } from "lucide-react";
+import { adminFetch } from "@/lib/adminFetch";
 
 // Badges de origem da mensagem (tipo_mensagem) — Service dourado, Materiais azul, Sócio roxo
 const tipoMensagemConfig: Record<string, { label: string; className: string }> = {
@@ -26,7 +27,7 @@ export default function AdminMensagens() {
 
   const fetchMensagens = async () => {
     try {
-      const res = await fetch("http://localhost/leaonorth/api/admin/mensagens.php");
+      const res = await adminFetch("http://localhost/leaonorth/api/admin/mensagens.php");
       const data = await res.json();
       if (Array.isArray(data)) setMensagens(data);
     } catch (err) { console.error("Erro mensagens", err); }

@@ -16,7 +16,10 @@
  */
 import { useEffect, useState } from "react";
 import { Plus, Upload, Pencil, Trash2, ImageIcon, X } from "lucide-react";
+import { toast } from "sonner";
+import { adminFetch } from "@/lib/adminFetch";
 import AdminDialog from "../AdminDialog";
+import ConfirmDeleteDialog from "../ConfirmDeleteDialog";
 
 const BASE = "http://localhost/leaonorth";
 
@@ -68,6 +71,7 @@ export default function AdminPortfolio() {
   const [novas, setNovas] = useState<NovaImagem[]>([]);
   const [capaIndex, setCapaIndex] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [excluirId, setExcluirId] = useState<number | null>(null); // Fase 28 — id aguardando confirmação
 
   const fetchProjetos = async () => {
     try {
@@ -106,7 +110,7 @@ export default function AdminPortfolio() {
     if (!files) return;
     const novos = Array.from(files);
     const total = mantidas.length + novas.length + novos.length;
-    if (total > 8) return alert("Máximo de 8 imagens por projeto.");
+    if (total > 8) return toast.warning("Máximo de 8 imagens por projeto.");
     const novasComUrl: NovaImagem[] = novos.map((file) => ({
       file,
       url: URL.createObjectURL(file),
@@ -183,9 +187,9 @@ export default function AdminPortfolio() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     const isEdit = editandoId != null;
-    if (!form.titulo.trim()) return alert("Informe o título do projeto.");
-    if (!isEdit && novas.length === 0) return alert("Selecione pelo menos uma imagem!");
-    if (isEdit && totalFotos === 0) return alert("O projeto deve ter ao menos 1 imagem.");
+    if (!form.titulo.trim()) return toast.warning("Informe o título do projeto.");
+    if (!isEdit && novas.length === 0) return toast.warning("Selecione pelo menos uma imagem!");
+    if (isEdit && totalFotos === 0) return toast.warning("O projeto deve ter ao menos 1 imagem.");
     setLoading(true);
 
     const fd = new FormData();
@@ -210,34 +214,35 @@ export default function AdminPortfolio() {
       : `${BASE}/api/admin/service/add_projeto.php`;
 
     try {
-      const res = await fetch(url, { method: "POST", body: fd });
+      const res = await adminFetch(url, { method: "POST", body: fd });
       if (res.ok) {
         fecharModal();
         fetchProjetos();
-        alert(isEdit ? "Projeto atualizado!" : "Projeto adicionado!");
+        toast.success(isEdit ? "Projeto atualizado!" : "Projeto adicionado!");
       } else {
         const err = await res.json().catch(() => null);
-        alert(err?.mensagem || "Erro ao salvar projeto.");
+        toast.error(err?.mensagem || "Erro ao salvar projeto.");
       }
     } catch (err) {
-      alert("Erro ao enviar.");
+      toast.error("Erro ao enviar.");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm("Excluir este projeto? Todas as imagens serão removidas.")) return;
+  // Fase 28 — executada somente após a confirmação do ConfirmDeleteDialog
+  const executarExclusaoProjeto = async (id: number) => {
     try {
-      const res = await fetch(`${BASE}/api/admin/service/delete_projeto.php?id=${id}`, { method: "DELETE" });
+      const res = await adminFetch(`${BASE}/api/admin/service/delete_projeto.php?id=${id}`, { method: "DELETE" });
       if (res.ok) {
         fetchProjetos();
+        toast.success("Projeto excluído com sucesso.");
       } else {
         const err = await res.json().catch(() => null);
-        alert(err?.mensagem || "Erro ao excluir projeto.");
+        toast.error(err?.mensagem || "Erro ao excluir projeto.");
       }
     } catch (err) {
-      alert("Erro ao excluir.");
+      toast.error("Erro ao excluir.");
     }
   };
 
@@ -279,7 +284,7 @@ export default function AdminPortfolio() {
                     <Pencil className="w-5 h-5" />
                   </button>
                   <button
-                    onClick={() => handleDelete(proj.id)}
+                    onClick={() => setExcluirId(proj.id)}
                     className="bg-red-500/20 text-red-500 p-2 rounded-full hover:bg-red-500 hover:text-white transition-all"
                     title="Excluir projeto"
                   >
@@ -446,6 +451,20 @@ export default function AdminPortfolio() {
           </div>
         </form>
       </AdminDialog>
+
+      {/* Fase 28 — confirmação de exclusão (substitui o window.confirm) */}
+      <ConfirmDeleteDialog
+        open={excluirId != null}
+        onOpenChange={(open) => {
+          if (!open) setExcluirId(null);
+        }}
+        title="Excluir Projeto"
+        description="Excluir este projeto? Todas as imagens serão removidas."
+        confirmLabel="Excluir"
+        onConfirm={async () => {
+          if (excluirId != null) await executarExclusaoProjeto(excluirId);
+        }}
+      />
     </div>
   );
 }

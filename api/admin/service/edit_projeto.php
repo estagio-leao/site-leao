@@ -1,4 +1,6 @@
 <?php
+// FASE 29 — exige Bearer Token válido (auth.php): responde OPTIONS e devolve 401 se inválido.
+require_once __DIR__ . '/../auth.php';
 // FASE 22 — Leão Service: edita um Projeto de Portfólio.
 // - Dados: titulo, subtitulo, descricao, servico_categoria_id.
 // - Imagens: imagens_mantidas (JSON array de caminhos, na ordem exibida) +

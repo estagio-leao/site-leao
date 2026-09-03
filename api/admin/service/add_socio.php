@@ -1,4 +1,6 @@
 <?php
+// FASE 29 — exige Bearer Token válido (auth.php): responde OPTIONS e devolve 401 se inválido.
+require_once __DIR__ . '/../auth.php';
 // FASE 22 — Leão Service: cria um Sócio (socios) com foto ÚNICA opcional
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: POST, GET, OPTIONS");

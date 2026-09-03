@@ -11,7 +11,10 @@
  */
 import { useEffect, useState } from "react";
 import { Plus, Pencil, Trash2 } from "lucide-react";
+import { toast } from "sonner";
+import { adminFetch } from "@/lib/adminFetch";
 import AdminDialog from "../AdminDialog";
+import ConfirmDeleteDialog from "../ConfirmDeleteDialog";
 
 const inputClass =
   "w-full bg-[#080808] border border-white/10 rounded-sm px-4 py-2.5 text-white text-sm font-['DM_Sans'] focus:border-[#F0B429]/50 focus:outline-none transition-all";
@@ -22,6 +25,7 @@ export default function AdminCategorias() {
   const [loadingCat, setLoadingCat] = useState(false);
   const [editandoCatId, setEditandoCatId] = useState<number | null>(null); // null = modo novo
   const [catModalOpen, setCatModalOpen] = useState(false);
+  const [excluirId, setExcluirId] = useState<number | null>(null); // Fase 28 — id aguardando confirmação
 
   const fetchCategorias = async () => {
     try {
@@ -59,14 +63,14 @@ export default function AdminCategorias() {
 
   const handleSaveCategoria = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!catForm.nome.trim()) return alert("Informe o nome da categoria.");
+    if (!catForm.nome.trim()) return toast.warning("Informe o nome da categoria.");
     setLoadingCat(true);
     const isEdit = editandoCatId != null;
     const formData = new FormData();
     if (isEdit) formData.append("id", String(editandoCatId));
     formData.append("nome", catForm.nome);
     try {
-      const res = await fetch(
+      const res = await adminFetch(
         isEdit
           ? "http://localhost/leaonorth/api/admin/edit_categoria.php"
           : "http://localhost/leaonorth/api/admin/add_categoria.php",
@@ -75,25 +79,26 @@ export default function AdminCategorias() {
       if (res.ok) {
         fecharCatModal();
         fetchCategorias();
-        alert(isEdit ? "Categoria atualizada!" : "Categoria adicionada!");
+        toast.success(isEdit ? "Categoria atualizada!" : "Categoria adicionada!");
       } else {
         const err = await res.json().catch(() => null);
-        alert(err?.mensagem || (isEdit ? "Erro ao atualizar categoria." : "Erro ao salvar categoria."));
+        toast.error(err?.mensagem || (isEdit ? "Erro ao atualizar categoria." : "Erro ao salvar categoria."));
       }
-    } catch (err) { alert("Erro ao enviar."); } finally { setLoadingCat(false); }
+    } catch (err) { toast.error("Erro ao enviar."); } finally { setLoadingCat(false); }
   };
 
-  const handleDeleteCategoria = async (id: number) => {
-    if (!confirm("Tem certeza que deseja apagar esta categoria?")) return;
+  // Fase 28 — executada somente após a confirmação do ConfirmDeleteDialog
+  const executarExclusaoCategoria = async (id: number) => {
     try {
-      const res = await fetch(`http://localhost/leaonorth/api/admin/delete_categoria.php?id=${id}`, { method: "DELETE" });
+      const res = await adminFetch(`http://localhost/leaonorth/api/admin/delete_categoria.php?id=${id}`, { method: "DELETE" });
       if (res.ok) {
         fetchCategorias();
+        toast.success("Categoria excluída com sucesso.");
       } else {
         const err = await res.json().catch(() => null);
-        alert(err?.mensagem || "Erro ao excluir categoria.");
+        toast.error(err?.mensagem || "Erro ao excluir categoria.");
       }
-    } catch (err) { alert("Erro ao excluir."); }
+    } catch (err) { toast.error("Erro ao excluir."); }
   };
 
   return (
@@ -133,7 +138,7 @@ export default function AdminCategorias() {
                     <Pencil className="w-4 h-4" />
                   </button>
                   <button
-                    onClick={() => handleDeleteCategoria(cat.id)}
+                    onClick={() => setExcluirId(cat.id)}
                     className="bg-red-500/20 text-red-500 p-2 rounded-full hover:bg-red-500 hover:text-white transition-all ml-2"
                     title="Excluir categoria"
                   >
@@ -184,6 +189,20 @@ export default function AdminCategorias() {
           </div>
         </form>
       </AdminDialog>
+
+      {/* Fase 28 — confirmação de exclusão (substitui o window.confirm) */}
+      <ConfirmDeleteDialog
+        open={excluirId != null}
+        onOpenChange={(open) => {
+          if (!open) setExcluirId(null);
+        }}
+        title="Excluir Categoria"
+        description="Tem certeza que deseja apagar esta categoria?"
+        confirmLabel="Excluir"
+        onConfirm={async () => {
+          if (excluirId != null) await executarExclusaoCategoria(excluirId);
+        }}
+      />
     </div>
   );
 }

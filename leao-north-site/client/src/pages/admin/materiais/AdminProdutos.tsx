@@ -13,7 +13,10 @@ import {
   Plus, Upload, Pencil, Trash2, Copy, ArrowLeft,
   Image as ImageIcon, X, FolderOpen,
 } from "lucide-react";
+import { toast } from "sonner";
+import { adminFetch } from "@/lib/adminFetch";
 import AdminDialog from "../AdminDialog";
+import ConfirmDeleteDialog from "../ConfirmDeleteDialog";
 
 const inputClass =
   "w-full bg-[#080808] border border-white/10 rounded-sm px-4 py-2.5 text-white text-sm font-['DM_Sans'] focus:border-[#F0B429]/50 focus:outline-none transition-all";
@@ -46,6 +49,9 @@ export default function AdminProdutos() {
 
   // Navegação em "pastas" da listagem (Fase 14): null = visão raiz | id do grupo = dentro da pasta
   const [grupoAtivo, setGrupoAtivo] = useState<string | null>(null);
+
+  // Fase 28 — confirmação única p/ excluir ou duplicar (substitui os window.confirm)
+  const [confirmar, setConfirmar] = useState<null | { tipo: "delete" | "duplicate"; id: number }>(null);
 
   const fetchProdutos = async () => {
     try {
@@ -82,7 +88,7 @@ export default function AdminProdutos() {
     if (!files) return;
     const novos = Array.from(files);
     const total = imgsMantidas.length + prodFiles.length + novos.length;
-    if (total > 8) return alert("Máximo de 8 imagens por produto.");
+    if (total > 8) return toast.warning("Máximo de 8 imagens por produto.");
     const novasComUrl: NovaImagem[] = novos.map(file => ({ file, url: URL.createObjectURL(file) }));
     setProdFiles(prev => [...prev, ...novasComUrl]);
   };
@@ -172,7 +178,7 @@ export default function AdminProdutos() {
   const handleEditProduto = async (e: React.FormEvent) => {
     e.preventDefault();
     if (produtoEditandoId === null) return;
-    if (imgsMantidas.length + prodFiles.length === 0) return alert("O produto deve ter ao menos 1 imagem.");
+    if (imgsMantidas.length + prodFiles.length === 0) return toast.warning("O produto deve ter ao menos 1 imagem.");
     setLoadingProd(true);
 
     const formData = new FormData();
@@ -191,23 +197,23 @@ export default function AdminProdutos() {
     prodFiles.forEach(p => formData.append("novas_imagens[]", p.file));
 
     try {
-      const res = await fetch("http://localhost/leaonorth/api/admin/edit_produto.php", {
+      const res = await adminFetch("http://localhost/leaonorth/api/admin/edit_produto.php", {
         method: "POST", body: formData,
       });
       if (res.ok) {
         fecharProdModal();
         fetchProdutos();
-        alert("Produto atualizado!");
+        toast.success("Produto atualizado!");
       } else {
         const err = await res.json().catch(() => null);
-        alert(err?.mensagem || "Erro ao atualizar produto.");
+        toast.error(err?.mensagem || "Erro ao atualizar produto.");
       }
-    } catch (err) { alert("Erro ao enviar."); } finally { setLoadingProd(false); }
+    } catch (err) { toast.error("Erro ao enviar."); } finally { setLoadingProd(false); }
   };
 
   const handleAddProduto = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (prodFiles.length === 0) return alert("Selecione pelo menos uma imagem!");
+    if (prodFiles.length === 0) return toast.warning("Selecione pelo menos uma imagem!");
     setLoadingProd(true);
 
     const formData = new FormData();
@@ -225,51 +231,51 @@ export default function AdminProdutos() {
     if (prodForm.grupo_id !== "") formData.append("grupo_id", String(prodForm.grupo_id));
 
     try {
-      const res = await fetch("http://localhost/leaonorth/api/admin/add_produto.php", {
+      const res = await adminFetch("http://localhost/leaonorth/api/admin/add_produto.php", {
         method: "POST", body: formData,
       });
 
       if (res.ok) {
         fecharProdModal();
         fetchProdutos();
-        alert("Produto adicionado!");
+        toast.success("Produto adicionado!");
       } else {
         // Exibe a mensagem de validação do backend (MIME/5MB/erros)
         const err = await res.json().catch(() => null);
-        alert(err?.mensagem || "Erro ao salvar produto.");
+        toast.error(err?.mensagem || "Erro ao salvar produto.");
       }
-    } catch (err) { alert("Erro ao enviar."); } finally { setLoadingProd(false); }
+    } catch (err) { toast.error("Erro ao enviar."); } finally { setLoadingProd(false); }
   };
 
-  const handleDeleteProduto = async (id: number) => {
-    if (!confirm("Tem certeza que deseja apagar este produto?")) return;
+  // Fase 28 — executada somente após a confirmação do ConfirmDeleteDialog
+  const executarExclusaoProduto = async (id: number) => {
     try {
-      await fetch(`http://localhost/leaonorth/api/admin/delete_produto.php?id=${id}`, { method: "DELETE" });
+      await adminFetch(`http://localhost/leaonorth/api/admin/delete_produto.php?id=${id}`, { method: "DELETE" });
       fetchProdutos();
-    } catch (err) { alert("Erro ao excluir."); }
+      toast.success("Produto excluído com sucesso.");
+    } catch (err) { toast.error("Erro ao excluir."); }
   };
 
   // Duplica um produto (Fase 12): POST em duplicate_produto.php com o id no FormData
-  const handleDuplicateProduto = async (id: number) => {
-    if (!confirm("Duplicar este produto? Uma cópia independente será criada.")) return;
-
+  // Fase 28 — executada somente após a confirmação do ConfirmDeleteDialog
+  const executarDuplicacaoProduto = async (id: number) => {
     const formData = new FormData();
     formData.append("id", String(id));
 
     try {
-      const res = await fetch("http://localhost/leaonorth/api/admin/duplicate_produto.php", {
+      const res = await adminFetch("http://localhost/leaonorth/api/admin/duplicate_produto.php", {
         method: "POST",
         body: formData,
       });
       if (res.ok) {
         fetchProdutos(); // recarrega a listagem
-        alert("Produto duplicado com sucesso!");
+        toast.success("Produto duplicado com sucesso!");
       } else {
         const err = await res.json().catch(() => null);
-        alert(err?.mensagem || "Erro ao duplicar produto.");
+        toast.error(err?.mensagem || "Erro ao duplicar produto.");
       }
     } catch (err) {
-      alert("Erro ao duplicar produto.");
+      toast.error("Erro ao duplicar produto.");
     }
   };
 
@@ -316,10 +322,10 @@ export default function AdminProdutos() {
             <button onClick={() => entrarEdicao(prod)} className="bg-[#F0B429]/20 text-[#F0B429] p-2 rounded-full hover:bg-[#F0B429] hover:text-[#080808] transition-all" title="Editar produto">
               <Pencil className="w-5 h-5" />
             </button>
-            <button onClick={() => handleDuplicateProduto(prod.id)} className="bg-sky-500/20 text-sky-400 p-2 rounded-full hover:bg-sky-500 hover:text-white transition-all" title="Duplicar produto">
+            <button onClick={() => setConfirmar({ tipo: "duplicate", id: prod.id })} className="bg-sky-500/20 text-sky-400 p-2 rounded-full hover:bg-sky-500 hover:text-white transition-all" title="Duplicar produto">
               <Copy className="w-5 h-5" />
             </button>
-            <button onClick={() => handleDeleteProduto(prod.id)} className="bg-red-500/20 text-red-500 p-2 rounded-full hover:bg-red-500 hover:text-white transition-all" title="Excluir produto">
+            <button onClick={() => setConfirmar({ tipo: "delete", id: prod.id })} className="bg-red-500/20 text-red-500 p-2 rounded-full hover:bg-red-500 hover:text-white transition-all" title="Excluir produto">
               <Trash2 className="w-5 h-5" />
             </button>
           </div>
@@ -612,6 +618,26 @@ export default function AdminProdutos() {
           </div>
         </form>
       </AdminDialog>
+
+      {/* Fase 28 — confirmação de excluir/duplicar (substitui os window.confirm) */}
+      <ConfirmDeleteDialog
+        open={confirmar != null}
+        onOpenChange={(open) => {
+          if (!open) setConfirmar(null);
+        }}
+        title={confirmar?.tipo === "duplicate" ? "Duplicar Produto" : "Excluir Produto"}
+        description={
+          confirmar?.tipo === "duplicate"
+            ? "Duplicar este produto? Uma cópia independente será criada."
+            : "Tem certeza que deseja apagar este produto?"
+        }
+        confirmLabel={confirmar?.tipo === "duplicate" ? "Duplicar" : "Excluir"}
+        destructive={confirmar?.tipo !== "duplicate"}
+        onConfirm={async () => {
+          if (confirmar?.tipo === "duplicate") await executarDuplicacaoProduto(confirmar.id);
+          else if (confirmar?.tipo === "delete") await executarExclusaoProduto(confirmar.id);
+        }}
+      />
     </div>
   );
 }

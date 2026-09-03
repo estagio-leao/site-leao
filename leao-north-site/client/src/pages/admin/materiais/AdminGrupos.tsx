@@ -12,7 +12,10 @@
  */
 import { useEffect, useState } from "react";
 import { Plus, Pencil, Trash2, ImageIcon } from "lucide-react";
+import { toast } from "sonner";
+import { adminFetch } from "@/lib/adminFetch";
 import AdminDialog from "../AdminDialog";
+import ConfirmDeleteDialog from "../ConfirmDeleteDialog";
 
 const inputClass =
   "w-full bg-[#080808] border border-white/10 rounded-sm px-4 py-2.5 text-white text-sm font-['DM_Sans'] focus:border-[#F0B429]/50 focus:outline-none transition-all";
@@ -29,6 +32,7 @@ export default function AdminGrupos() {
   const [loadingGrupo, setLoadingGrupo] = useState(false);
   const [editandoGrupoId, setEditandoGrupoId] = useState<number | null>(null); // null = modo novo
   const [grupoModalOpen, setGrupoModalOpen] = useState(false);
+  const [excluirId, setExcluirId] = useState<number | null>(null); // Fase 28 — id aguardando confirmação
 
   const fetchGrupos = async () => {
     try {
@@ -95,10 +99,10 @@ export default function AdminGrupos() {
 
   const handleSaveGrupo = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!grupoForm.nome.trim()) return alert("Informe o nome do grupo.");
-    if (!grupoForm.categoria_id) return alert("Selecione uma categoria.");
+    if (!grupoForm.nome.trim()) return toast.warning("Informe o nome do grupo.");
+    if (!grupoForm.categoria_id) return toast.warning("Selecione uma categoria.");
     const isEdit = editandoGrupoId != null;
-    if (!isEdit && !grupoFile) return alert("A capa do grupo é obrigatória.");
+    if (!isEdit && !grupoFile) return toast.warning("A capa do grupo é obrigatória.");
     setLoadingGrupo(true);
 
     const formData = new FormData();
@@ -109,7 +113,7 @@ export default function AdminGrupos() {
     if (grupoFile) formData.append("capa", grupoFile);
 
     try {
-      const res = await fetch(
+      const res = await adminFetch(
         isEdit
           ? "http://localhost/leaonorth/api/admin/edit_grupo.php"
           : "http://localhost/leaonorth/api/admin/add_grupo.php",
@@ -118,25 +122,26 @@ export default function AdminGrupos() {
       if (res.ok) {
         fecharGrupoModal();
         fetchGrupos();
-        alert(isEdit ? "Grupo atualizado!" : "Grupo criado com sucesso!");
+        toast.success(isEdit ? "Grupo atualizado!" : "Grupo criado com sucesso!");
       } else {
         const err = await res.json().catch(() => null);
-        alert(err?.mensagem || (isEdit ? "Erro ao atualizar grupo." : "Erro ao criar grupo."));
+        toast.error(err?.mensagem || (isEdit ? "Erro ao atualizar grupo." : "Erro ao criar grupo."));
       }
-    } catch (err) { alert("Erro ao enviar."); } finally { setLoadingGrupo(false); }
+    } catch (err) { toast.error("Erro ao enviar."); } finally { setLoadingGrupo(false); }
   };
 
-  const handleDeleteGrupo = async (id: number) => {
-    if (!confirm("Tem certeza que deseja apagar este grupo?")) return;
+  // Fase 28 — executada somente após a confirmação do ConfirmDeleteDialog
+  const executarExclusaoGrupo = async (id: number) => {
     try {
-      const res = await fetch(`http://localhost/leaonorth/api/admin/delete_grupo.php?id=${id}`, { method: "DELETE" });
+      const res = await adminFetch(`http://localhost/leaonorth/api/admin/delete_grupo.php?id=${id}`, { method: "DELETE" });
       if (res.ok) {
         fetchGrupos();
+        toast.success("Grupo excluído com sucesso.");
       } else {
         const err = await res.json().catch(() => null);
-        alert(err?.mensagem || "Erro ao excluir grupo.");
+        toast.error(err?.mensagem || "Erro ao excluir grupo.");
       }
-    } catch (err) { alert("Erro ao excluir."); }
+    } catch (err) { toast.error("Erro ao excluir."); }
   };
 
   return (
@@ -188,7 +193,7 @@ export default function AdminGrupos() {
                     <Pencil className="w-4 h-4" />
                   </button>
                   <button
-                    onClick={() => handleDeleteGrupo(g.id)}
+                    onClick={() => setExcluirId(g.id)}
                     className="bg-red-500/20 text-red-500 p-2 rounded-full hover:bg-red-500 hover:text-white transition-all ml-2"
                     title="Excluir grupo"
                   >
@@ -276,6 +281,20 @@ export default function AdminGrupos() {
           </div>
         </form>
       </AdminDialog>
+
+      {/* Fase 28 — confirmação de exclusão (substitui o window.confirm) */}
+      <ConfirmDeleteDialog
+        open={excluirId != null}
+        onOpenChange={(open) => {
+          if (!open) setExcluirId(null);
+        }}
+        title="Excluir Grupo"
+        description="Tem certeza que deseja apagar este grupo?"
+        confirmLabel="Excluir"
+        onConfirm={async () => {
+          if (excluirId != null) await executarExclusaoGrupo(excluirId);
+        }}
+      />
     </div>
   );
 }

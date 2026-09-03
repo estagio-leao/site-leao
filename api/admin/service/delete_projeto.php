@@ -1,4 +1,6 @@
 <?php
+// FASE 29 — exige Bearer Token válido (auth.php): responde OPTIONS e devolve 401 se inválido.
+require_once __DIR__ . '/../auth.php';
 // FASE 22 — Leão Service: exclui um Projeto de Portfólio.
 // Resgata TODAS as imagens de portfolio_imagens antes do DELETE (a FK
 // ON DELETE CASCADE remove as linhas) e faz unlink de todos os arquivos.

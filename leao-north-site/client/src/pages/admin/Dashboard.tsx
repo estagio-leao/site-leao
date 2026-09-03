@@ -12,6 +12,7 @@ import {
   LogOut, Mail, Star, FolderOpen, Package,
   Image as ImageIcon, Tag, Wrench, Users,
 } from "lucide-react";
+import { adminFetch } from "@/lib/adminFetch";
 
 import AdminCategorias from "./materiais/AdminCategorias";
 import AdminGrupos from "./materiais/AdminGrupos";
@@ -44,9 +45,16 @@ export default function Dashboard() {
     }
   }, []);
 
-  const handleLogout = () => {
-    localStorage.removeItem("admin_token");
-    setLocation("/admin");
+  const handleLogout = async () => {
+    try {
+      // FASE 29 — revoga o token no servidor (além de limpar o localStorage)
+      await adminFetch("http://localhost/leaonorth/api/admin/logout.php", { method: "POST" });
+    } catch (err) {
+      /* sem rede: ignora — mesmo assim limpa localmente */
+    } finally {
+      localStorage.removeItem("admin_token");
+      setLocation("/admin");
+    }
   };
 
   return (

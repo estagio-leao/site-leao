@@ -12,21 +12,15 @@ try {
     $conn = new PDO("mysql:host={$host};dbname={$db_name}", $username, $password);
     $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-    // Fase 27 — curadoria:
+    // Fase 27 — curadoria (público):
     //   default ......... visivel = 1            (página pública /service/depoimentos)
     //   ?destaque=1 ..... visivel = 1 E destaque = 1 (Home — TestimonialsSection)
-    //   ?admin=1 ........ todas (painel precisa ver também as ocultas)
-    $is_admin = isset($_GET['admin']) && $_GET['admin'] === '1';
+    // Fase 29 — o "?admin=1" (todas, inclusive ocultas) foi REMOVIDO: o painel agora
+    //   consome o endpoint PRIVADO api/admin/depoimentos.php (Bearer Token). Este
+    //   endpoint público nunca mais expõe depoimentos ocultos (visivel = 0).
     $so_destaques = isset($_GET['destaque']) && $_GET['destaque'] === '1';
 
-    $where = "";
-    if ($is_admin) {
-        $where = "";
-    } elseif ($so_destaques) {
-        $where = "WHERE visivel = 1 AND destaque = 1 ";
-    } else {
-        $where = "WHERE visivel = 1 ";
-    }
+    $where = $so_destaques ? "WHERE visivel = 1 AND destaque = 1 " : "WHERE visivel = 1 ";
 
     $query = "SELECT id, nome, estrelas, texto, visivel, destaque FROM depoimentos " . $where . "ORDER BY id DESC";
     $stmt = $conn->prepare($query); $stmt->execute();

@@ -1,0 +1,18 @@
+# LEÃO NORTH — FASE 30: SPA fallback + bridge de Open Graph
+Options -MultiViews
+DirectoryIndex index.php index.html
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+
+  # 1) Arquivos/diretórios reais (assets do build, /api, /uploads etc.) são servidos direto
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  # 2) Nunca roteia chamadas à API/uploads/assets (mesmo que o alvo não exista)
+  RewriteRule ^(api|uploads|assets)(/|$) - [L]
+
+  # 3) Deep-links do SPA (ex.: /service/portfolio/5, /materiais/3) => index.php (bridge de SEO)
+  RewriteRule ^ index.php [L]
+</IfModule>

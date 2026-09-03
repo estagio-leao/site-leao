@@ -1,4 +1,6 @@
 <?php
+// FASE 29 — exige Bearer Token válido (auth.php): responde OPTIONS e devolve 401 se inválido.
+require_once __DIR__ . '/../auth.php';
 // FASE 22 — Leão Service: edita um Sócio (socios)
 // Suporta nova foto (substitui a antiga) ou remoção da foto (remover_foto=1).
 header("Access-Control-Allow-Origin: *");
