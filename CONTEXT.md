@@ -60,6 +60,28 @@ A **Leão North** é uma empresa de engenharia elétrica com sede em **Cornélio
 > [`api/admin/upload.php`](api/admin/upload.php), [`api/admin/delete.php`](api/admin/delete.php))
 > **permanece no repo, porém sem uso** (deixou de ser consumido na Fase 24; limpeza em fase futura).
 
+> **Fases 25–27 (UX, modularização e refinamentos do painel + Leão Service):**
+> - **Fase 25 (UX do painel):** criou o wrapper **`AdminDialog`** (sobre o `Dialog` do shadcn/Radix)
+>   com tema escuro, mapa de larguras `sm/md/lg/xl` e scroll interno. Todos os CRUDs passaram a ter
+>   **listagem em largura total** + botão **"Novo …"** no topo + **formulário em Modal** (com limpeza
+>   centralizada no fechamento e `revokeObjectURL` dos previews) —
+>   [`fase25_admin_ux_refactor.md`](zoo_code_docs/fase25_admin_ux_refactor.md).
+> - **Fase 26 (modularização):** o [`Dashboard.tsx`](leao-north-site/client/src/pages/admin/Dashboard.tsx)
+>   virou **orquestrador enxuto** (sidebar + `activeTab` + montagem). Categorias/Grupos/Produtos →
+>   `pages/admin/materiais/`; Depoimentos/Mensagens → `pages/admin/geral/`; Service →
+>   `pages/admin/service/` (Fase 23) — [`fase26_admin_modularizacao.md`](zoo_code_docs/fase26_admin_modularizacao.md).
+> - **Fase 27 (refinamentos):** **WhatsApp por Sócio** (coluna `socios.whatsapp`; campo no admin com
+>   máscara `(XX) XXXXX-XXXX`; o form "Falar com sócio" mantém o `POST` em `contato.php` e abre o
+>   `wa.me` do sócio no sucesso); **curadoria de Depoimentos** (`depoimentos.visivel`/`destaque`,
+>   toggles rápidos nos cards do painel, Home só com destaques + card "Ver mais", nova rota
+>   `/service/depoimentos`) e **correção do Google Maps** (iframe com embed genérico sem API key) —
+>   [`fase27_refinamentos.md`](zoo_code_docs/fase27_refinamentos.md).
+>
+> Novos arquivos da Fase 27:
+> [`api/admin/toggle_depoimento.php`](api/admin/toggle_depoimento.php),
+> [`api/migracao_service.sql`](api/migracao_service.sql) (ALTERs), e a página
+> [`pages/Depoimentos.tsx`](leao-north-site/client/src/pages/Depoimentos.tsx).
+
 A experiência começa no **Portal Gateway** (split-screen), onde o visitante escolhe entre **Service**
 e **Materiais**. Há também o **Painel Administrativo** (`/admin`), que permite gerenciar
 **categorias**, **grupos** (com upload de capa), **produtos (criar, editar, excluir e duplicar)**,
@@ -158,13 +180,16 @@ flowchart LR
 6. O visitante envia um formulário (orçamento, contato ou "falar com sócio") → `POST /api/contato.php`
    → grava em `contatos` com `tipo_mensagem` (service | materiais | socio) e tenta disparar e-mail
    para `contato@leaonorth.com.br`.
-7. O administrador acessa `/admin` (login) → token no `localStorage` → `/admin/dashboard`. O painel
-   tem **sidebar seccionado** ("Leão Materiais": Categorias/Grupos/Produtos · "Leão Service":
-   Serviços/Portfólio/Sócios/Depoimentos · "Geral": Mensagens) para gerenciar **categorias**,
-   **grupos (com capa)**, **produtos (criar/editar/excluir/duplicar, múltiplas imagens + capa +
-   informações)** em listagem com **drill-down em pastas**, **serviços**, **projetos de portfólio
-   (multi-imagem + capa)** e **sócios** (componentes de `pages/admin/service/`), além de mensagens
-   (badges de origem) e depoimentos.
+7. O administrador acessa `/admin` (login) → token no `localStorage` → `/admin/dashboard`. O
+   **Dashboard é um orquestrador** (sidebar seccionada + `activeTab`) que monta **componentes
+   autossuficientes** — **Leão Materiais** (`AdminCategorias`/`AdminGrupos`/`AdminProdutos` em
+   `pages/admin/materiais/`), **Leão Service** (`AdminServicos`/`AdminPortfolio`/`AdminSocios` em
+   `pages/admin/service/`) e **Geral** (`AdminDepoimentos`/`AdminMensagens` em `pages/admin/geral/`).
+   Todo CRUD usa **formulário em Modal (`AdminDialog`)** + **listagem full-width**: categorias, grupos
+   (com capa), produtos (múltiplas imagens + capa + informações + duplicação + drill-down em pastas),
+   serviços, portfólio (multi-imagem + capa), sócios (foto + **whatsapp**) e depoimentos (**curadoria
+   `visivel`/`destaque`** com toggles rápidos direto nos cards), além de mensagens (badges de
+   `tipo_mensagem`).
 
 ---
 
@@ -178,32 +203,33 @@ leaonorth/                          ← raiz do workspace (document root do site
 ├── api/                            ← BACKEND PHP (usado de verdade pelo frontend)
 │   ├── contato.php                 ← POST: salva contato/orçamento + tipo_mensagem + e-mail
 │   ├── portfolio.php               ← GET: lista projetos do portfólio — LEGADO (sem uso desde a Fase 24)
-│   ├── depoimentos.php             ← GET: lista depoimentos
+│   ├── depoimentos.php             ← GET: depoimentos (curadoria: default visivel=1; filtros ?destaque=1 e ?admin=1)
 │   ├── categorias.php              ← GET: lista categorias (relacional v2.0)
 │   ├── grupos.php                  ← GET: lista grupos (com categoria_nome, capa e total de produtos)
 │   ├── produtos.php                ← GET: lista produtos (LEFT JOIN categoria/grupo + imagens[]/informacoes[])
 │   ├── migracao_v2.sql             ← DDL + backfill da migração para o modelo relacional (Fase 15)
-│   ├── migracao_service.sql        ← DDL das 4 tabelas da Leão Service + seeds + backfill do legado (Fase 22)
+│   ├── migracao_service.sql        ← migração Leão Service (base Fase 22 + ALTERs Fase 27: socios.whatsapp, depoimentos.visivel/destaque)
 │   ├── service/                    ← APIs PÚBLICAS da Leão Service (Fase 22/24)
 │   │   ├── categorias.php          ← GET: lista serviços/categorias (servicos_categorias)
-│   │   ├── socios.php              ← GET: lista sócios (socios)
+│   │   ├── socios.php              ← GET: lista sócios (inclui whatsapp)
 │   │   └── portfolio.php           ← GET: projetos + categoria_nome (JOIN) + imagens[] + capa (raiz)
 │   └── admin/
 │       ├── login.php               ← POST: autentica admin (password_verify)
 │       ├── mensagens.php           ← GET: lista mensagens de contato (inclui tipo_mensagem)
 │       ├── add_depoimento.php / edit_depoimento.php / delete_depoimento.php ← CRUD depoimentos
+│       ├── toggle_depoimento.php   ← POST: alterna visivel/destaque de um depoimento (atalho rápido)
 │       ├── upload.php              ← POST (LEGADO, sem uso) + delete.php (DELETE, LEGADO)
 │       ├── add_categoria.php / edit_categoria.php / delete_categoria.php ← CRUD categorias (Materiais)
 │       ├── add_grupo.php / edit_grupo.php / delete_grupo.php ← CRUD grupos (com capa)
 │       ├── add_produto.php / edit_produto.php / duplicate_produto.php / delete_produto.php ← CRUD produtos
 │       └── service/                ← APIs ADMIN da Leão Service (Fase 22)
 │           ├── add_categoria.php / edit_categoria.php / delete_categoria.php ← CRUD serviços/categorias
-│           ├── add_socio.php / edit_socio.php / delete_socio.php ← CRUD sócios (foto única)
+│           ├── add_socio.php / edit_socio.php / delete_socio.php ← CRUD sócios (foto única + whatsapp)
 │           └── add_projeto.php / edit_projeto.php / delete_projeto.php ← CRUD projetos (multi-imagem + capa)
 │
 ├── uploads/                        ← imagens (portfólio, produtos, capas de grupos, sócios)
 │
-├── zoo_code_docs/                  ← documentação de planejamento das fases (fase1..fase24)
+├── zoo_code_docs/                  ← documentação de planejamento das fases (fase1..fase27)
 │
 └── leao-north-site/                ← FRONTEND React (código-fonte do site)
     ├── package.json                ← dependências e scripts
@@ -228,12 +254,20 @@ leaonorth/                          ← raiz do workspace (document root do site
     │       │   ├── ProdutoDetalhes.tsx ← página de detalhes do produto (galeria + zoom/lupa)
     │       │   ├── NotFound.tsx    ← página 404
     │       │   └── admin/
-    │       │       ├── Login.tsx   ← tela de login do painel
-    │       │       ├── Dashboard.tsx ← painel orquestrador (sidebar + abas + monta componentes)
-    │       │       └── service/    ← componentes do painel da Leão Service (Fase 23)
-    │       │           ├── AdminServicos.tsx ← CRUD Serviços (categorias de serviço)
-    │       │           ├── AdminPortfolio.tsx ← CRUD Portfólio (multi-imagem + capa)
-    │       │           └── AdminSocios.tsx ← CRUD Sócios (foto única)
+    │       │       ├── Login.tsx    ← tela de login do painel
+    │       │       ├── AdminDialog.tsx ← wrapper do Dialog shadcn (Fase 25: modais dos CRUDs)
+    │       │       ├── Dashboard.tsx ← ORQUESTRADOR (token + sidebar + activeTab + monta abas) — Fase 26
+    │       │       ├── materiais/   ← painel Leão Materiais (Fase 26)
+    │       │       │   ├── AdminCategorias.tsx ← CRUD Categorias (Modal sm)
+    │       │       │   ├── AdminGrupos.tsx ← CRUD Grupos com capa (Modal lg)
+    │       │       │   └── AdminProdutos.tsx ← CRUD Produtos (multi-imagem + capa + pastas; Modal xl)
+    │       │       ├── service/     ← painel Leão Service (Fase 23)
+    │       │       │   ├── AdminServicos.tsx ← CRUD Serviços (categorias de serviço)
+    │       │       │   ├── AdminPortfolio.tsx ← CRUD Portfólio (multi-imagem + capa)
+    │       │       │   └── AdminSocios.tsx ← CRUD Sócios (foto + whatsapp)
+    │       │       └── geral/       ← painel Geral (Fase 26)
+    │       │           ├── AdminDepoimentos.tsx ← CRUD Depoimentos (curadoria visivel/destaque + toggles)
+    │       │           └── AdminMensagens.tsx ← Caixa de entrada (badges + modal Detalhes do Orçamento)
     │       ├── components/
     │       │   ├── HeaderMateriais.tsx ← header EXCLUSIVO da frente Materiais
     │       │   ├── FooterMateriais.tsx ← rodapé enxuto da frente Materiais
@@ -251,13 +285,20 @@ leaonorth/                          ← raiz do workspace (document root do site
     │       │   └── ThemeContext.tsx ← provider de tema claro/escuro (app usa dark)
     │       ├── hooks/              ← useScrollReveal, useMobile, useComposition, usePersistFn (utils)
     │       └── lib/
-    │           └── utils.ts        ← helper `cn()` (clsx + tailwind-merge)
+    │           └── utils.ts        ← helpers `cn()` (clsx + tailwind-merge) e `formatPhoneBR` (máscara (XX) XXXXX-XXXX)
     ├── server/index.ts             ← servidor Express placeholder (template; NÃO usado)
     ├── shared/const.ts             ← constantes compartilhadas (template)
     ├── patches/wouter@3.7.1.patch  ← patch do wouter (registra rotas no window)
     ├── ideas.md                    ← brainstorm de design (documentação)
     └── README.md                   ← readme do template
 ```
+
+> **Fases 25–27 — arquivos novos:** wrapper [`AdminDialog.tsx`](leao-north-site/client/src/pages/admin/AdminDialog.tsx);
+> componentes `AdminCategorias`/`AdminGrupos`/`AdminProdutos` em
+> [`pages/admin/materiais/`](leao-north-site/client/src/pages/admin/materiais/AdminCategorias.tsx),
+> `AdminDepoimentos`/`AdminMensagens` em [`pages/admin/geral/`](leao-north-site/client/src/pages/admin/geral/AdminDepoimentos.tsx);
+> endpoint [`api/admin/toggle_depoimento.php`](api/admin/toggle_depoimento.php) e a página pública
+> [`pages/Depoimentos.tsx`](leao-north-site/client/src/pages/Depoimentos.tsx) (`/service/depoimentos`).
 
 ---
 
@@ -273,15 +314,16 @@ leaonorth/                          ← raiz do workspace (document root do site
 | --- | --- | --- | --- |
 | [`api/contato.php`](api/contato.php) | POST | Valida `name`, `phone`, `message`; insere em `contatos` **incluindo `tipo_mensagem`** (whitelist `service`/`materiais`/`socio`, default `service`); tenta enviar e-mail com a origem | `200/400/500/503` + `mensagem` |
 | [`api/portfolio.php`](api/portfolio.php) | GET | `SELECT id, img, title, category, size FROM portfolio ORDER BY id DESC` — **LEGADO** (sem uso desde a Fase 24) | array JSON |
-| [`api/depoimentos.php`](api/depoimentos.php) | GET | `SELECT id, nome, estrelas, texto FROM depoimentos ORDER BY id DESC` | array JSON |
+| [`api/depoimentos.php`](api/depoimentos.php) | GET | Lista `depoimentos` (inclui `visivel`/`destaque`); **default `WHERE visivel = 1`**; `?destaque=1` → só `visivel=1 AND destaque=1` (Home); `?admin=1` → todas (painel) | array JSON |
 | [`api/categorias.php`](api/categorias.php) | GET | Lista `categorias` (`id, nome ORDER BY nome`) — usada pela vitrine e pelo painel | array JSON |
 | [`api/grupos.php`](api/grupos.php) | GET | Lista `grupos` com `categoria_id`/`categoria_nome` (JOIN), `caminho_imagem_capa` e `total_produtos` (COUNT); filtro opcional `?categoria_id=` | array JSON |
 | [`api/produtos.php`](api/produtos.php) | GET | Lista produtos com **`LEFT JOIN`** de `categorias`/`grupos` (expondo `categoria_id`/`categoria_nome`/`grupo_id`/`grupo_nome`/`grupo_capa`), `descricao` e **arrays aninhados** `imagens[]`/`informacoes[]` (3 queries com `IN (ids)`, sem N+1); filtros `?categoria_id=`/`?grupo_id=` | array JSON |
 | [`api/admin/login.php`](api/admin/login.php) | POST | Busca usuário por e-mail em `admin_users`; confere senha com `password_verify` | `200` com `token` ou `401` |
 | [`api/admin/mensagens.php`](api/admin/mensagens.php) | GET | Lista `contatos` **incluindo `tipo_mensagem`** (id, nome, telefone, email, servico, mensagem, tipo_mensagem, data_envio) | array JSON |
-| [`api/admin/add_depoimento.php`](api/admin/add_depoimento.php) | POST | Insere em `depoimentos` (nome, estrelas, texto — texto opcional) | `200`/`500` |
-| [`api/admin/edit_depoimento.php`](api/admin/edit_depoimento.php) | PUT | `UPDATE depoimentos SET nome, estrelas, texto WHERE id` | `200`/`400`/`500` |
+| [`api/admin/add_depoimento.php`](api/admin/add_depoimento.php) | POST | Insere em `depoimentos` (nome, estrelas, texto — texto opcional; curadoria `visivel` default 1 e `destaque` default 0) | `200`/`500` |
+| [`api/admin/edit_depoimento.php`](api/admin/edit_depoimento.php) | PUT | `UPDATE depoimentos SET nome, estrelas, texto, visivel, destaque WHERE id` | `200`/`400`/`500` |
 | [`api/admin/delete_depoimento.php`](api/admin/delete_depoimento.php) | DELETE | `DELETE FROM depoimentos WHERE id` (id via query string) | `200`/`500` |
+| [`api/admin/toggle_depoimento.php`](api/admin/toggle_depoimento.php) | POST | **Atalho:** `UPDATE depoimentos SET {visivel|destaque} = :valor WHERE id` (JSON `{id, campo, valor}`; whitelist no PHP) | `200`/`400`/`500` |
 | [`api/admin/upload.php`](api/admin/upload.php) | POST | **LEGADO** (portfólio antigo) — não é mais chamado pelo painel | — |
 | [`api/admin/delete.php`](api/admin/delete.php) | DELETE | **LEGADO** (portfólio antigo) — não é mais chamado pelo painel | — |
 | [`api/admin/add_categoria.php`](api/admin/add_categoria.php) | POST | Cria `categorias` (`nome`, UNIQUE); `409` em duplicidade | `200`/`400`/`409`/`500` |
@@ -300,13 +342,13 @@ leaonorth/                          ← raiz do workspace (document root do site
 | Endpoint | Método | O que faz | Retorno |
 | --- | --- | --- | --- |
 | [`api/service/categorias.php`](api/service/categorias.php) | GET | Lista serviços/categorias (`servicos_categorias`) — `SELECT id, nome, descricao ORDER BY id` | array JSON |
-| [`api/service/socios.php`](api/service/socios.php) | GET | Lista sócios (`socios`) — `id, nome, subtitulo, descricao, caminho_foto` | array JSON |
+| [`api/service/socios.php`](api/service/socios.php) | GET | Lista sócios (`socios`) — `id, nome, subtitulo, descricao, whatsapp, caminho_foto` | array JSON |
 | [`api/service/portfolio.php`](api/service/portfolio.php) | GET | Lista projetos com `categoria_nome` (LEFT JOIN), **`imagens[]`** (capa primeiro, sem N+1) e o atalho **`capa` na raiz**; filtros `?servico_categoria_id=` e `?id=` | array JSON |
 | [`api/admin/service/add_categoria.php`](api/admin/service/add_categoria.php) | POST | Cria serviço/categoria (`nome`, `descricao`); `409` em duplicidade (nome UNIQUE) | `200`/`400`/`409`/`500` |
 | [`api/admin/service/edit_categoria.php`](api/admin/service/edit_categoria.php) | POST | Edita serviço/categoria (`id`, `nome`, `descricao`) | `200`/`400`/`404`/`409`/`500` |
 | [`api/admin/service/delete_categoria.php`](api/admin/service/delete_categoria.php) | DELETE | Exclui serviço/categoria — projetos ficam `NULL` via `ON DELETE SET NULL` | `200`/`400`/`500` |
-| [`api/admin/service/add_socio.php`](api/admin/service/add_socio.php) | POST | Cria sócio (`nome`, `subtitulo`, `descricao`) + **foto única opcional** (`$_FILES['foto']`) | `200`/`400`/`500` |
-| [`api/admin/service/edit_socio.php`](api/admin/service/edit_socio.php) | POST | Edita sócio; nova foto (substitui) ou `remover_foto=1` | `200`/`400`/`404`/`500` |
+| [`api/admin/service/add_socio.php`](api/admin/service/add_socio.php) | POST | Cria sócio (`nome`, `subtitulo`, `descricao`, **`whatsapp`** normalizado p/ dígitos) + **foto única opcional** (`$_FILES['foto']`) | `200`/`400`/`500` |
+| [`api/admin/service/edit_socio.php`](api/admin/service/edit_socio.php) | POST | Edita sócio (inclui **`whatsapp`**); nova foto (substitui) ou `remover_foto=1` | `200`/`400`/`404`/`500` |
 | [`api/admin/service/delete_socio.php`](api/admin/service/delete_socio.php) | DELETE | Exclui sócio + `unlink` da foto física | `200`/`400`/`404`/`500` |
 | [`api/admin/service/add_projeto.php`](api/admin/service/add_projeto.php) | POST | Cria projeto (`titulo` obrig., `subtitulo`, `descricao`, `servico_categoria_id` opcional) com **1 a 8 imagens** (`$_FILES['imagens']`) + `capa_index` (is_capa) | `200`/`400`/`500` |
 | [`api/admin/service/edit_projeto.php`](api/admin/service/edit_projeto.php) | POST | Edita projeto; `imagens_mantidas` (JSON) + `novas_imagens[]` + `capa_index` (lista combinada); remove/exclui com `unlink` | `200`/`400`/`404`/`500` |
@@ -344,6 +386,7 @@ leaonorth/                          ← raiz do workspace (document root do site
   - `/service` → **`Service`**
   - `/service/portfolio/:id` → **`PortfolioDetalhes`** (Fase 24)
   - `/service/socio/:id` → **`SocioDetalhes`** (Fase 24)
+  - `/service/depoimentos` → **`Depoimentos`** (Fase 27 — lista todos os visíveis)
   - `/materiais` → **`Materiais`** (vitrine agrupada)
   - `/materiais/grupo/:id` → **`GrupoVariacoes`** (variações de um grupo, por ID)
   - `/materiais/:id` → **`ProdutoDetalhes`** (rota dinâmica)
@@ -360,6 +403,7 @@ leaonorth/                          ← raiz do workspace (document root do site
 | [`Service.tsx`](leao-north-site/client/src/pages/Service.tsx) | **Leão North Service:** compõe `Navbar` → Hero → About → Mission → **Services (dinâmico)** → **Portfolio (dinâmico, cards com mini-carrossel)** → Differentials → **Sócios (dinâmico)** → Testimonials → Contact → Footer → WhatsAppButton. Fundo `#080808`. |
 | [`PortfolioDetalhes.tsx`](leao-north-site/client/src/pages/PortfolioDetalhes.tsx) | **Detalhes do projeto** (`/service/portfolio/:id`, Fase 24): tema escuro, galeria (capa no índice 0, setas, miniaturas, **zoom/lupa** no desktop — padrão `ProdutoDetalhes`), badge de categoria, Título/Subtítulo/Descrição e CTA WhatsApp. Usa `Navbar simple` + `Footer`. |
 | [`SocioDetalhes.tsx`](leao-north-site/client/src/pages/SocioDetalhes.tsx) | **Detalhes do sócio** (`/service/socio/:id`, Fase 24): foto ampliada (aspect 3/4), Nome, Subtítulo, Descrição completa (fallback) e CTA WhatsApp. Usa `Navbar simple` + `Footer`. |
+| [`Depoimentos.tsx`](leao-north-site/client/src/pages/Depoimentos.tsx) | **Depoimentos completos** (`/service/depoimentos`, Fase 27): lista todos os depoimentos com `visivel=1` em grid escuro (estrelas, média e CTA de orçamento). Usa `Navbar simple` + `Footer` + `WhatsAppButton`. |
 | [`Materiais.tsx`](leao-north-site/client/src/pages/Materiais.tsx) | **Leão North Materiais (tema claro) — vitrine agrupada + UX de conversão:** consome `api/produtos.php`, separa cards de grupo e individuais; Header/Footer exclusivos; sidebar de categorias; ordenação; breadcrumbs; estado vazio com CTA WhatsApp. |
 | [`GrupoVariacoes.tsx`](leao-north-site/client/src/pages/GrupoVariacoes.tsx) | **Variações de um grupo** (`/materiais/grupo/:id`). |
 | [`ProdutoDetalhes.tsx`](leao-north-site/client/src/pages/ProdutoDetalhes.tsx) | **Detalhes do produto** (`/materiais/:id`): galeria com zoom "lupa", descrição, informações e CTA "Tenho Interesse". |
@@ -375,9 +419,9 @@ leaonorth/                          ← raiz do workspace (document root do site
 | [`ServicesSection.tsx`](leao-north-site/client/src/components/sections/ServicesSection.tsx) | **Dinâmico (Fase 24):** consome `api/service/categorias.php`; dicionário local `Record` de **ícones** (Lucide) por nome (fallback `Wrench`) e **tags** (badges; oculto se não mapeado); card CTA "Solicite um Orçamento" fixo |
 | [`PortfolioSection.tsx`](leao-north-site/client/src/components/sections/PortfolioSection.tsx) | **Dinâmico (Fase 24):** consome `api/service/portfolio.php`; **cards de projeto com mini-carrossel** (setas ‹ › + contador); clique navega a `/service/portfolio/:id` |
 | [`DifferentialsSection.tsx`](leao-north-site/client/src/components/sections/DifferentialsSection.tsx) | Lista vertical numerada (01–05) de diferenciais |
-| [`SociosSection.tsx`](leao-north-site/client/src/components/sections/SociosSection.tsx) | **Dinâmico (Fase 24):** consome `api/service/socios.php`; cards (foto/nome/subtítulo) clicáveis → `/service/socio/:id`; mantém o form "Falar com sócio" (`tipo_mensagem: socio`). Grid `sm:grid-cols-2 lg:grid-cols-4` (até 4 sócios por linha no desktop, `max-w-7xl`) |
-| [`TestimonialsSection.tsx`](leao-north-site/client/src/components/sections/TestimonialsSection.tsx) | Busca depoimentos via `api/depoimentos.php`, calcula média de estrelas; se vazio, fica oculta |
-| [`ContactSection.tsx`](leao-north-site/client/src/components/sections/ContactSection.tsx) | Info de contato, CTA WhatsApp, formulário de orçamento (`POST api/contato.php`) e mapa (iframe) |
+| [`SociosSection.tsx`](leao-north-site/client/src/components/sections/SociosSection.tsx) | **Dinâmico (Fase 24/27):** consome `api/service/socios.php` (inclui `whatsapp`); cards (foto/nome/subtítulo) clicáveis → `/service/socio/:id`; form "Falar com sócio" (`tipo_mensagem: socio`). **Fase 27:** no `onSuccess` abre o `wa.me` do sócio (`socios.whatsapp`, fallback p/ número da empresa). Grid `sm:grid-cols-2 lg:grid-cols-4` |
+| [`TestimonialsSection.tsx`](leao-north-site/client/src/components/sections/TestimonialsSection.tsx) | **Fase 27 (curadoria):** busca `api/depoimentos.php?destaque=1`; mostra até **6 destaques** + 7ª célula como card-botão **"Ver mais depoimentos"** (`/service/depoimentos`); calcula média dos destaques; se vazio, fica oculta |
+| [`ContactSection.tsx`](leao-north-site/client/src/components/sections/ContactSection.tsx) | Info de contato, CTA WhatsApp, formulário de orçamento (`POST api/contato.php`) e mapa. **Fase 27:** iframe com **embed genérico** (`maps.google.com/maps?q=<endereço>&output=embed`, sem API key) |
 
 > **Padrão comum nas seções dinâmicas:** cada seção usa `IntersectionObserver` para aplicar `.reveal`
 > (fade-up com stagger) — mesmo padrão do [`index.css`](leao-north-site/client/src/index.css).
@@ -401,15 +445,24 @@ leaonorth/                          ← raiz do workspace (document root do site
 
 - [`client/src/pages/admin/Login.tsx`](leao-north-site/client/src/pages/admin/Login.tsx) — login
   (`api/admin/login.php`); salva `admin_token` no `localStorage`.
+- [`client/src/pages/admin/AdminDialog.tsx`](leao-north-site/client/src/pages/admin/AdminDialog.tsx) —
+  wrapper do `Dialog` shadcn/Radix (**Fase 25**) que padroniza os modais de CRUD: tema escuro
+  (`#111111`), mapa de larguras (`sm`=Categorias/Depoimentos · `md`=Serviços · `lg`=Grupos/Sócios ·
+  `xl`=Produtos/Portfólio), `max-h-[92vh]` com scroll no corpo e cabeçalho/rodapé fixos; fechamento
+  (X/`Esc`/overlay/Cancelar) converge em `onOpenChange(false)` e limpa o formulário.
 - [`client/src/pages/admin/Dashboard.tsx`](leao-north-site/client/src/pages/admin/Dashboard.tsx) —
-  painel **orquestrador** (sidebar + `activeTab` + montagem) com seções:
-  - **LEÃO MATERIAIS:** Categorias · Grupos · Produtos (CRUDs inline, com drill-down em pastas e
-    duplicação).
-  - **LEÃO SERVICE:** **Serviços** → [`AdminServicos.tsx`](leao-north-site/client/src/pages/admin/service/AdminServicos.tsx),
-    **Portfólio** → [`AdminPortfolio.tsx`](leao-north-site/client/src/pages/admin/service/AdminPortfolio.tsx)
-    (multi-imagem + seleção de capa), **Sócios** → [`AdminSocios.tsx`](leao-north-site/client/src/pages/admin/service/AdminSocios.tsx)
-    (foto única), e **Depoimentos** (inline). O CRUD **legado** de portfólio foi removido do Dashboard.
-  - **GERAL:** Mensagens (tabela + badges de `tipo_mensagem`).
+  **orquestrador enxuto (Fase 26)**: checagem de `admin_token`, Sidebar com `setActiveTab` e `<main>`
+  que apenas **monta o componente da aba ativa**. Não guarda estado de dados/CRUD.
+  - **LEÃO MATERIAIS** → [`materiais/`](leao-north-site/client/src/pages/admin/materiais/AdminProdutos.tsx):
+    `AdminCategorias` (Modal `sm`), `AdminGrupos` (Modal `lg`, capa) e `AdminProdutos`
+    (Modal `xl`, multi-imagem + capa + informações + duplicação + **drill-down em pastas**).
+  - **LEÃO SERVICE** → [`service/`](leao-north-site/client/src/pages/admin/service/AdminServicos.tsx)
+    (Fase 23): `AdminServicos`, `AdminPortfolio` (multi-imagem + capa), `AdminSocios`
+    (foto + **whatsapp** com máscara `(XX) XXXXX-XXXX`).
+  - **GERAL** → [`geral/`](leao-north-site/client/src/pages/admin/geral/AdminDepoimentos.tsx) (Fase 26):
+    `AdminDepoimentos` (curadoria `visivel`/`destaque` — switches no modal **e** toggles rápidos em
+    cada card, badges Destaque/Oculto) e `AdminMensagens` (tabela + badges de `tipo_mensagem` + modal
+    "Detalhes do Orçamento").
   - Redireciona para `/admin` se não existir `admin_token`.
 
 ### Design system (`client/src/index.css`)
@@ -431,14 +484,14 @@ Schema relacional da Versão 2.0 (Materiais — [`api/migracao_v2.sql`](api/migr
 | --- | --- | --- |
 | `contatos` | `id`, `nome`, `telefone`, `email`, `servico`, `mensagem`, **`tipo_mensagem`** (ENUM `service`/`materiais`/`socio`, default `service`), `data_envio` | `contato.php` (insert), `mensagens.php` (select) |
 | `portfolio` | `id`, `img`, `title`, `category`, `size` — **LEGADO (sem uso desde a Fase 24)** | (era `portfolio.php`/`upload.php`/`delete.php`) |
-| `depoimentos` | `id`, `nome`, `estrelas`, `texto` | `depoimentos.php`, CRUD admin de depoimentos |
+| `depoimentos` | `id`, `nome`, `estrelas`, `texto`, **`visivel`** (TINYINT default 1), **`destaque`** (TINYINT default 0) — **Fase 27** | `depoimentos.php`, CRUD admin de depoimentos, `toggle_depoimento.php` |
 | `categorias` | `id`, `nome` (UNIQUE) | `categorias.php`, CRUD admin de categorias (Materiais) |
 | `grupos` | `id`, `nome`, `categoria_id` (FK → `categorias` `ON DELETE RESTRICT`), `caminho_imagem_capa` — UNIQUE `(categoria_id, nome)` | `grupos.php`, CRUD admin de grupos |
 | `produtos` | `id`, `nome`, `especificacao`, `descricao` (TEXT), `categoria_id` (FK → `categorias` `ON DELETE SET NULL`), `grupo_id` (FK → `grupos` `ON DELETE SET NULL`), `data_cadastro` | `produtos.php`, CRUD admin de produtos |
 | `produto_imagens` | `id`, `produto_id` (FK `ON DELETE CASCADE`), `caminho_imagem`, `is_capa` (TINYINT), `ordem` | produtos (add/edit/delete/duplicate), `produtos.php` |
 | `produto_informacoes` | `id`, `produto_id` (FK `ON DELETE CASCADE`), `titulo`, `texto` | produtos (add/edit/delete/duplicate), `produtos.php` |
 | `servicos_categorias` | `id`, `nome` (UNIQUE), `descricao` (TEXT) — **Fase 22** | `api/service/categorias.php`, CRUD admin service de categorias |
-| `socios` | `id`, `nome`, `subtitulo`, `descricao` (TEXT), `caminho_foto` — **Fase 22** | `api/service/socios.php`, CRUD admin service de sócios |
+| `socios` | `id`, `nome`, `subtitulo`, `descricao` (TEXT), **`whatsapp`** (VARCHAR, dígitos) — **Fases 22/27**, `caminho_foto` | `api/service/socios.php`, CRUD admin service de sócios |
 | `portfolio_projetos` | `id`, `servico_categoria_id` (FK → `servicos_categorias` **`ON DELETE SET NULL`**), `titulo`, `subtitulo`, `descricao` (TEXT) — **Fase 22** | `api/service/portfolio.php`, CRUD admin service de projetos |
 | `portfolio_imagens` | `id`, `projeto_id` (FK → `portfolio_projetos` **`ON DELETE CASCADE`**), `caminho_imagem`, `is_capa` (TINYINT 0/1) — **Fase 22** | `api/service/portfolio.php`, CRUD admin service de projetos |
 | `admin_users` | `id`, `email`, `password` | `login.php` (select + `password_verify`) |
@@ -447,8 +500,10 @@ Schema relacional da Versão 2.0 (Materiais — [`api/migracao_v2.sql`](api/migr
 > PASSWORD_DEFAULT)`). O DDL das tabelas de Materiais (Fase 15) está em
 > [`api/migracao_v2.sql`](api/migracao_v2.sql); o DDL + seeds + backfill da **Leão Service** (Fase 22)
 > está em [`api/migracao_service.sql`](api/migracao_service.sql) (exige MySQL 8+ por usar
-> `ROW_NUMBER()` no backfill). As imagens de portfólio/sócios são gravadas na pasta `uploads/` da raiz
-> (URL `/uploads/...`).
+> `ROW_NUMBER()` no backfill). **Fase 27:** os `ALTER TABLE` (colunas `socios.whatsapp`,
+> `depoimentos.visivel`/`destaque`) também estão registrados ao final de
+> [`api/migracao_service.sql`](api/migracao_service.sql). As imagens de portfólio/sócios são gravadas
+> na pasta `uploads/` da raiz (URL `/uploads/...`).
 
 ---
 
@@ -470,8 +525,9 @@ Schema relacional da Versão 2.0 (Materiais — [`api/migracao_v2.sql`](api/migr
    > O frontend **não funciona sozinho** sem a API: serviços, sócios, portfólio, depoimentos, produtos
    > e formulários dependem de `http://localhost/leaonorth/api/...`.
 6. **Rotas:** `/` (Gateway) → escolha Service (`/service`) ou Materiais (`/materiais`); detalhes de
-   projeto em `/service/portfolio/:id`; detalhes de sócio em `/service/socio/:id`; variações em
-   `/materiais/grupo/:id`; produto em `/materiais/:id`. Painel admin em `/admin`.
+   projeto em `/service/portfolio/:id`; detalhes de sócio em `/service/socio/:id`; depoimentos em
+   `/service/depoimentos` (Fase 27); variações em `/materiais/grupo/:id`; produto em `/materiais/:id`.
+   Painel admin em `/admin`.
 
 ---
 
@@ -497,26 +553,28 @@ Schema relacional da Versão 2.0 (Materiais — [`api/migracao_v2.sql`](api/migr
 2. **Autenticação client-side apenas:** o `admin_token` não é validado no backend.
 3. **Design por frente:** Service é **escuro** (`#080808` + dourado) e Materiais é **claro**.
 4. **Cabeçalhos por frente:** o Service usa `Navbar`/`Footer` (institucional). As páginas do catálogo
-   (`/materiais*`) usam `HeaderMateriais`/`FooterMateriais`. As subpáginas `/service/portfolio/:id` e
-   `/service/socio/:id` usam `Navbar` com a prop **`simple`** (Fase 24).
+   (`/materiais*`) usam `HeaderMateriais`/`FooterMateriais`. As subpáginas `/service/portfolio/:id`,
+   `/service/socio/:id` e `/service/depoimentos` usam `Navbar` com a prop **`simple`**.
 5. **Credenciais do banco hardcoded** (root/senha vazia) — padrão local XAMPP.
 6. **Upload de arquivos:** o caminho de gravação é a pasta `uploads/` da raiz. Endpoints em
    `api/admin/service/*` usam **`../../../uploads/`** (correção aplicada — antes gravavam em
    `api/uploads/` e a imagem não aparecia). Endpoints em `api/admin/` usam `../../uploads/`.
    Validações de MIME (`finfo`)/5MB existem nos CRUDs de produtos/grupos/serviços.
 7. **`tipo_mensagem`:** origem persistida por `contato.php`; badges no painel (Service dourado,
-   Materiais azul, Sócio roxo). Ao adicionar novas origens, atualizar o ENUM, o `contato.php` e a
-   config de badges no `Dashboard.tsx`.
+   Materiais azul, Sócio roxo), exibidos em [`AdminMensagens.tsx`](leao-north-site/client/src/pages/admin/geral/AdminMensagens.tsx).
+   Ao adicionar novas origens, atualizar o ENUM, o `contato.php` e a config de badges nesse componente.
 8. **Catálogo relacional (Versão 2.0):** categorias/grupos/produtos usam IDs.
 9. **Produtos complexos:** múltiplas imagens (`is_capa`/`ordem`) + informações; duplicação copia
    arquivos com `copy()`.
 10. **Leão Service relacional (Fases 22–24):** Serviços/Sócios/Portfólio são entidades
     (`servicos_categorias`, `socios`, `portfolio_projetos`, `portfolio_imagens`). Serviços e Sócios
-    usam dicionários **locais** de apresentação no frontend (ícones/tags — não há colunas extras no
-    banco). Portfólio tem 1..N imagens com **1 capa** (`is_capa`), garantida no backend.
+    usam dicionários **locais** de apresentação no frontend (ícones/tags — não há colunas de
+    apresentação no banco; em Sócios existe a coluna `whatsapp`, Fase 27). Portfólio tem 1..N imagens
+    com **1 capa** (`is_capa`), garantida no backend.
 11. **Zoom na página de detalhes:** funciona apenas em **desktop (hover)**; mobile usa pinça.
-12. **Documentação por fases:** planejamentos das Fases 1–24 em [`zoo_code_docs/`](zoo_code_docs/)
-    (`fase1_arquitetura.md` ... `fase24_service_publico.md`).
+12. **Documentação por fases:** planejamentos das Fases 1–27 em [`zoo_code_docs/`](zoo_code_docs/)
+    (`fase1_arquitetura.md` ... `fase27_refinamentos.md` — ver
+    `fase25_admin_ux_refactor.md`, `fase26_admin_modularizacao.md` e `fase27_refinamentos.md`).
 13. **Sem teste automatizado** no projeto (apenas `tsc --noEmit` via `pnpm check`).
 14. **Wouter v3 — query string fora do `useLocation`:** `useLocation` retorna **apenas o pathname**;
     a leitura de `?q=` (busca global) é feita com `window.location.search` (ver §10.13/`Materiais`).
@@ -526,3 +584,11 @@ Schema relacional da Versão 2.0 (Materiais — [`api/migracao_v2.sql`](api/migr
     a limpeza (remover arquivos/`DROP TABLE`) é uma fase futura.
 16. **Cards de projeto com carrossel:** a vitrine de portfólio usa um mini-carrossel por card (estado
     local `indice`); as setas usam `stopPropagation` para não navegar ao trocar de foto.
+17. **Fases 25–27:** os formulários de CRUD usam **Modais `AdminDialog`** (listagens full-width);
+    `Dashboard.tsx` é **orquestrador** (Categorias/Grupos/Produtos em `materiais/`; Depoimentos/
+    Mensagens em `geral/`; Service em `service/`). Máscara de telefone/WhatsApp via `formatPhoneBR`
+    (em [`lib/utils.ts`](leao-north-site/client/src/lib/utils.ts)). Curadoria de depoimentos
+    (`visivel`/`destaque`) com atalhos direto nos cards + endpoint
+    [`api/admin/toggle_depoimento.php`](api/admin/toggle_depoimento.php). WhatsApp por sócio
+    (`socios.whatsapp`) com `wa.me` no sucesso do form "Falar com sócio". Mapa usa iframe embed
+    genérico (sem API key) no [`ContactSection.tsx`](leao-north-site/client/src/components/sections/ContactSection.tsx).
