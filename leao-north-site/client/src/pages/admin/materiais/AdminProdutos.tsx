@@ -305,6 +305,9 @@ export default function AdminProdutos() {
     [produtos, grupoAtivo]
   );
 
+  // Fase 32 — validação inteligente do Grupo: o select depende da Categoria escolhida
+  const semCategoria = prodForm.categoria_id === "";
+
   // Card de produto individual — com Editar/Duplicar/Excluir
   const renderProdutoCard = (prod: any) => {
     const capa = prod.imagens?.find((i: any) => i.is_capa)?.caminho_imagem;
@@ -482,19 +485,38 @@ export default function AdminProdutos() {
           </div>
           <div>
             <label className="block text-white/40 text-xs tracking-widest uppercase mb-1.5">Grupo (Família) — Opcional</label>
-            <select
-              value={prodForm.grupo_id}
-              onChange={e => setProdForm({ ...prodForm, grupo_id: Number(e.target.value) })}
-              className={inputClass}
-              disabled={prodForm.categoria_id === ""}
-            >
-              <option value="">Sem grupo</option>
-              {grupos
-                .filter(g => prodForm.categoria_id !== "" && g.categoria_id === Number(prodForm.categoria_id))
-                .map(g => (
-                  <option key={g.id} value={g.id}>{g.nome}</option>
-                ))}
-            </select>
+            <div className="relative">
+              <select
+                value={prodForm.grupo_id}
+                onChange={e => setProdForm({ ...prodForm, grupo_id: Number(e.target.value) })}
+                onKeyDown={(e) => {
+                  // Fase 32 — bloqueia a abertura por teclado (Enter/Espaço/setas) sem categoria
+                  if (semCategoria && ["Enter", " ", "ArrowDown", "ArrowUp"].includes(e.key)) {
+                    e.preventDefault();
+                    toast.warning("Selecione a categoria primeiro!");
+                  }
+                }}
+                className={inputClass}
+                aria-disabled={semCategoria}
+              >
+                <option value="">Sem grupo</option>
+                {grupos
+                  .filter(g => prodForm.categoria_id !== "" && g.categoria_id === Number(prodForm.categoria_id))
+                  .map(g => (
+                    <option key={g.id} value={g.id}>{g.nome}</option>
+                  ))}
+              </select>
+
+              {/* Fase 32 — escudo transparente: intercepta o pointer sem categoria e dispara o toast */}
+              {semCategoria && (
+                <div
+                  aria-hidden="true"
+                  className="absolute inset-0 z-10 cursor-not-allowed"
+                  onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); toast.warning("Selecione a categoria primeiro!"); }}
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                />
+              )}
+            </div>
           </div>
           <div>
             <label className="block text-white/40 text-xs tracking-widest uppercase mb-1.5">Especificação</label>

@@ -106,7 +106,12 @@ function ListaCategorias({
 // Card de Grupo: representa uma família inteira (ex.: "Painel de Led Quadrado")
 function GrupoCard({ grupoId, nomeGrupo, variacoes }: { grupoId: number; nomeGrupo: string; variacoes: Produto[] }) {
   const capa = variacoes[0]?.grupo_capa; // Fase 19: capa OFICIAL do grupo (nativa do JSON)
-  const rotaGrupo = `/materiais/grupo/${grupoId}`; // Fase 19: passa o ID na URL
+  // Fase 32 — grupo com EXATAMENTE 1 produto: botão no singular e link direto p/ o produto
+  // (pula a tela intermediária de variações). Demais casos mantêm o comportamento padrão.
+  const grupoUnico = variacoes.length === 1;
+  const rotaDestino = grupoUnico
+    ? `/materiais/${variacoes[0].id}`
+    : `/materiais/grupo/${grupoId}`; // Fase 19: passa o ID na URL
 
   return (
     <div className="bg-white border border-slate-200 rounded-sm overflow-hidden flex flex-col shadow-sm hover:shadow-md hover:border-[#F0B429]/40 transition-all">
@@ -122,9 +127,9 @@ function GrupoCard({ grupoId, nomeGrupo, variacoes }: { grupoId: number; nomeGru
         ) : (
           <span className="text-slate-400 text-sm">Sem imagem</span>
         )}
-        {/* Badge: quantidade de opções disponíveis */}
+        {/* Badge: quantidade de opções disponíveis (Fase 32: singular no caso de 1 produto) */}
         <span className="absolute top-2 left-2 bg-[#F0B429] text-[#080808] text-[10px] font-bold px-2 py-0.5 rounded-full uppercase">
-          {variacoes.length} opções disponíveis
+          {variacoes.length} {grupoUnico ? "opção disponível" : "opções disponíveis"}
         </span>
       </div>
 
@@ -136,15 +141,15 @@ function GrupoCard({ grupoId, nomeGrupo, variacoes }: { grupoId: number; nomeGru
           {nomeGrupo}
         </h3>
         <p className="text-slate-600 text-sm font-['DM_Sans'] mt-2 mb-4 flex-1">
-          Escolha entre {variacoes.length} opção{variacoes.length > 1 ? "ões" : ""} deste grupo.
+          Escolha entre {variacoes.length} {grupoUnico ? "opção" : "opções"} deste grupo.
         </p>
 
-        {/* Ação: Ver Opções → página de variações */}
+        {/* Ação: "Ver Opção" (1 produto → vai direto ao produto) | "Ver Opções" (→ variações) */}
         <Link
-          href={rotaGrupo}
+          href={rotaDestino}
           className="flex items-center justify-center gap-2 py-3 bg-[#F0B429] text-[#080808] font-['Barlow_Condensed'] font-700 uppercase rounded-sm hover:bg-[#FFD060] transition-colors"
         >
-          Ver Opções
+          {grupoUnico ? "Ver Opção" : "Ver Opções"}
         </Link>
       </div>
     </div>
