@@ -128,21 +128,23 @@ A **Leão North** é uma empresa de engenharia elétrica com sede em **Cornélio
 >   `toast.warning("Selecione a categoria primeiro!")` quando não há Categoria selecionada.
 >   Planejamento: [`fase32_melhorias_materiais.md`](zoo_code_docs/fase32_melhorias_materiais.md).
 >
-> **Fase 33 (branding dinâmico e refinamento de copy):** a marca passa a ser **dinâmica**. O painel ganhou a aba
-> **Configurações → Branding / Logo**
-> ([`AdminBranding.tsx`](leao-north-site/client/src/pages/admin/geral/AdminBranding.tsx)), que envia a logo para
-> [`api/admin/upload_logo.php`](api/admin/upload_logo.php) (Bearer Token; PNG/JPG/WEBP até 2 MB, **SVG recusado de
-> propósito** por ser vetor de XSS armazenado; valida MIME real via `finfo` + `getimagesize` e grava com **nome
-> fixo**). Persistência em **arquivo canônico** `uploads/branding/logo.<ext>`, **sem tabela `configuracoes`** — o
-> `filemtime` do arquivo é a "versão". O endpoint público [`api/branding.php`](api/branding.php) devolve
-> `{existe, logo, versao}` e o frontend consome por
-> [`lib/branding.ts`](leao-north-site/client/src/lib/branding.ts) +
+> **Fase 33.1 (branding dinâmico — 2 logos + refinamento de copy):** a marca passa a ser **dinâmica, com UMA logo
+> POR FRENTE**. O painel ganhou a aba **Configurações → Branding / Logos**
+> ([`AdminBranding.tsx`](leao-north-site/client/src/pages/admin/geral/AdminBranding.tsx)), que envia a logo de cada
+> frente para [`api/admin/upload_logo.php`](api/admin/upload_logo.php) (Bearer Token; PNG/JPG/WEBP até 2 MB, **SVG
+> recusado de propósito** por ser vetor de XSS armazenado; valida MIME real via `finfo` + `getimagesize` e grava com
+> **nome fixo** + campo `tipo` = `service`\|`materiais`). Persistência em **arquivos canônicos**
+> `uploads/branding/logo-service.<ext>` e `logo-materiais.<ext>` (**fundos transparentes**), **sem tabela
+> `configuracoes`** — o `filemtime` de cada arquivo é a "versão". O endpoint público
+> [`api/branding.php`](api/branding.php) devolve `{service:{existe,logo,versao}, materiais:{...}}` e o frontend
+> consome por [`lib/branding.ts`](leao-north-site/client/src/lib/branding.ts) +
 > [`hooks/useBranding.ts`](leao-north-site/client/src/hooks/useBranding.ts) (fetch memoizado, **cache-busting `?v=`**),
-> com **fallback** para o selo dourado (`Zap`/`Package`) quando não há logo cadastrada — nenhuma função foi removida.
-> Passam a exibir a logo: [`Gateway.tsx`](leao-north-site/client/src/pages/Gateway.tsx) (título agora "Instalações
-> Elétricas"), [`Navbar.tsx`](leao-north-site/client/src/components/Navbar.tsx) ("Leão North Service", na landing e
-> nas subpáginas `simple`), [`HeaderMateriais.tsx`](leao-north-site/client/src/components/HeaderMateriais.tsx)
-> ("Leão North Materiais Elétricos"), [`Footer.tsx`](leao-north-site/client/src/components/Footer.tsx) e
+> com **fallback** para o selo dourado (`Zap`/`Package`) quando a frente não tem logo cadastrada — nenhuma função foi
+> removida. Passam a exibir a logo (Service ou Materiais): [`Gateway.tsx`](leao-north-site/client/src/pages/Gateway.tsx)
+> (título do hemiciclo Service "Instalações Elétricas"), [`Navbar.tsx`](leao-north-site/client/src/components/Navbar.tsx)
+> ("Leão North Service", na landing e nas subpáginas `simple`),
+> [`HeaderMateriais.tsx`](leao-north-site/client/src/components/HeaderMateriais.tsx) ("Leão North Materiais Elétricos"),
+> [`Footer.tsx`](leao-north-site/client/src/components/Footer.tsx) e
 > [`FooterMateriais.tsx`](leao-north-site/client/src/components/FooterMateriais.tsx). **Copy (nomenclatura legal):**
 > removidos os termos de engenharia/engenheiro de `HeroSection`, `AboutSection`, `MissionSection`,
 > `DifferentialsSection`, `Footer`, [`client/index.html`](leao-north-site/client/index.html) e da meta de `/service`
@@ -152,8 +154,8 @@ A **Leão North** é uma empresa de engenharia elétrica com sede em **Cornélio
 A experiência começa no **Portal Gateway** (split-screen), onde o visitante escolhe entre **Service**
 e **Materiais**. Há também o **Painel Administrativo** (`/admin`), que permite gerenciar
 **categorias**, **grupos** (com upload de capa), **produtos (criar, editar, excluir e duplicar)**,
-**serviços**, **projetos de portfólio** e **sócios**, mensagens, depoimentos e a **logo da marca**
-(aba *Configurações → Branding / Logo*, Fase 33).
+**serviços**, **projetos de portfólio** e **sócios**, mensagens, depoimentos e as **logos das duas frentes**
+(aba *Configurações → Branding / Logos*, Fase 33.1).
 
 O site é um **SPA em React** que roda na pasta do **XAMPP** (`c:/xampp/htdocs/leaonorth`) e conversa
 com uma **API em PHP** servida pelo Apache do XAMPP, persistindo dados em **MySQL**.
@@ -171,7 +173,7 @@ com uma **API em PHP** servida pelo Apache do XAMPP, persistindo dados em **MySQ
 | Backend | PHP 8 (PDO/MySQL) servido pelo Apache do XAMPP |
 | Banco de dados | MySQL — database `leao_north` |
 | Upload de imagens | PHP `move_uploaded_file` → pasta `uploads/` (validação MIME real via `finfo` + 5MB) |
-| Logo da marca (Fase 33) | Arquivo canônico `uploads/branding/logo.<ext>` (nome fixo, ≤ 2 MB, **sem SVG**) + leitura por [`api/branding.php`](api/branding.php) com **cache-busting `?v=<filemtime>`**; frontend em [`lib/branding.ts`](leao-north-site/client/src/lib/branding.ts)/[`useBranding.ts`](leao-north-site/client/src/hooks/useBranding.ts) |
+| Logos das frentes (Fase 33.1) | Arquivos canônicos `uploads/branding/logo-service.<ext>` e `logo-materiais.<ext>` (nome fixo, ≤ 2 MB, **sem SVG**, fundo transparente) + leitura por [`api/branding.php`](api/branding.php) com **cache-busting `?v=<filemtime>`**; frontend em [`lib/branding.ts`](leao-north-site/client/src/lib/branding.ts)/[`useBranding.ts`](leao-north-site/client/src/hooks/useBranding.ts) |
 | Ícones | lucide-react |
 | Fonte | Barlow Condensed (títulos) + DM Sans (corpo), via Google Fonts |
 | Gerenciador de pacotes | pnpm (também há `package-lock.json`) |
@@ -258,7 +260,7 @@ flowchart LR
    (com capa), produtos (múltiplas imagens + capa + informações + duplicação + drill-down em pastas),
    serviços, portfólio (multi-imagem + capa), sócios (foto + **whatsapp**) e depoimentos (**curadoria
    `visivel`/`destaque`** com toggles rápidos direto nos cards), além de mensagens (badges de
-   `tipo_mensagem`). A seção **Configurações** (Fase 33) permite enviar a **logo oficial** da empresa.
+   `tipo_mensagem`). A seção **Configurações** (Fase 33.1) permite enviar as **logos oficiais** das duas frentes.
 
 ---
 
@@ -279,7 +281,7 @@ leaonorth/                          ← raiz do workspace (document root do site
 │   ├── categorias.php              ← GET: lista categorias (relacional v2.0)
 │   ├── grupos.php                  ← GET: lista grupos (com categoria_nome, capa e total de produtos)
 │   ├── produtos.php                ← GET: lista produtos (LEFT JOIN categoria/grupo + imagens[]/informacoes[])
-│   ├── branding.php                ← FASE 33: GET público — resolve uploads/branding/logo.* e devolve {existe, logo, versao}
+│   ├── branding.php                ← FASE 33.1: GET público — resolve logo-service/logo-materiais e devolve {service, materiais}
 │   ├── migracao_v2.sql             ← DDL + backfill da migração para o modelo relacional (Fase 15)
 │   ├── migracao_service.sql        ← migração Leão Service (base Fase 22 + ALTERs Fase 27: socios.whatsapp, depoimentos.visivel/destaque)
 │   ├── migracao_admin_seguranca.sql ← FASE 29: ALTER admin_users ADD token VARCHAR(64), token_expiracao DATETIME
@@ -296,7 +298,7 @@ leaonorth/                          ← raiz do workspace (document root do site
 │       ├── add_depoimento.php / edit_depoimento.php / delete_depoimento.php ← CRUD depoimentos
 │       ├── toggle_depoimento.php   ← POST: alterna visivel/destaque de um depoimento (atalho rápido)
 │       ├── upload.php              ← POST (LEGADO, sem uso) + delete.php (DELETE, LEGADO)
-│       ├── upload_logo.php         ← FASE 33: POST admin (Bearer) — grava a logo oficial em uploads/branding/logo.<ext>
+│       ├── upload_logo.php         ← FASE 33.1: POST admin (Bearer, campo tipo=service|materiais) — grava logo-<tipo>.<ext>
 │       ├── add_categoria.php / edit_categoria.php / delete_categoria.php ← CRUD categorias (Materiais)
 │       ├── add_grupo.php / edit_grupo.php / delete_grupo.php ← CRUD grupos (com capa)
 │       ├── add_produto.php / edit_produto.php / duplicate_produto.php / delete_produto.php ← CRUD produtos
@@ -306,7 +308,7 @@ leaonorth/                          ← raiz do workspace (document root do site
 │           └── add_projeto.php / edit_projeto.php / delete_projeto.php ← CRUD projetos (multi-imagem + capa)
 │
 ├── uploads/                        ← imagens (portfólio, produtos, capas de grupos, sócios)
-│   └── branding/                   ← FASE 33: logo.<ext> (arquivo único, nome fixo, sobrescrito no upload)
+│   └── branding/                   ← FASE 33.1: logo-service.<ext> e logo-materiais.<ext> (nome fixo, sobrescritos)
 │
 ├── zoo_code_docs/                  ← documentação de planejamento das fases (fase1..fase33)
 │
@@ -348,7 +350,7 @@ leaonorth/                          ← raiz do workspace (document root do site
     │       │       └── geral/       ← painel Geral (Fase 26)
     │       │           ├── AdminDepoimentos.tsx ← CRUD Depoimentos (curadoria visivel/destaque + toggles)
     │       │           ├── AdminMensagens.tsx ← Caixa de entrada (badges + modal Detalhes do Orçamento)
-    │       │           └── AdminBranding.tsx  ← FASE 33: upload da logo oficial (aba Configurações)
+    │       │           └── AdminBranding.tsx  ← FASE 33.1: upload das logos das duas frentes (aba Configurações)
     │       ├── components/
     │       │   ├── HeaderMateriais.tsx ← header EXCLUSIVO da frente Materiais
     │       │   ├── FooterMateriais.tsx ← rodapé enxuto da frente Materiais
@@ -365,11 +367,11 @@ leaonorth/                          ← raiz do workspace (document root do site
     │       ├── contexts/
     │       │   └── ThemeContext.tsx ← provider de tema claro/escuro (app usa dark)
     │       ├── hooks/              ← useScrollReveal, useMobile, useComposition, usePersistFn (utils)
-    │       │                       + useBranding.ts (FASE 33: logo oficial com ?v=, fallback p/ o selo padrão)
+    │       │                       + useBranding.ts (FASE 33.1: logos service/materiais com ?v=, fallback p/ o selo)
     │       └── lib/
     │           ├── utils.ts        ← helpers `cn()` (clsx + tailwind-merge) e `formatPhoneBR` (máscara (XX) XXXXX-XXXX)
     │           ├── adminFetch.ts   ← FASE 29: fetch admin injetando `Authorization: Bearer` e tratando 401 (redirect p/ /admin)
-    │           └── branding.ts     ← FASE 33: GET /api/branding.php memoizado + urlLogoComVersao() (cache-busting)
+    │           └── branding.ts     ← FASE 33.1: GET /api/branding.php memoizado + urlLogoComVersao() (cache-busting)
     ├── server/index.ts             ← servidor Express placeholder (template; NÃO usado)
     ├── shared/const.ts             ← constantes compartilhadas (template)
     ├── patches/wouter@3.7.1.patch  ← patch do wouter (registra rotas no window)
@@ -390,14 +392,14 @@ leaonorth/                          ← raiz do workspace (document root do site
 > [`api/admin/depoimentos.php`](api/admin/depoimentos.php), [`api/migracao_admin_seguranca.sql`](api/migracao_admin_seguranca.sql),
 > e, na raiz do docroot: [`index.php`](index.php), [`.htaccess`](.htaccess) e `index.html` (shell de teste).
 
-> **Fase 33 — arquivos novos:** [`api/branding.php`](api/branding.php) e
+> **Fase 33.1 — arquivos novos:** [`api/branding.php`](api/branding.php) e
 > [`api/admin/upload_logo.php`](api/admin/upload_logo.php); no frontend,
 > [`lib/branding.ts`](leao-north-site/client/src/lib/branding.ts),
 > [`hooks/useBranding.ts`](leao-north-site/client/src/hooks/useBranding.ts) e
 > [`pages/admin/geral/AdminBranding.tsx`](leao-north-site/client/src/pages/admin/geral/AdminBranding.tsx)
 > (integrado à nova seção **Configurações** do
-> [`Dashboard.tsx`](leao-north-site/client/src/pages/admin/Dashboard.tsx)). **Sem DDL:** a logo vive como
-> arquivo canônico `uploads/branding/logo.<ext>` — **não há tabela `configuracoes`**.
+> [`Dashboard.tsx`](leao-north-site/client/src/pages/admin/Dashboard.tsx)). **Sem DDL:** cada frente vive como
+> arquivo canônico `uploads/branding/logo-<frente>.<ext>` — **não há tabela `configuracoes`**.
 
 > **Fases 31–32 — sem arquivos novos:** as duas fases alteraram **apenas** arquivos existentes
 > ([`ContactSection.tsx`](leao-north-site/client/src/components/sections/ContactSection.tsx),
@@ -467,12 +469,12 @@ leaonorth/                          ← raiz do workspace (document root do site
 > corrigido na Fase 24: usavam `../../uploads/` (apontava para `api/uploads/`) — arquivos
 > já gravados no local errado foram movidos para `uploads/`.
 
-### Branding / Logo (Fase 33)
+### Branding / Logos (Fase 33.1)
 
 | Endpoint | Método | O que faz | Retorno |
 | --- | --- | --- | --- |
-| [`api/branding.php`](api/branding.php) | GET | **Público.** Procura `uploads/branding/logo.<ext>` (png → jpg → jpeg → webp) e devolve `{existe, logo, versao}` — `versao = filemtime`, usada pelo frontend no **cache-busting `?v=`**. Responde `Cache-Control: no-cache` | JSON |
-| [`api/admin/upload_logo.php`](api/admin/upload_logo.php) | POST | **Admin (Bearer Token).** Campo `logo` (multipart); valida tamanho (2 MB), extensão e **MIME real** (`finfo` + `getimagesize`); grava **sempre** como `logo.<ext>` (nome fixo) e remove `logo.*` de outras extensões. **SVG é recusado de propósito** (XSS armazenado) | `200`/`400`/`413`/`415`/`500` |
+| [`api/branding.php`](api/branding.php) | GET | **Público.** Procura `uploads/branding/logo-service.<ext>` e `logo-materiais.<ext>` (png → jpg → jpeg → webp) e devolve `{service:{existe,logo,versao}, materiais:{...}}` — `versao = filemtime`, usada no **cache-busting `?v=`**. Responde `Cache-Control: no-cache` | JSON |
+| [`api/admin/upload_logo.php`](api/admin/upload_logo.php) | POST | **Admin (Bearer Token).** Campos `tipo` (`service`\|`materiais`) + `logo` (multipart); valida tamanho (2 MB), extensão e **MIME real** (`finfo` + `getimagesize`); grava **sempre** como `logo-<tipo>.<ext>` (nome fixo) e remove `logo-<tipo>.*` de outras extensões. **SVG é recusado de propósito** (XSS armazenado) | `200`/`400`/`413`/`415`/`500` |
 
 ### Sobre o campo `tipo_mensagem`
 
@@ -591,8 +593,9 @@ leaonorth/                          ← raiz do workspace (document root do site
     cada card, badges Destaque/Oculto) e `AdminMensagens` (tabela + badges de `tipo_mensagem` + modal
     "Detalhes do Orçamento").
   - **CONFIGURAÇÕES** → [`geral/AdminBranding.tsx`](leao-north-site/client/src/pages/admin/geral/AdminBranding.tsx)
-    (Fase 33): upload da **logo oficial** (PNG/JPG/WEBP, ≤ 2 MB, **SVG recusado**) com preview da logo atual
-    e da seleção; ao concluir, o cache é invalidado e o site inteiro reflete a nova logo **sem deploy**.
+    (Fase 33.1): upload das **logos das duas frentes** (Service/Materiais; PNG/JPG/WEBP com **fundo transparente**,
+    ≤ 2 MB, **SVG recusado**) com preview da logo atual e da seleção; ao concluir, o cache é invalidado e a frente
+    correspondente reflete a nova logo **sem deploy**.
   - Redireciona para `/admin` se não existir `admin_token`.
 
 ### Design system (`client/src/index.css`)
@@ -693,10 +696,10 @@ Schema relacional da Versão 2.0 (Materiais — [`api/migracao_v2.sql`](api/migr
    `api/admin/service/*` usam **`../../../uploads/`** (correção aplicada — antes gravavam em
    `api/uploads/` e a imagem não aparecia). Endpoints em `api/admin/` usam `../../uploads/`.
    Validações de MIME (`finfo`)/5MB existem nos CRUDs de produtos/grupos/serviços.
-   **Fase 33:** a **logo oficial** vai para a subpasta `uploads/branding/` (arquivo único `logo.<ext>`,
-   nome fixo, máx. 2 MB, PNG/JPG/WEBP — **SVG bloqueado**) por
-   [`api/admin/upload_logo.php`](api/admin/upload_logo.php) e é lida pelo público
-   [`api/branding.php`](api/branding.php).
+   **Fase 33.1:** as **logos das frentes** vão para a subpasta `uploads/branding/` (`logo-service.<ext>` e
+   `logo-materiais.<ext>`, nome fixo, máx. 2 MB, PNG/JPG/WEBP com **fundo transparente** — **SVG bloqueado**) por
+   [`api/admin/upload_logo.php`](api/admin/upload_logo.php) (campo `tipo` = `service`\|`materiais`) e são lidas pelo
+   público [`api/branding.php`](api/branding.php).
 7. **`tipo_mensagem`:** origem persistida por `contato.php`; badges no painel (Service dourado,
    Materiais azul, Sócio roxo), exibidos em [`AdminMensagens.tsx`](leao-north-site/client/src/pages/admin/geral/AdminMensagens.tsx).
    Ao adicionar novas origens, atualizar o ENUM, o `contato.php` e a config de badges nesse componente.
@@ -749,15 +752,17 @@ Schema relacional da Versão 2.0 (Materiais — [`api/migracao_v2.sql`](api/migr
     [`AdminProdutos.tsx`](leao-north-site/client/src/pages/admin/materiais/AdminProdutos.tsx) bloqueia a
     interação sem Categoria via **escudo/overlay** + `onKeyDown` → `toast.warning`. Documentação:
     `fase31_orcamento_dinamico.md` e `fase32_melhorias_materiais.md`.
-21. **Fase 33 (branding dinâmico + nomenclatura legal):** a logo da empresa é **dinâmica** — enviada na aba
-    **Configurações → Branding / Logo** e lida por [`api/branding.php`](api/branding.php) com **cache-busting
-    `?v=<filemtime>`**. **Não existe tabela `configuracoes`:** a fonte é o arquivo canônico
-    `uploads/branding/logo.<ext>`, consumido por [`lib/branding.ts`](leao-north-site/client/src/lib/branding.ts)
+21. **Fase 33.1 (branding dinâmico — DUAS logos + nomenclatura legal):** cada frente tem a **sua logo** — enviada
+    na aba **Configurações → Branding / Logos** (campo `tipo` = `service`\|`materiais`) e lida por
+    [`api/branding.php`](api/branding.php) com **cache-busting `?v=<filemtime>`**. **Não existe tabela
+    `configuracoes`:** as fontes são os arquivos canônicos `uploads/branding/logo-service.<ext>` e
+    `logo-materiais.<ext>`, consumidos por [`lib/branding.ts`](leao-north-site/client/src/lib/branding.ts)
     (fetch memoizado, 1 requisição para todo o site) + [`hooks/useBranding.ts`](leao-north-site/client/src/hooks/useBranding.ts).
-    **Sem logo cadastrada (ou API fora do ar), o selo dourado `Zap`/`Package` permanece** (fallback — nenhuma
-    função foi removida). A marca passa a aparecer no Gateway, no `Navbar` ("Leão North Service"), no
-    `HeaderMateriais` ("Leão North Materiais Elétricos") e nos dois rodapés. **Copy legal:** os termos de
-    *engenharia/engenheiro* foram substituídos por *instalações elétricas* / *técnicos em eletrotécnica* em
-    `HeroSection`, `AboutSection`, `MissionSection`, `DifferentialsSection`, `Footer`, `client/index.html` e
-    na meta de `/service` do `index.php`; o texto equivalente em `servicos_categorias` (id 4) foi corrigido no
-    banco (sem menção a ART).
+    **As logos são PNG/JPG/WEBP com fundo transparente**, exibidas diretamente sobre a cor do site (sem cartão
+    branco). **Sem logo cadastrada (ou API fora do ar), o selo dourado `Zap`/`Package` permanece** (fallback —
+    nenhuma função foi removida). A marca passa a aparecer no Gateway (Service e Materiais), no `Navbar`
+    ("Leão North Service"), no `HeaderMateriais` ("Leão North Materiais Elétricos") e nos dois rodapés. **Copy
+    legal:** os termos de *engenharia/engenheiro* foram substituídos por *instalações elétricas* / *técnicos em
+    eletrotécnica* em `HeroSection`, `AboutSection`, `MissionSection`, `DifferentialsSection`, `Footer`,
+    `client/index.html` e na meta de `/service` do `index.php`; o texto equivalente em `servicos_categorias`
+    (id 4) foi corrigido no banco (sem menção a ART).
