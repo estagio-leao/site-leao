@@ -23,7 +23,8 @@ const navLinks = [
   { label: "Portfólio", href: "#portfolio" },
   { label: "Sócios", href: "#socios" },
   { label: "Depoimentos", href: "#depoimentos" },
-  { label: "Contato", href: "#contato" },
+  // Fase 31 — Link renomeado de "Contato" para "Orçamento" (href preservado, âncora #contato intacta)
+  { label: "Orçamento", href: "#contato" },
 ];
 
 const WHATSAPP_URL = "https://wa.me/5543999190467";

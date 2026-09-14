@@ -7,10 +7,27 @@ import { MapPin, Phone, Mail, Send, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { formatPhoneBR } from "@/lib/utils";
 
+// Fase 31 — Serviço (servicos_categorias: id, nome, descricao)
+type Servico = { id: number; nome: string; descricao?: string | null };
+
+// Fase 31 — Fallback local: usado enquanto a API carrega ou se ela falhar,
+// garantindo que o formulário NUNCA fique sem opções. Nomes formatados (título = valor enviado).
+const SERVICOS_FALLBACK: Servico[] = [
+  { id: -1, nome: "Instalações Residenciais" },
+  { id: -2, nome: "Instalações Comerciais" },
+  { id: -3, nome: "Instalações Industriais" },
+  { id: -4, nome: "Projetos Elétricos" },
+  { id: -5, nome: "Manutenção Elétrica" },
+  { id: -6, nome: "Quadros Elétricos" },
+  { id: -7, nome: "Infraestrutura Elétrica" },
+];
+
 export default function ContactSection() {
   const sectionRef = useRef<HTMLElement>(null);
   const [formState, setFormState] = useState({ name: "", phone: "", email: "", service: "", message: "" });
   const [submitted, setSubmitted] = useState(false);
+  // Fase 31 — lista dinâmica de serviços (inicia com o fallback)
+  const [servicos, setServicos] = useState<Servico[]>(SERVICOS_FALLBACK);
 
   useEffect(() => {
     const el = sectionRef.current;
@@ -33,6 +50,23 @@ export default function ContactSection() {
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
+
+  // Fase 31 — Busca os títulos dos serviços cadastrados pelo admin (mesmo endpoint da seção /service).
+  // Em caso de falha/vazio, o estado permanece com SERVICOS_FALLBACK (preserva o envio).
+  useEffect(() => {
+    fetch("http://localhost/leaonorth/api/service/categorias.php")
+      .then((response) => response.json())
+      .then((data) => {
+        if (Array.isArray(data) && data.length > 0) {
+          setServicos(data);
+        }
+      })
+      .catch((error) => console.error("Erro ao buscar serviços para o orçamento:", error));
+  }, []);
+
+  // Fase 31 — Ordenação alfabética (pt-BR) apenas para exibição neste dropdown.
+  // Não altera a ordem original dos serviços em /service (cards seguem por id).
+  const servicosOrdenados = [...servicos].sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -265,14 +299,11 @@ export default function ContactSection() {
                     onChange={(e) => setFormState({ ...formState, service: e.target.value })}
                   >
                     <option value="" disabled>Selecione o serviço</option>
-                    <option value="residencial">Instalação Residencial</option>
-                    <option value="comercial">Instalação Comercial</option>
-                    <option value="industrial">Instalação Industrial</option>
-                    <option value="projeto">Projeto Elétrico</option>
-                    <option value="manutencao">Manutenção Elétrica</option>
-                    <option value="quadro">Quadro Elétrico</option>
-                    <option value="infraestrutura">Infraestrutura Elétrica</option>
-                    <option value="outro">Outro</option>
+                    {/* Fase 31 — opções dinâmicas: value = título (nome) do serviço cadastrado */}
+                    {servicosOrdenados.map((s) => (
+                      <option key={s.id} value={s.nome}>{s.nome}</option>
+                    ))}
+                    <option value="Outro">Outro</option>
                   </select>
                 </div>
 
