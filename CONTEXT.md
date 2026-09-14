@@ -107,6 +107,27 @@ A **Leão North** é uma empresa de engenharia elétrica com sede em **Cornélio
 >   em `leao-north-site/dist/public/` (copiado ao lado de `/api`, `/uploads`, `.htaccess` e `index.php`
 >   na produção) — [`fase30_seo_dinamico.md`](zoo_code_docs/fase30_seo_dinamico.md).
 
+> **Fases 31–32 (conversão do orçamento e UX do catálogo):** ambas **somente frontend** — nenhum
+> endpoint PHP foi criado ou alterado (as APIs existentes já bastaram).
+> - **Fase 31 (orçamento dinâmico + navegação):** no
+>   [`ContactSection.tsx`](leao-north-site/client/src/components/sections/ContactSection.tsx) o `select`
+>   "Tipo de Serviço" deixou de ser estático e passou a listar **dinamicamente** os serviços de
+>   [`api/service/categorias.php`](api/service/categorias.php) (mesma fonte dos cards de `/service`);
+>   `value` = **título** (`nome`) do serviço, exibido em **ordem alfabética pt-BR** apenas neste dropdown,
+>   com **fallback local** (`SERVICOS_FALLBACK`) + opção fixa **"Outro"**. O `POST` para
+>   [`api/contato.php`](api/contato.php) continua **idêntico** (chave `service`). No
+>   [`Navbar.tsx`](leao-north-site/client/src/components/Navbar.tsx) o link **"Contato"** virou
+>   **"Orçamento"** (âncora `#contato` preservada; CTAs "Fale Conosco" mantidos). Planejamento:
+>   [`fase31_orcamento_dinamico.md`](zoo_code_docs/fase31_orcamento_dinamico.md).
+> - **Fase 32 (UX do catálogo):** em [`Materiais.tsx`](leao-north-site/client/src/pages/Materiais.tsx)
+>   o card de grupo é **dinâmico**: grupo com **exatamente 1 produto** mostra **"Ver Opção"** e linka
+>   **direto** para `/materiais/:id` (pula a tela de variações); com **0 ou >1** mantém **"Ver Opções"**
+>   → `/materiais/grupo/:id` (badge/descrição também flexionam no singular). No painel,
+>   [`AdminProdutos.tsx`](leao-north-site/client/src/pages/admin/materiais/AdminProdutos.tsx) troca o
+>   `disabled` do select de Grupo por um **escudo (overlay)** + guarda de teclado que dispara
+>   `toast.warning("Selecione a categoria primeiro!")` quando não há Categoria selecionada.
+>   Planejamento: [`fase32_melhorias_materiais.md`](zoo_code_docs/fase32_melhorias_materiais.md).
+
 A experiência começa no **Portal Gateway** (split-screen), onde o visitante escolhe entre **Service**
 e **Materiais**. Há também o **Painel Administrativo** (`/admin`), que permite gerenciar
 **categorias**, **grupos** (com upload de capa), **produtos (criar, editar, excluir e duplicar)**,
@@ -261,7 +282,7 @@ leaonorth/                          ← raiz do workspace (document root do site
 │
 ├── uploads/                        ← imagens (portfólio, produtos, capas de grupos, sócios)
 │
-├── zoo_code_docs/                  ← documentação de planejamento das fases (fase1..fase27)
+├── zoo_code_docs/                  ← documentação de planejamento das fases (fase1..fase32)
 │
 └── leao-north-site/                ← FRONTEND React (código-fonte do site)
     ├── package.json                ← dependências e scripts
@@ -340,6 +361,15 @@ leaonorth/                          ← raiz do workspace (document root do site
 > [`api/admin/depoimentos.php`](api/admin/depoimentos.php), [`api/migracao_admin_seguranca.sql`](api/migracao_admin_seguranca.sql),
 > e, na raiz do docroot: [`index.php`](index.php), [`.htaccess`](.htaccess) e `index.html` (shell de teste).
 
+> **Fases 31–32 — sem arquivos novos:** as duas fases alteraram **apenas** arquivos existentes
+> ([`ContactSection.tsx`](leao-north-site/client/src/components/sections/ContactSection.tsx),
+> [`Navbar.tsx`](leao-north-site/client/src/components/Navbar.tsx),
+> [`Materiais.tsx`](leao-north-site/client/src/pages/Materiais.tsx) e
+> [`AdminProdutos.tsx`](leao-north-site/client/src/pages/admin/materiais/AdminProdutos.tsx));
+> os únicos artefatos novos são os documentos de planejamento
+> [`fase31_orcamento_dinamico.md`](zoo_code_docs/fase31_orcamento_dinamico.md) e
+> [`fase32_melhorias_materiais.md`](zoo_code_docs/fase32_melhorias_materiais.md).
+
 ---
 
 ## 5. Backend PHP — Endpoints (raiz `/api`)
@@ -381,7 +411,7 @@ leaonorth/                          ← raiz do workspace (document root do site
 
 | Endpoint | Método | O que faz | Retorno |
 | --- | --- | --- | --- |
-| [`api/service/categorias.php`](api/service/categorias.php) | GET | Lista serviços/categorias (`servicos_categorias`) — `SELECT id, nome, descricao ORDER BY id` | array JSON |
+| [`api/service/categorias.php`](api/service/categorias.php) | GET | Lista serviços/categorias (`servicos_categorias`) — `SELECT id, nome, descricao ORDER BY id`. **Fase 31:** também alimenta o `select` **"Tipo de Serviço"** do orçamento (`ContactSection`), que exibe os títulos em **ordem A–Z (pt-BR)** | array JSON |
 | [`api/service/socios.php`](api/service/socios.php) | GET | Lista sócios (`socios`) — `id, nome, subtitulo, descricao, whatsapp, caminho_foto` | array JSON |
 | [`api/service/portfolio.php`](api/service/portfolio.php) | GET | Lista projetos com `categoria_nome` (LEFT JOIN), **`imagens[]`** (capa primeiro, sem N+1) e o atalho **`capa` na raiz**; filtros `?servico_categoria_id=` e `?id=` | array JSON |
 | [`api/admin/service/add_categoria.php`](api/admin/service/add_categoria.php) | POST | Cria serviço/categoria (`nome`, `descricao`); `409` em duplicidade (nome UNIQUE) | `200`/`400`/`409`/`500` |
@@ -449,7 +479,7 @@ leaonorth/                          ← raiz do workspace (document root do site
 | [`PortfolioDetalhes.tsx`](leao-north-site/client/src/pages/PortfolioDetalhes.tsx) | **Detalhes do projeto** (`/service/portfolio/:id`, Fase 24): tema escuro, galeria (capa no índice 0, setas, miniaturas, **zoom/lupa** no desktop — padrão `ProdutoDetalhes`), badge de categoria, Título/Subtítulo/Descrição e CTA WhatsApp. Usa `Navbar simple` + `Footer`. |
 | [`SocioDetalhes.tsx`](leao-north-site/client/src/pages/SocioDetalhes.tsx) | **Detalhes do sócio** (`/service/socio/:id`, Fase 24): foto ampliada (aspect 3/4), Nome, Subtítulo, Descrição completa (fallback) e CTA WhatsApp. Usa `Navbar simple` + `Footer`. |
 | [`Depoimentos.tsx`](leao-north-site/client/src/pages/Depoimentos.tsx) | **Depoimentos completos** (`/service/depoimentos`, Fase 27): lista todos os depoimentos com `visivel=1` em grid escuro (estrelas, média e CTA de orçamento). Usa `Navbar simple` + `Footer` + `WhatsAppButton`. |
-| [`Materiais.tsx`](leao-north-site/client/src/pages/Materiais.tsx) | **Leão North Materiais (tema claro) — vitrine agrupada + UX de conversão:** consome `api/produtos.php`, separa cards de grupo e individuais; Header/Footer exclusivos; sidebar de categorias; ordenação; breadcrumbs; estado vazio com CTA WhatsApp. |
+| [`Materiais.tsx`](leao-north-site/client/src/pages/Materiais.tsx) | **Leão North Materiais (tema claro) — vitrine agrupada + UX de conversão:** consome `api/produtos.php`, separa cards de grupo e individuais; Header/Footer exclusivos; sidebar de categorias; ordenação; breadcrumbs; estado vazio com CTA WhatsApp. **Fase 32:** card de grupo com **exatamente 1 produto** exibe **"Ver Opção"** e navega **direto** para `/materiais/:id`; com **0 ou >1** mantém **"Ver Opções"** → `/materiais/grupo/:id` (badge/descrição flexionam no singular). |
 | [`GrupoVariacoes.tsx`](leao-north-site/client/src/pages/GrupoVariacoes.tsx) | **Variações de um grupo** (`/materiais/grupo/:id`). |
 | [`ProdutoDetalhes.tsx`](leao-north-site/client/src/pages/ProdutoDetalhes.tsx) | **Detalhes do produto** (`/materiais/:id`): galeria com zoom "lupa", descrição, informações e CTA "Tenho Interesse". |
 | [`NotFound.tsx`](leao-north-site/client/src/pages/NotFound.tsx) | Página 404. |
@@ -466,7 +496,7 @@ leaonorth/                          ← raiz do workspace (document root do site
 | [`DifferentialsSection.tsx`](leao-north-site/client/src/components/sections/DifferentialsSection.tsx) | Lista vertical numerada (01–05) de diferenciais |
 | [`SociosSection.tsx`](leao-north-site/client/src/components/sections/SociosSection.tsx) | **Dinâmico (Fase 24/27):** consome `api/service/socios.php` (inclui `whatsapp`); cards (foto/nome/subtítulo) clicáveis → `/service/socio/:id`; form "Falar com sócio" (`tipo_mensagem: socio`). **Fase 27:** no `onSuccess` abre o `wa.me` do sócio (`socios.whatsapp`, fallback p/ número da empresa). Grid `sm:grid-cols-2 lg:grid-cols-4` |
 | [`TestimonialsSection.tsx`](leao-north-site/client/src/components/sections/TestimonialsSection.tsx) | **Fase 27 (curadoria):** busca `api/depoimentos.php?destaque=1`; mostra até **6 destaques** + 7ª célula como card-botão **"Ver mais depoimentos"** (`/service/depoimentos`); calcula média dos destaques; se vazio, fica oculta |
-| [`ContactSection.tsx`](leao-north-site/client/src/components/sections/ContactSection.tsx) | Info de contato, CTA WhatsApp, formulário de orçamento (`POST api/contato.php`) e mapa. **Fase 27:** iframe com **embed genérico** (`maps.google.com/maps?q=<endereço>&output=embed`, sem API key) |
+| [`ContactSection.tsx`](leao-north-site/client/src/components/sections/ContactSection.tsx) | Info de contato, CTA WhatsApp, formulário de orçamento (`POST api/contato.php`) e mapa. **Fase 27:** iframe com **embed genérico** (`maps.google.com/maps?q=<endereço>&output=embed`, sem API key). **Fase 31:** `select` "Tipo de Serviço" **dinâmico** (`api/service/categorias.php`, ordem **A–Z pt-BR**, `value` = título do serviço; fallback local `SERVICOS_FALLBACK`) — o `POST` **não** mudou |
 
 > **Padrão comum nas seções dinâmicas:** cada seção usa `IntersectionObserver` para aplicar `.reveal`
 > (fade-up com stagger) — mesmo padrão do [`index.css`](leao-north-site/client/src/index.css).
@@ -477,6 +507,8 @@ leaonorth/                          ← raiz do workspace (document root do site
   Logo exibe o subtítulo **"Service"**. Suporta `variant="dark" | "light"` e a prop **`simple?`**
   (Fase 24): esconde os links-âncora institucionais (que só existem na landing), aponta a logo para
   `/service` e mantém só o CTA de WhatsApp — usada nas páginas `PortfolioDetalhes`/`SocioDetalhes`.
+  **Fase 31:** o item de menu exibido como **CONTATO** passou a **ORÇAMENTO** (o `href: "#contato"`
+  e a rolagem suave foram preservados; os CTAs "Fale Conosco" não mudaram).
 - [`Footer.tsx`](leao-north-site/client/src/components/Footer.tsx) — rodapé escuro institucional.
 - [`WhatsAppButton.tsx`](leao-north-site/client/src/components/WhatsAppButton.tsx) — botão flutuante.
 - [`HeaderMateriais.tsx`](leao-north-site/client/src/components/HeaderMateriais.tsx) e
@@ -501,6 +533,9 @@ leaonorth/                          ← raiz do workspace (document root do site
   - **LEÃO MATERIAIS** → [`materiais/`](leao-north-site/client/src/pages/admin/materiais/AdminProdutos.tsx):
     `AdminCategorias` (Modal `sm`), `AdminGrupos` (Modal `lg`, capa) e `AdminProdutos`
     (Modal `xl`, multi-imagem + capa + informações + duplicação + **drill-down em pastas**).
+    **Fase 32:** o select de **Grupo** (dependente da Categoria) não usa mais `disabled` sem
+    categoria — fica visível e bloqueado por um **escudo/overlay** + guarda de teclado (`onKeyDown`),
+    disparando `toast.warning("Selecione a categoria primeiro!")` na tentativa de interação.
   - **LEÃO SERVICE** → [`service/`](leao-north-site/client/src/pages/admin/service/AdminServicos.tsx)
     (Fase 23): `AdminServicos`, `AdminPortfolio` (multi-imagem + capa), `AdminSocios`
     (foto + **whatsapp** com máscara `(XX) XXXXX-XXXX`).
@@ -620,9 +655,9 @@ Schema relacional da Versão 2.0 (Materiais — [`api/migracao_v2.sql`](api/migr
     apresentação no banco; em Sócios existe a coluna `whatsapp`, Fase 27). Portfólio tem 1..N imagens
     com **1 capa** (`is_capa`), garantida no backend.
 11. **Zoom na página de detalhes:** funciona apenas em **desktop (hover)**; mobile usa pinça.
-12. **Documentação por fases:** planejamentos das Fases 1–30 em [`zoo_code_docs/`](zoo_code_docs/)
-    (`fase1_arquitetura.md` ... `fase30_seo_dinamico.md`). Destaques recentes:
-    `fase28_ui_feedbacks.md`, `fase29_seguranca_backend.md` e `fase30_seo_dinamico.md`.
+12. **Documentação por fases:** planejamentos das Fases 1–32 em [`zoo_code_docs/`](zoo_code_docs/)
+    (`fase1_arquitetura.md` ... `fase32_melhorias_materiais.md`). Destaques recentes:
+    `fase30_seo_dinamico.md`, `fase31_orcamento_dinamico.md` e `fase32_melhorias_materiais.md`.
 13. **Sem teste automatizado** no projeto (apenas `tsc --noEmit` via `pnpm check`).
 14. **Wouter v3 — query string fora do `useLocation`:** `useLocation` retorna **apenas o pathname**;
     a leitura de `?q=` (busca global) é feita com `window.location.search` (ver §10.13/`Materiais`).
@@ -651,3 +686,12 @@ Schema relacional da Versão 2.0 (Materiais — [`api/migracao_v2.sql`](api/migr
     `https://leaonorth.com.br`/`/`). Em produção, copiar o build (`leao-north-site/dist/public/*`) para a
     raiz (o `index.html` da raiz é substituído pelo do build). O dev do SPA continua no Vite (`:3000`),
     sem efeito desses arquivos.
+20. **Fases 31–32 (frontend):** o formulário de orçamento tem "Tipo de Serviço" **dinâmico**
+    ([`api/service/categorias.php`](api/service/categorias.php), ordem **A–Z pt-BR**, `value` = título
+    do serviço, fallback local `SERVICOS_FALLBACK` + "Outro"); o `POST` segue gravando o **título** em
+    `contatos.servico` (coluna texto livre) — **sem mudança de backend**. No card de grupo de
+    `/materiais`, **1 produto → "Ver Opção"** (link direto `/materiais/:id`), **0 ou >1 → "Ver Opções"**
+    (`/materiais/grupo/:id`). No painel, o select de **Grupo** de
+    [`AdminProdutos.tsx`](leao-north-site/client/src/pages/admin/materiais/AdminProdutos.tsx) bloqueia a
+    interação sem Categoria via **escudo/overlay** + `onKeyDown` → `toast.warning`. Documentação:
+    `fase31_orcamento_dinamico.md` e `fase32_melhorias_materiais.md`.
