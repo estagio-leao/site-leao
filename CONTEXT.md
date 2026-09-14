@@ -504,9 +504,11 @@ leaonorth/                          ← raiz do workspace (document root do site
 ### Componentes compartilhados
 
 - [`Navbar.tsx`](leao-north-site/client/src/components/Navbar.tsx) — fixa, blur ao rolar, menu mobile.
-  Logo exibe o subtítulo **"Service"**. Suporta `variant="dark" | "light"` e a prop **`simple?`**
-  (Fase 24): esconde os links-âncora institucionais (que só existem na landing), aponta a logo para
-  `/service` e mantém só o CTA de WhatsApp — usada nas páginas `PortfolioDetalhes`/`SocioDetalhes`.
+  Logo exibe o subtítulo **"Service"**. Na **landing Service**, a logo (**"Leão North Service"**) é um
+  `Link` para a **raiz `/`** (o Gateway preto/branco metade a metade). Suporta `variant="dark" | "light"`
+  e a prop **`simple?`** (Fase 24): esconde os links-âncora institucionais (que só existem na landing),
+  aponta a logo para `/service` e mantém só o CTA de WhatsApp — usada nas páginas
+  `PortfolioDetalhes`/`SocioDetalhes`.
   **Fase 31:** o item de menu exibido como **CONTATO** passou a **ORÇAMENTO** (o `href: "#contato"`
   e a rolagem suave foram preservados; os CTAs "Fale Conosco" não mudaram).
 - [`Footer.tsx`](leao-north-site/client/src/components/Footer.tsx) — rodapé escuro institucional.

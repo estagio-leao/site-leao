@@ -73,7 +73,8 @@ export default function Navbar({ variant = "dark", simple = false }: NavbarProps
     simple ? "px-4 py-2.5" : "hidden lg:flex px-5 py-2.5"
   }`;
 
-  // Logo: na landing rola até #inicio; em "simple" navega para a landing /service
+  // Logo: na landing (Service) volta para a RAIZ "/" (Gateway preto/branco);
+  // em "simple" (subpáginas) navega para a landing /service.
   const logoMarkup = simple ? (
     <Link href="/service" className="flex items-center gap-2.5 group">
       <div className="w-9 h-9 rounded-sm bg-[#F0B429] flex items-center justify-center group-hover:scale-105 transition-transform duration-200">
@@ -89,11 +90,7 @@ export default function Navbar({ variant = "dark", simple = false }: NavbarProps
       </div>
     </Link>
   ) : (
-    <a
-      href="#inicio"
-      onClick={(e) => { e.preventDefault(); handleNavClick("#inicio"); }}
-      className="flex items-center gap-2.5 group"
-    >
+    <Link href="/" className="flex items-center gap-2.5 group">
       <div className="w-9 h-9 rounded-sm bg-[#F0B429] flex items-center justify-center group-hover:scale-105 transition-transform duration-200">
         <Zap className="w-5 h-5 text-[#080808]" strokeWidth={2.5} />
       </div>
@@ -105,7 +102,7 @@ export default function Navbar({ variant = "dark", simple = false }: NavbarProps
           Service
         </span>
       </div>
-    </a>
+    </Link>
   );
 
   return (
