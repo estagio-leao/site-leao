@@ -27,7 +27,7 @@ const WhatsAppIcon = () => (
 
 export default function HeaderMateriais() {
   const [, setLocation] = useLocation();
-  const { urlLogo } = useBranding(); // Fase 33 — logo oficial (null = usa o selo padrão)
+  const { urlLogoMateriais } = useBranding(); // Fase 33.1 — logo da frente Materiais
   const [scrolled, setScrolled] = useState(false);
   const [termo, setTermo] = useState("");
   const [buscaMobileAberta, setBuscaMobileAberta] = useState(false);
@@ -84,12 +84,13 @@ export default function HeaderMateriais() {
       <nav className="container mx-auto px-4 lg:px-8 flex items-center justify-between gap-4 h-16 lg:h-20">
         {/* Logo → hub (/ = Gateway). Fase 33: logo oficial ou selo dourado (fallback) */}
         <Link href="/" className="flex items-center gap-2.5 group shrink-0">
-          {urlLogo ? (
-            <div className="h-9 px-1.5 rounded-sm flex items-center justify-center group-hover:scale-105 transition-transform duration-200">
+          {urlLogoMateriais ? (
+            /* Logo transparente sobre a cor do site (header claro, sem cartão) */
+            <div className="h-9 flex items-center justify-center group-hover:scale-105 transition-transform duration-200">
               <img
-                src={urlLogo}
+                src={urlLogoMateriais}
                 alt="Leão North Materiais Elétricos"
-                className="h-full w-auto max-w-[140px] object-contain"
+                className="h-full w-auto max-w-[160px] object-contain"
               />
             </div>
           ) : (

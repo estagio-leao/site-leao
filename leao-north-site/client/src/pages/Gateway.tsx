@@ -3,11 +3,12 @@
  * Split-screen: Service (escuro) à esquerda / Materiais (claro) à direita
  * Entrada animada (tw-animate-css) + hover com zoom e brilho dourado
  *
- * FASE 33 — Branding dinâmico:
- *   - Os ícones Raio (Zap) e Caixa (Package) DÃO LUGAR à LOGO oficial cadastrada
- *     no painel (aba Configurações → Branding / Logo), via api/branding.php.
+ * FASE 33.1 — Branding dinâmico (DUAS logos):
+ *   - Cada frente tem a SUA logo oficial (Service / Materiais) cadastrada no painel
+ *     (aba Configurações → Branding / Logos), via api/branding.php.
  *   - SEM logo cadastrada (ou API indisponível), o selo dourado original é mantido
  *     como fallback — nenhuma função foi removida.
+ *   - As logos são PNG/JPG/WEBP com fundo TRANSPARENTE, exibidas sobre a cor do site.
  *   - Título do hemiciclo Service atualizado para "Instalações Elétricas" (Fase 33).
  */
 import { Link } from "wouter";
@@ -15,7 +16,7 @@ import { Zap, Package } from "lucide-react";
 import { useBranding } from "@/hooks/useBranding";
 
 export default function Gateway() {
-  const { urlLogo } = useBranding();
+  const { urlLogoService, urlLogoMateriais } = useBranding();
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row font-['DM_Sans']">
@@ -30,10 +31,10 @@ export default function Gateway() {
 
         {/* Conteúdo */}
         <div className="relative z-10 flex flex-col items-center gap-5 animate-in fade-in-0 slide-in-from-bottom-4 duration-700">
-          {urlLogo ? (
-            /* Cartão branco: garante a leitura da logo sobre o fundo escuro */
-            <div className="h-20 w-20 rounded-sm bg-white p-2 flex items-center justify-center shadow-lg shadow-black/30 group-hover:scale-110 transition-transform duration-300">
-              <img src={urlLogo} alt="Leão North" className="h-full w-full object-contain" />
+          {urlLogoService ? (
+            /* Logo transparente exibida sobre a cor do site (fundo escuro) */
+            <div className="h-20 w-auto max-w-[240px] flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+              <img src={urlLogoService} alt="Leão North Service" className="h-full w-auto max-w-full object-contain" />
             </div>
           ) : (
             <div className="w-16 h-16 rounded-sm bg-[#F0B429] flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
@@ -67,9 +68,10 @@ export default function Gateway() {
 
         {/* Conteúdo */}
         <div className="relative z-10 flex flex-col items-center gap-5 animate-in fade-in-0 slide-in-from-bottom-4 duration-700 delay-150">
-          {urlLogo ? (
-            <div className="h-20 w-20 rounded-sm bg-white p-2 flex items-center justify-center border border-slate-200 shadow-sm group-hover:scale-110 transition-transform duration-300">
-              <img src={urlLogo} alt="Leão North" className="h-full w-full object-contain" />
+          {urlLogoMateriais ? (
+            /* Logo transparente exibida sobre a cor do site (fundo claro) */
+            <div className="h-20 w-auto max-w-[240px] flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+              <img src={urlLogoMateriais} alt="Leão North Materiais Elétricos" className="h-full w-auto max-w-full object-contain" />
             </div>
           ) : (
             <div className="w-16 h-16 rounded-sm bg-[#F0B429] flex items-center justify-center group-hover:scale-110 transition-transform duration-300">

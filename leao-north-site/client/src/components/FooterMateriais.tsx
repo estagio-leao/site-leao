@@ -17,7 +17,7 @@ const socialLinks = [
 ];
 
 export default function FooterMateriais() {
-  const { urlLogo } = useBranding(); // Fase 33 — logo oficial (null = selo padrão)
+  const { urlLogoMateriais } = useBranding(); // Fase 33.1 — logo da frente Materiais (null = selo padrão)
 
   return (
     <footer style={{ background: "#060606" }} className="relative">
@@ -28,12 +28,13 @@ export default function FooterMateriais() {
         <div className="flex flex-col md:flex-row items-center justify-between gap-8">
           {/* Logo / marca */}
           <div className="flex items-center gap-2.5">
-            {urlLogo ? (
-              <div className="h-9 px-1.5 rounded-sm bg-white flex items-center justify-center">
+            {urlLogoMateriais ? (
+              /* Logo transparente sobre o fundo escuro do rodapé */
+              <div className="h-9 flex items-center justify-center">
                 <img
-                  src={urlLogo}
+                  src={urlLogoMateriais}
                   alt="Leão North Materiais Elétricos"
-                  className="h-full w-auto max-w-[140px] object-contain"
+                  className="h-full w-auto max-w-[160px] object-contain"
                 />
               </div>
             ) : (

@@ -90,8 +90,9 @@ export default function HeroSection() {
               style={{ opacity: 0, transform: "translateY(20px)", transition: "all 0.6s cubic-bezier(0.23,1,0.32,1)" }}
               className="text-white/60 text-base lg:text-lg font-['DM_Sans'] leading-relaxed max-w-lg"
             >
-              A Leão North oferece soluções elétricas inovadoras para projetos residenciais,
-              comerciais e industriais — com técnicos em eletrotécnica especializados.
+              A Leão North oferece soluções elétricas inovadoras para serviços e projetos residenciais,
+              comerciais, industriais, prediais tanto em áreas rurais quanto urbanas 
+              — com técnicos qualificados especializados para atendê-los a qualquer momento.
             </p>
 
             {/* CTA Buttons */}
@@ -154,7 +155,7 @@ export default function HeroSection() {
             <div className="relative overflow-hidden rounded-sm" style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}>
               <img
                 src={HERO_IMG}
-                alt="Técnico em eletrotécnica trabalhando em painel de controle"
+                alt="Técnico em elétrica trabalhando em painel de controle"
                 className="w-full h-[560px] object-cover"
                 loading="eager"
               />
@@ -170,7 +171,7 @@ export default function HeroSection() {
               </div>
               <div>
                 <p className="text-white font-['Barlow_Condensed'] font-600 text-sm uppercase tracking-wide">
-                  Técnicos em Eletrotécnica
+                  Técnicos em Elétrica
                 </p>
                 <p className="text-white/50 text-xs font-['DM_Sans']">
                   Equipe qualificada e certificada

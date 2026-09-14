@@ -39,7 +39,7 @@ export default function Navbar({ variant = "dark", simple = false }: NavbarProps
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const isLight = variant === "light";
-  const { urlLogo } = useBranding(); // Fase 33 — logo oficial (null = usa o selo padrão)
+  const { urlLogoService } = useBranding(); // Fase 33.1 — logo da frente Service (null = selo padrão)
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 80);
@@ -86,16 +86,13 @@ export default function Navbar({ variant = "dark", simple = false }: NavbarProps
   // (Zap) como fallback. Texto exato: "Leão North Service".
   const logoMarkup = (href: string) => (
     <Link href={href} className="flex items-center gap-2.5 group shrink-0">
-      {urlLogo ? (
-        <div
-          className={`h-9 px-1.5 rounded-sm flex items-center justify-center group-hover:scale-105 transition-transform duration-200 ${
-            isLight ? "bg-white border border-slate-200" : "bg-white"
-          }`}
-        >
+      {urlLogoService ? (
+        /* Logo transparente sobre a cor do site (sem cartão de fundo) */
+        <div className="h-9 flex items-center justify-center group-hover:scale-105 transition-transform duration-200">
           <img
-            src={urlLogo}
+            src={urlLogoService}
             alt="Leão North Service"
-            className="h-full w-auto max-w-[140px] object-contain"
+            className="h-full w-auto max-w-[160px] object-contain"
           />
         </div>
       ) : (

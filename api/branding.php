@@ -1,17 +1,21 @@
 <?php
 /*
- * LEÃO NORTH — FASE 33: branding.php (PÚBLICO)
- * Informa a logo oficial cadastrada pelo painel admin, SEM exigir autenticação.
+ * LEÃO NORTH — FASE 33.1: branding.php (PÚBLICO)
+ * Informa as logos oficiais das DUAS frentes de negócio, SEM autenticação:
  *
- * Estratégia (Opção A aprovada): arquivo canônico com nome fixo em
- *   uploads/branding/logo.<ext>   (png | jpg | jpeg | webp — no máximo 1)
- * Não há tabela no banco: o próprio filemtime() do arquivo é a "versão", usada
- * pelo frontend para cache-busting (?v=<versao>) — assim a troca da logo no
- * painel invalida o cache do navegador na hora.
+ *   - "service"   → uploads/branding/logo-service.<ext>
+ *   - "materiais" → uploads/branding/logo-materiais.<ext>
+ *
+ * Estratégia (Opção A aprovada — sem tabela `configuracoes`): arquivos canônicos
+ * com nome fixo (png | jpg | jpeg | webp — no máximo 1 de cada prefixo). O próprio
+ * filemtime() é a "versão", usada pelo frontend para cache-busting (?v=<versao>).
  *
  * Resposta:
- *   { "existe": true,  "logo": "/uploads/branding/logo.png", "versao": 1789... }
- *   { "existe": false, "logo": null, "versao": 0 }   ← site mantém o selo padrão
+ * {
+ *   "service":   { "existe": true,  "logo": "/uploads/branding/logo-service.png",   "versao": 1789... },
+ *   "materiais": { "existe": false, "logo": null, "versao": 0 }
+ * }
+ * ← frente sem logo cadastrada mantém o selo dourado padrão no frontend.
  */
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: GET, OPTIONS");
@@ -26,28 +30,31 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 
 header("Content-Type: application/json; charset=UTF-8");
 
-$diretorio  = __DIR__ . "/../uploads/branding/";
-$extensoes  = array("png", "jpg", "jpeg", "webp");
+$diretorio = __DIR__ . "/../uploads/branding/";
+$extensoes = array("png", "jpg", "jpeg", "webp");
 
-// Procura o primeiro logo.<ext> existente na ordem da whitelist
-$arquivo = null;
-foreach ($extensoes as $ext) {
-    if (is_file($diretorio . "logo." . $ext)) {
-        $arquivo = "logo." . $ext;
-        break;
+/**
+ * Resolve a logo canônica de uma frente: procura logo-<prefixo>.<ext> na ordem
+ * da whitelist e devolve o contrato {existe, logo, versao}.
+ */
+function resolverLogo($diretorio, $prefixo, $extensoes)
+{
+    foreach ($extensoes as $ext) {
+        $arquivo = "logo-" . $prefixo . "." . $ext;
+        if (is_file($diretorio . $arquivo)) {
+            return array(
+                "existe" => true,
+                "logo"   => "/uploads/branding/" . $arquivo,
+                "versao" => filemtime($diretorio . $arquivo)
+            );
+        }
     }
-}
-
-if ($arquivo === null) {
-    http_response_code(200);
-    echo json_encode(array("existe" => false, "logo" => null, "versao" => 0));
-    exit();
+    return array("existe" => false, "logo" => null, "versao" => 0);
 }
 
 http_response_code(200);
 echo json_encode(array(
-    "existe" => true,
-    "logo"   => "/uploads/branding/" . $arquivo,
-    "versao" => filemtime($diretorio . $arquivo)
+    "service"   => resolverLogo($diretorio, "service", $extensoes),
+    "materiais" => resolverLogo($diretorio, "materiais", $extensoes)
 ));
 ?>

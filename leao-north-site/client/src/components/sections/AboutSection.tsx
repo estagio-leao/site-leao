@@ -10,9 +10,9 @@ const ABOUT_IMG = "https://images.unsplash.com/photo-1621905251189-08b45d6a269e?
 // FASE 33 — copy: equipe descrita como técnica (nomenclatura legal)
 const highlights = [
   { icon: Award, text: "Responsável técnico habilitado" },
-  { icon: Users, text: "Técnicos em eletrotécnica especializados" },
-  { icon: ShieldCheck, text: "Conformidade com NR-10 e normas ABNT" },
-  { icon: CheckCircle2, text: "Projetos residenciais, comerciais e industriais" },
+  { icon: Users, text: "Técnicos em elétrica especializados" },
+  { icon: ShieldCheck, text: "Conformidade com NRs e normas ABNT" },
+  { icon: CheckCircle2, text: "Serviços qualificados em todas as áreas" },
 ];
 
 export default function AboutSection() {
@@ -117,7 +117,7 @@ export default function AboutSection() {
               className="reveal text-white/60 text-base font-['DM_Sans'] leading-relaxed"
               style={{ opacity: 0, transform: "translateY(24px)", transition: "all 0.6s cubic-bezier(0.23,1,0.32,1)" }}
             >
-              Nossa equipe é composta por <strong className="text-white font-medium">técnicos em eletrotécnica</strong>{" "}
+              Nossa equipe é composta por <strong className="text-white font-medium">técnicos em elétrica</strong>{" "}
               especializados, prontos para atender projetos de qualquer porte com máxima competência técnica.
             </p>
 

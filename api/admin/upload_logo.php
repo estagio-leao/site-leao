@@ -1,9 +1,14 @@
 <?php
 /*
- * LEÃO NORTH — FASE 33: upload_logo.php (ADMIN — exige Bearer Token)
- * Recebe a Logo oficial da empresa e grava SEMPRE com nome fixo em
- *   uploads/branding/logo.<ext>
- * sobrescrevendo a anterior (Opção A aprovada — sem tabela `configuracoes`).
+ * LEÃO NORTH — FASE 33.1: upload_logo.php (ADMIN — exige Bearer Token)
+ * Recebe a Logo oficial de UMA das frentes e grava SEMPRE com nome fixo:
+ *
+ *   uploads/branding/logo-service.<ext>     (campo "tipo" = "service")
+ *   uploads/branding/logo-materiais.<ext>   (campo "tipo" = "materiais")
+ *
+ * sobrescrevendo a anterior da MESMA frente (Opção A aprovada — sem tabela
+ * `configuracoes`). A logo é um PNG/JPG/WEBP com fundo TRANSPARENTE: o frontend
+ * a exibe diretamente sobre a cor do site (sem cartão branco de fundo).
  *
  * Segurança:
  *   - require_once auth.php: OPTIONS e 401 sem token já tratados pelo middleware;
@@ -16,7 +21,7 @@
  *
  * Sucesso (200):
  *   { "mensagem":"Logo atualizada com sucesso.",
- *     "logo":"/uploads/branding/logo.png", "versao": 1789... }
+ *     "tipo":"service", "logo":"/uploads/branding/logo-service.png", "versao": 1789... }
  */
 require_once __DIR__ . '/auth.php';
 
@@ -30,6 +35,15 @@ $formatos    = array(
     "jpeg" => "image/jpeg",
     "webp" => "image/webp",
 );
+$frentes = array("service" => true, "materiais" => true);
+
+// --- 0) Frente alvo (qual das duas logos está sendo enviada) -----------------
+$tipo = isset($_POST['tipo']) ? (string) $_POST['tipo'] : "";
+if (!isset($frentes[$tipo])) {
+    http_response_code(400);
+    echo json_encode(array("mensagem" => "Informe o tipo de logo (service ou materiais)."));
+    exit();
+}
 
 // --- 1) Presença do arquivo -------------------------------------------------
 if (!isset($_FILES['logo'])) {
@@ -96,8 +110,9 @@ if (!is_dir($diretorio)) {
     }
 }
 
-// --- 6) Remove logos de OUTRAS extensões (evita ambiguidade logo.png x logo.webp)
-$antigos = glob($diretorio . "logo.*");
+// --- 6) Remove logos de OUTRAS extensões da MESMA frente (evita ambiguidade) --
+$prefixo = "logo-" . $tipo;
+$antigos = glob($diretorio . $prefixo . ".*");
 if (is_array($antigos)) {
     foreach ($antigos as $antigo) {
         $extAntiga = strtolower(pathinfo($antigo, PATHINFO_EXTENSION));
@@ -108,7 +123,7 @@ if (is_array($antigos)) {
 }
 
 // --- 7) Grava com nome FIXO (nunca o nome enviado pelo cliente) --------------
-$caminhoFinal = $diretorio . "logo." . $extensao;
+$caminhoFinal = $diretorio . $prefixo . "." . $extensao;
 
 if (!move_uploaded_file($_FILES['logo']['tmp_name'], $caminhoFinal)) {
     http_response_code(500);
@@ -122,7 +137,8 @@ if (!move_uploaded_file($_FILES['logo']['tmp_name'], $caminhoFinal)) {
 http_response_code(200);
 echo json_encode(array(
     "mensagem" => "Logo atualizada com sucesso.",
-    "logo"     => "/uploads/branding/logo." . $extensao,
+    "tipo"     => $tipo,
+    "logo"     => "/uploads/branding/" . $prefixo . "." . $extensao,
     "versao"   => filemtime($caminhoFinal)
 ));
 ?>

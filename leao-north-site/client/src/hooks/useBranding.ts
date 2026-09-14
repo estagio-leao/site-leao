@@ -1,11 +1,14 @@
 /*
- * LEÃO NORTH — FASE 33: useBranding
- * Hook compartilhado que entrega a logo oficial (via lib/branding.ts) para o
- * Gateway, os cabeçalhos, os rodapés e a aba Branding do painel.
+ * LEÃO NORTH — FASE 33.1: useBranding
+ * Hook compartilhado que entrega as logos oficiais das duas frentes (via
+ * lib/branding.ts) para o Gateway, os cabeçalhos, os rodapés e a aba Branding.
  *
- * - `urlLogo` já vem com cache-busting (?v=<versao>); é null quando NÃO há logo
- *   cadastrada — nesse caso o componente mantém o selo dourado padrão.
+ * - `urlLogoService` / `urlLogoMateriais` já vêm com cache-busting (?v=<versao>);
+ *   são null quando NÃO há logo cadastrada — nesse caso o componente mantém o selo
+ *   dourado padrão (Zap/Package).
  * - `recarregar()` limpa o cache e refaz a leitura (usado após o upload).
+ * - `branding` expõe {service, materiais} com {existe, logo, versao, url} para o
+ *   painel exibir arquivo/versão de cada frente.
  */
 import { useCallback, useEffect, useState } from "react";
 import {
@@ -46,8 +49,10 @@ export function useBranding() {
   return {
     branding,
     carregando,
-    /** URL da logo com ?v=<versao> — ou null (usar selo padrão) */
-    urlLogo: urlLogoComVersao(branding),
+    /** URL da logo da frente Service com ?v=<versao> — ou null (selo padrão) */
+    urlLogoService: urlLogoComVersao(branding.service),
+    /** URL da logo da frente Materiais com ?v=<versao> — ou null (selo padrão) */
+    urlLogoMateriais: urlLogoComVersao(branding.materiais),
     recarregar,
   };
 }

@@ -34,7 +34,7 @@ const socialLinks = [
 ];
 
 export default function Footer() {
-  const { urlLogo } = useBranding(); // Fase 33 — logo oficial (null = selo padrão)
+  const { urlLogoService } = useBranding(); // Fase 33.1 — logo da frente Service (null = selo padrão)
 
   const handleNavClick = (href: string) => {
     const el = document.querySelector(href);
@@ -52,12 +52,13 @@ export default function Footer() {
           {/* Brand Column */}
           <div className="flex flex-col gap-5 sm:col-span-2 lg:col-span-1">
             <div className="flex items-center gap-2.5">
-              {urlLogo ? (
-                <div className="h-9 px-1.5 rounded-sm bg-white flex items-center justify-center">
+              {urlLogoService ? (
+                /* Logo transparente sobre o fundo escuro do rodapé */
+                <div className="h-9 flex items-center justify-center">
                   <img
-                    src={urlLogo}
+                    src={urlLogoService}
                     alt="Leão North Service"
-                    className="h-full w-auto max-w-[140px] object-contain"
+                    className="h-full w-auto max-w-[160px] object-contain"
                   />
                 </div>
               ) : (

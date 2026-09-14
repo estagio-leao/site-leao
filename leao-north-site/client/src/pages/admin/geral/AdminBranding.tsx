@@ -1,11 +1,15 @@
 /*
- * LEÃO NORTH — Painel Admin: Branding / Logo — Fase 33
- * Upload da Logo oficial da empresa. O arquivo é gravado SEMPRE com nome fixo em
- * uploads/branding/logo.<ext> (Opção A — sem tabela no banco) e o site inteiro
- * passa a consumir essa logo via api/branding.php (com cache-busting ?v=).
+ * LEÃO NORTH — Painel Admin: Branding / Logo — Fase 33.1
+ * Upload das logos oficiais das DUAS frentes de negócio:
+ *   - Leão North Service   → uploads/branding/logo-service.<ext>
+ *   - Leão North Materiais → uploads/branding/logo-materiais.<ext>
+ *
+ * Cada logo é gravada com nome fixo (Opção A — sem tabela no banco) e o site
+ * passa a consumi-la via api/branding.php (com cache-busting ?v=). A logo é um
+ * PNG/JPG/WEBP com fundo TRANSPARENTE, exibida sobre a cor do site (sem cartão).
  *
  * Consumo:
- *   POST api/admin/upload_logo.php   (FormData: campo "logo" — requer Bearer Token)
+ *   POST api/admin/upload_logo.php   (FormData: "tipo"=service|materiais + "logo")
  *   GET  api/branding.php            (via lib/branding.ts / useBranding)
  *
  * Regras do servidor espelhadas aqui para feedback rápido: PNG/JPG/WEBP, até 2 MB.
@@ -16,20 +20,36 @@ import { ImageUp, Upload, X, Info } from "lucide-react";
 import { toast } from "sonner";
 import { adminFetch } from "@/lib/adminFetch";
 import { useBranding } from "@/hooks/useBranding";
+import type { LogoInfo } from "@/lib/branding";
 
 const BASE = "http://localhost/leaonorth";
 
 const TIPOS_ACEITOS = ["image/png", "image/jpeg", "image/webp"];
 const TAMANHO_MAX = 2 * 1024 * 1024; // 2 MB
 
+type Frente = "service" | "materiais";
+
+const ROTULOS: Record<Frente, string> = {
+  service: "Leão North Service",
+  materiais: "Leão North Materiais",
+};
+
 const goldButtonClass =
   "flex-1 py-3 bg-[#F0B429] text-[#080808] font-['Barlow_Condensed'] font-700 uppercase rounded-sm hover:bg-[#FFD060] transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed";
 const secondaryButtonClass =
   "px-5 py-3 bg-white/5 text-white/60 font-['Barlow_Condensed'] font-700 uppercase rounded-sm hover:bg-white/10 hover:text-white transition-colors";
+const fileInputClass =
+  "block w-full text-white/60 text-sm font-['DM_Sans'] file:mr-4 file:py-2.5 file:px-4 file:rounded-sm file:border-0 file:bg-white/10 file:text-white file:font-['Barlow_Condensed'] file:uppercase file:tracking-wider hover:file:bg-white/20 file:cursor-pointer";
 
-export default function AdminBranding() {
-  const { branding, carregando, urlLogo, recarregar } = useBranding();
+type BlocoLogoProps = {
+  frente: Frente;
+  logoInfo: LogoInfo;
+  urlLogo: string | null;
+  carregando: boolean;
+  onAtualizado: () => void;
+};
 
+function BlocoLogo({ frente, logoInfo, urlLogo, carregando, onAtualizado }: BlocoLogoProps) {
   const [arquivo, setArquivo] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -77,6 +97,7 @@ export default function AdminBranding() {
 
     setLoading(true);
     const fd = new FormData();
+    fd.append("tipo", frente);
     fd.append("logo", arquivo);
 
     try {
@@ -89,7 +110,7 @@ export default function AdminBranding() {
       if (res.ok) {
         toast.success(dados?.mensagem || "Logo atualizada com sucesso!");
         cancelarSelecao();
-        recarregar(); // limpa o cache da lib e relê api/branding.php (nova versão)
+        onAtualizado(); // limpa o cache da lib e relê api/branding.php (nova versão)
       } else {
         toast.error(dados?.mensagem || "Erro ao enviar a logo.");
       }
@@ -102,116 +123,122 @@ export default function AdminBranding() {
   };
 
   return (
+    <div className="bg-[#111111] border border-white/10 rounded-sm p-6 flex flex-col">
+      <h3 className="text-white/70 text-xs tracking-widest uppercase font-['DM_Sans'] mb-4">
+        {ROTULOS[frente]}
+      </h3>
+
+      {/* Logo atual (com ?v=<versao>) */}
+      <div className="h-44 rounded-sm border border-white/5 bg-[#0A0A0A] flex items-center justify-center p-6 mb-4">
+        {urlLogo ? (
+          <img
+            src={urlLogo}
+            alt={`Logo atual — ${ROTULOS[frente]}`}
+            className="max-h-full max-w-full object-contain"
+          />
+        ) : (
+          <div className="flex flex-col items-center gap-3 text-center">
+            <div className="w-14 h-14 rounded-sm bg-[#F0B429] flex items-center justify-center">
+              <span className="text-[#080808] font-['Barlow_Condensed'] font-800 text-2xl">LN</span>
+            </div>
+            <p className="text-white/40 text-xs font-['DM_Sans'] max-w-[240px]">
+              {carregando
+                ? "Carregando informações da logo..."
+                : "Nenhuma logo cadastrada — o site está usando o selo padrão dourado."}
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Preview local da seleção */}
+      {preview && (
+        <div className="h-36 rounded-sm border border-dashed border-white/15 bg-[#0A0A0A] flex items-center justify-center p-4 mb-4">
+          <img
+            src={preview}
+            alt={`Pré-visualização da nova logo — ${ROTULOS[frente]}`}
+            className="max-h-full max-w-full object-contain"
+          />
+        </div>
+      )}
+
+      <input
+        key={inputKey}
+        id={`admin-branding-${frente}`}
+        type="file"
+        accept="image/png,image/jpeg,image/webp"
+        onChange={handleSelecionar}
+        className={fileInputClass}
+      />
+
+      <p className="text-white/30 text-xs font-['DM_Sans'] mt-3">
+        {logoInfo.existe && logoInfo.logo
+          ? `Arquivo: ${logoInfo.logo} · versão (cache-busting): ${logoInfo.versao}`
+          : `Nenhum arquivo em uploads/branding/logo-${frente}.*`}
+      </p>
+
+      <p className="flex items-start gap-2 text-white/30 text-xs font-['DM_Sans'] mt-4 mb-6 leading-relaxed">
+        <Info className="w-4 h-4 shrink-0 mt-px" />
+        <span>
+          Recomendado: PNG com fundo transparente (a logo é exibida diretamente sobre a cor
+          do site, sem cartão de fundo). O envio sobrescreve a logo anterior desta frente.
+        </span>
+      </p>
+
+      <div className="mt-auto flex gap-3">
+        <button
+          type="button"
+          onClick={handleEnviar}
+          disabled={loading || !arquivo}
+          className={goldButtonClass}
+        >
+          {loading ? "Enviando..." : <><Upload className="w-4 h-4" /> Enviar Logo</>}
+        </button>
+        <button
+          type="button"
+          onClick={cancelarSelecao}
+          disabled={loading || !arquivo}
+          className={`${secondaryButtonClass} flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed`}
+        >
+          <X className="w-4 h-4" /> Cancelar
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export default function AdminBranding() {
+  const { branding, carregando, urlLogoService, urlLogoMateriais, recarregar } = useBranding();
+
+  return (
     <div className="w-full">
       {/* Header da aba */}
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-white font-['Barlow_Condensed'] text-2xl uppercase font-600">
-          Branding / Logo
+          Branding / Logos
         </h2>
       </div>
 
       <p className="text-white/40 text-sm font-['DM_Sans'] mb-8 max-w-2xl leading-relaxed">
-        A logo cadastrada aqui substitui automaticamente o selo dourado na página inicial
-        (Gateway), nos cabeçalhos e nos rodapés do site. Enquanto nenhuma logo for enviada,
-        o site continua exibindo o selo padrão.
+        Cadastre a logo de cada frente de negócio. Cada logo substitui automaticamente o selo
+        dourado no Gateway, nos cabeçalhos e nos rodapés da respectiva frente. Enquanto uma
+        frente não tiver logo, o site continua exibindo o selo padrão para ela.
       </p>
 
       <div className="grid lg:grid-cols-2 gap-6">
-        {/* ===== Logo atual ===== */}
-        <div className="bg-[#111111] border border-white/10 rounded-sm p-6">
-          <h3 className="text-white/70 text-xs tracking-widest uppercase font-['DM_Sans'] mb-4">
-            Logo Atual
-          </h3>
-
-          <div className="h-52 rounded-sm border border-white/5 bg-[#0A0A0A] flex items-center justify-center p-6">
-            {urlLogo ? (
-              <img
-                src={urlLogo}
-                alt="Logo atual da Leão North"
-                className="max-h-full max-w-full object-contain"
-              />
-            ) : (
-              <div className="flex flex-col items-center gap-3 text-center">
-                {/* Ilustra o selo dourado que o site está usando como fallback */}
-                <div className="w-14 h-14 rounded-sm bg-[#F0B429] flex items-center justify-center">
-                  <span className="text-[#080808] font-['Barlow_Condensed'] font-800 text-2xl">LN</span>
-                </div>
-                <p className="text-white/40 text-xs font-['DM_Sans'] max-w-[240px]">
-                  {carregando
-                    ? "Carregando informações da logo..."
-                    : "Nenhuma logo cadastrada — o site está usando o selo padrão dourado."}
-                </p>
-              </div>
-            )}
-          </div>
-
-          <p className="text-white/30 text-xs font-['DM_Sans'] mt-4">
-            {branding.existe && urlLogo
-              ? `Arquivo: ${branding.logo} · versão (cache-busting): ${branding.versao}`
-              : "Nenhum arquivo em uploads/branding/logo.*"}
-          </p>
-        </div>
-
-        {/* ===== Enviar nova logo ===== */}
-        <div className="bg-[#111111] border border-white/10 rounded-sm p-6 flex flex-col">
-          <h3 className="text-white/70 text-xs tracking-widest uppercase font-['DM_Sans'] mb-4">
-            Enviar Nova Logo
-          </h3>
-
-          {/* Preview local da seleção */}
-          <div className="h-52 rounded-sm border border-dashed border-white/15 bg-[#0A0A0A] flex items-center justify-center p-6 mb-4">
-            {preview ? (
-              <img
-                src={preview}
-                alt="Pré-visualização da nova logo"
-                className="max-h-full max-w-full object-contain"
-              />
-            ) : (
-              <div className="flex flex-col items-center gap-3 text-center">
-                <ImageUp className="w-8 h-8 text-white/20" />
-                <p className="text-white/30 text-xs font-['DM_Sans']">
-                  Selecione um arquivo PNG, JPG ou WEBP (até 2 MB)
-                </p>
-              </div>
-            )}
-          </div>
-
-          <input
-            key={inputKey}
-            id="admin-branding-file"
-            type="file"
-            accept="image/png,image/jpeg,image/webp"
-            onChange={handleSelecionar}
-            className="block w-full text-white/60 text-sm font-['DM_Sans'] file:mr-4 file:py-2.5 file:px-4 file:rounded-sm file:border-0 file:bg-white/10 file:text-white file:font-['Barlow_Condensed'] file:uppercase file:tracking-wider hover:file:bg-white/20 file:cursor-pointer"
-          />
-
-          <p className="flex items-start gap-2 text-white/30 text-xs font-['DM_Sans'] mt-4 mb-6 leading-relaxed">
-            <Info className="w-4 h-4 shrink-0 mt-px" />
-            <span>
-              Recomendado: PNG com fundo transparente, no mínimo 512×512 px.
-              O envio sobrescreve a logo anterior (o site atualiza na hora, sem deploy).
-            </span>
-          </p>
-
-          <div className="mt-auto flex gap-3">
-            <button
-              type="button"
-              onClick={handleEnviar}
-              disabled={loading || !arquivo}
-              className={goldButtonClass}
-            >
-              {loading ? "Enviando..." : <><Upload className="w-4 h-4" /> Enviar Logo</>}
-            </button>
-            <button
-              type="button"
-              onClick={cancelarSelecao}
-              disabled={loading || !arquivo}
-              className={`${secondaryButtonClass} flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed`}
-            >
-              <X className="w-4 h-4" /> Cancelar
-            </button>
-          </div>
-        </div>
+        <BlocoLogo
+          frente="service"
+          logoInfo={branding.service}
+          urlLogo={urlLogoService}
+          carregando={carregando}
+          onAtualizado={recarregar}
+        />
+        <BlocoLogo
+          frente="materiais"
+          logoInfo={branding.materiais}
+          urlLogo={urlLogoMateriais}
+          carregando={carregando}
+          onAtualizado={recarregar}
+        />
       </div>
     </div>
   );
