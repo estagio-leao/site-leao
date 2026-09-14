@@ -3,8 +3,12 @@
  * Fase 20 — sem âncoras institucionais (Sobre/Serviços/Portfólio...): apenas
  * Logo, Redes Sociais e Direitos. Mantém o fundo escuro #060606 com dourado,
  * coerente com o restante do rodapé do site.
+ *
+ * FASE 33 — Branding: a logo oficial (api/branding.php, cache-busting ?v=)
+ * substitui o selo dourado; sem logo cadastrada o selo permanece (fallback).
  */
 import { Zap, Instagram, Facebook, Linkedin } from "lucide-react";
+import { useBranding } from "@/hooks/useBranding";
 
 const socialLinks = [
   { icon: Instagram, href: "#", label: "Instagram" },
@@ -13,6 +17,8 @@ const socialLinks = [
 ];
 
 export default function FooterMateriais() {
+  const { urlLogo } = useBranding(); // Fase 33 — logo oficial (null = selo padrão)
+
   return (
     <footer style={{ background: "#060606" }} className="relative">
       {/* Gold top border */}
@@ -22,9 +28,19 @@ export default function FooterMateriais() {
         <div className="flex flex-col md:flex-row items-center justify-between gap-8">
           {/* Logo / marca */}
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-sm bg-[#F0B429] flex items-center justify-center">
-              <Zap className="w-5 h-5 text-[#080808]" strokeWidth={2.5} />
-            </div>
+            {urlLogo ? (
+              <div className="h-9 px-1.5 rounded-sm bg-white flex items-center justify-center">
+                <img
+                  src={urlLogo}
+                  alt="Leão North Materiais Elétricos"
+                  className="h-full w-auto max-w-[140px] object-contain"
+                />
+              </div>
+            ) : (
+              <div className="w-9 h-9 rounded-sm bg-[#F0B429] flex items-center justify-center">
+                <Zap className="w-5 h-5 text-[#080808]" strokeWidth={2.5} />
+              </div>
+            )}
             <div className="flex flex-col leading-none">
               <span className="font-['Barlow_Condensed'] font-800 text-xl text-white tracking-wider uppercase">
                 Leão North

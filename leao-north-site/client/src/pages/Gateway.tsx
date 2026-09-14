@@ -2,11 +2,21 @@
  * LEÃO NORTH — Portal Gateway (Yin-Yang)
  * Split-screen: Service (escuro) à esquerda / Materiais (claro) à direita
  * Entrada animada (tw-animate-css) + hover com zoom e brilho dourado
+ *
+ * FASE 33 — Branding dinâmico:
+ *   - Os ícones Raio (Zap) e Caixa (Package) DÃO LUGAR à LOGO oficial cadastrada
+ *     no painel (aba Configurações → Branding / Logo), via api/branding.php.
+ *   - SEM logo cadastrada (ou API indisponível), o selo dourado original é mantido
+ *     como fallback — nenhuma função foi removida.
+ *   - Título do hemiciclo Service atualizado para "Instalações Elétricas" (Fase 33).
  */
 import { Link } from "wouter";
 import { Zap, Package } from "lucide-react";
+import { useBranding } from "@/hooks/useBranding";
 
 export default function Gateway() {
+  const { urlLogo } = useBranding();
+
   return (
     <div className="min-h-screen flex flex-col md:flex-row font-['DM_Sans']">
       {/* ===== LADO SERVICE (ESCURO) ===== */}
@@ -20,15 +30,22 @@ export default function Gateway() {
 
         {/* Conteúdo */}
         <div className="relative z-10 flex flex-col items-center gap-5 animate-in fade-in-0 slide-in-from-bottom-4 duration-700">
-          <div className="w-16 h-16 rounded-sm bg-[#F0B429] flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-            <Zap className="w-8 h-8 text-[#080808]" strokeWidth={2.5} />
-          </div>
+          {urlLogo ? (
+            /* Cartão branco: garante a leitura da logo sobre o fundo escuro */
+            <div className="h-20 w-20 rounded-sm bg-white p-2 flex items-center justify-center shadow-lg shadow-black/30 group-hover:scale-110 transition-transform duration-300">
+              <img src={urlLogo} alt="Leão North" className="h-full w-full object-contain" />
+            </div>
+          ) : (
+            <div className="w-16 h-16 rounded-sm bg-[#F0B429] flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+              <Zap className="w-8 h-8 text-[#080808]" strokeWidth={2.5} />
+            </div>
+          )}
           <span className="text-[#F0B429] text-xs tracking-[0.25em] uppercase font-medium">
             Leão North Service
           </span>
           <h1 className="font-['Barlow_Condensed'] font-800 text-4xl lg:text-6xl uppercase leading-tight">
-            Engenharia &<br />
-            Serviços
+            Instalações<br />
+            Elétricas
           </h1>
           <p className="text-white/60 text-sm lg:text-base max-w-xs">
             Instalações elétricas residenciais, comerciais e industriais com excelência técnica.
@@ -50,11 +67,17 @@ export default function Gateway() {
 
         {/* Conteúdo */}
         <div className="relative z-10 flex flex-col items-center gap-5 animate-in fade-in-0 slide-in-from-bottom-4 duration-700 delay-150">
-          <div className="w-16 h-16 rounded-sm bg-[#F0B429] flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-            <Package className="w-8 h-8 text-[#080808]" strokeWidth={2.5} />
-          </div>
+          {urlLogo ? (
+            <div className="h-20 w-20 rounded-sm bg-white p-2 flex items-center justify-center border border-slate-200 shadow-sm group-hover:scale-110 transition-transform duration-300">
+              <img src={urlLogo} alt="Leão North" className="h-full w-full object-contain" />
+            </div>
+          ) : (
+            <div className="w-16 h-16 rounded-sm bg-[#F0B429] flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+              <Package className="w-8 h-8 text-[#080808]" strokeWidth={2.5} />
+            </div>
+          )}
           <span className="text-[#B8860B] text-xs tracking-[0.25em] uppercase font-medium">
-            Leão North Materiais
+            Leão North Materiais Elétricos
           </span>
           <h1 className="font-['Barlow_Condensed'] font-800 text-4xl lg:text-6xl uppercase leading-tight">
             Materiais<br />

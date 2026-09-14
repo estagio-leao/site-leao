@@ -6,10 +6,16 @@
  *   - Busca Global central (Enter → /materiais?q=<termo>; termo vazio → /materiais)
  *   - "Catálogo" (→ /materiais) e "Contato" (link direto WhatsApp)
  * Identidade: tema claro da frente Materiais com dourado #F0B429/#B8860B.
+ *
+ * FASE 33 — Branding dinâmico: o selo dourado (ícone Zap) dá lugar à LOGO oficial
+ * (api/branding.php, cache-busting ?v=). Sem logo cadastrada, o selo permanece como
+ * fallback — nenhuma função foi removida. O nome exibido passa a ser exatamente
+ * "Leão North Materiais Elétricos".
  */
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useLocation } from "wouter";
 import { Zap, Search, X } from "lucide-react";
+import { useBranding } from "@/hooks/useBranding";
 
 const WHATSAPP_URL = "https://wa.me/5543999190467";
 
@@ -21,6 +27,7 @@ const WhatsAppIcon = () => (
 
 export default function HeaderMateriais() {
   const [, setLocation] = useLocation();
+  const { urlLogo } = useBranding(); // Fase 33 — logo oficial (null = usa o selo padrão)
   const [scrolled, setScrolled] = useState(false);
   const [termo, setTermo] = useState("");
   const [buscaMobileAberta, setBuscaMobileAberta] = useState(false);
@@ -75,19 +82,24 @@ export default function HeaderMateriais() {
       <div className="h-0.5 bg-gradient-to-r from-transparent via-[#F0B429] to-transparent" />
 
       <nav className="container mx-auto px-4 lg:px-8 flex items-center justify-between gap-4 h-16 lg:h-20">
-        {/* Logo → hub (/ = Gateway) */}
+        {/* Logo → hub (/ = Gateway). Fase 33: logo oficial ou selo dourado (fallback) */}
         <Link href="/" className="flex items-center gap-2.5 group shrink-0">
-          <div className="w-9 h-9 rounded-sm bg-[#F0B429] flex items-center justify-center group-hover:scale-105 transition-transform duration-200">
-            <Zap className="w-5 h-5 text-[#080808]" strokeWidth={2.5} />
-          </div>
-          <div className="flex flex-col leading-none">
-            <span className="font-['Barlow_Condensed'] font-800 text-xl tracking-wider uppercase text-slate-900">
-              Leão North
-            </span>
-            <span className="text-[10px] tracking-[0.15em] uppercase font-['DM_Sans'] font-medium text-[#B8860B]">
-              Materiais
-            </span>
-          </div>
+          {urlLogo ? (
+            <div className="h-9 px-1.5 rounded-sm flex items-center justify-center group-hover:scale-105 transition-transform duration-200">
+              <img
+                src={urlLogo}
+                alt="Leão North Materiais Elétricos"
+                className="h-full w-auto max-w-[140px] object-contain"
+              />
+            </div>
+          ) : (
+            <div className="w-9 h-9 rounded-sm bg-[#F0B429] flex items-center justify-center group-hover:scale-105 transition-transform duration-200">
+              <Zap className="w-5 h-5 text-[#080808]" strokeWidth={2.5} />
+            </div>
+          )}
+          <span className="font-['Barlow_Condensed'] font-800 text-[11px] sm:text-sm lg:text-base tracking-wide uppercase text-slate-900 whitespace-nowrap leading-none">
+            Leão North Materiais Elétricos
+          </span>
         </Link>
 
         {/* Busca Global — desktop (centro) */}

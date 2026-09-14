@@ -6,10 +6,16 @@
  * Prop "simple" (Fase 24): usado nas subpáginas do Service (/service/portfolio/:id,
  * /service/socio/:id). Esconde os links-âncora institucionais (que só existem na
  * landing), aponta a logo para "/service" e mantém apenas o CTA de WhatsApp.
+ *
+ * FASE 33 — Branding dinâmico: o selo dourado com o ícone Zap foi substituído pela
+ * LOGO oficial (api/branding.php, com cache-busting ?v=). Sem logo cadastrada, o
+ * selo original permanece como fallback — nenhuma função foi removida. O texto da
+ * marca passa a ser exatamente "Leão North Service".
  */
 import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import { Menu, X, Zap } from "lucide-react";
+import { useBranding } from "@/hooks/useBranding";
 
 type NavbarProps = {
   variant?: "dark" | "light";
@@ -33,6 +39,7 @@ export default function Navbar({ variant = "dark", simple = false }: NavbarProps
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const isLight = variant === "light";
+  const { urlLogo } = useBranding(); // Fase 33 — logo oficial (null = usa o selo padrão)
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 80);
@@ -75,33 +82,34 @@ export default function Navbar({ variant = "dark", simple = false }: NavbarProps
 
   // Logo: na landing (Service) volta para a RAIZ "/" (Gateway preto/branco);
   // em "simple" (subpáginas) navega para a landing /service.
-  const logoMarkup = simple ? (
-    <Link href="/service" className="flex items-center gap-2.5 group">
-      <div className="w-9 h-9 rounded-sm bg-[#F0B429] flex items-center justify-center group-hover:scale-105 transition-transform duration-200">
-        <Zap className="w-5 h-5 text-[#080808]" strokeWidth={2.5} />
-      </div>
-      <div className="flex flex-col leading-none">
-        <span className={`font-['Barlow_Condensed'] font-800 text-xl tracking-wider uppercase ${isLight ? "text-slate-900" : "text-white"}`}>
-          Leão North
-        </span>
-        <span className={`text-[10px] tracking-[0.15em] uppercase font-['DM_Sans'] font-medium ${isLight ? "text-[#B8860B]" : "text-[#F0B429]"}`}>
-          Service
-        </span>
-      </div>
-    </Link>
-  ) : (
-    <Link href="/" className="flex items-center gap-2.5 group">
-      <div className="w-9 h-9 rounded-sm bg-[#F0B429] flex items-center justify-center group-hover:scale-105 transition-transform duration-200">
-        <Zap className="w-5 h-5 text-[#080808]" strokeWidth={2.5} />
-      </div>
-      <div className="flex flex-col leading-none">
-        <span className={`font-['Barlow_Condensed'] font-800 text-xl tracking-wider uppercase ${isLight ? "text-slate-900" : "text-white"}`}>
-          Leão North
-        </span>
-        <span className={`text-[10px] tracking-[0.15em] uppercase font-['DM_Sans'] font-medium ${isLight ? "text-[#B8860B]" : "text-[#F0B429]"}`}>
-          Service
-        </span>
-      </div>
+  // Fase 33: logo oficial cadastrada no painel; SEM logo, mantém-se o selo dourado
+  // (Zap) como fallback. Texto exato: "Leão North Service".
+  const logoMarkup = (href: string) => (
+    <Link href={href} className="flex items-center gap-2.5 group shrink-0">
+      {urlLogo ? (
+        <div
+          className={`h-9 px-1.5 rounded-sm flex items-center justify-center group-hover:scale-105 transition-transform duration-200 ${
+            isLight ? "bg-white border border-slate-200" : "bg-white"
+          }`}
+        >
+          <img
+            src={urlLogo}
+            alt="Leão North Service"
+            className="h-full w-auto max-w-[140px] object-contain"
+          />
+        </div>
+      ) : (
+        <div className="w-9 h-9 rounded-sm bg-[#F0B429] flex items-center justify-center group-hover:scale-105 transition-transform duration-200">
+          <Zap className="w-5 h-5 text-[#080808]" strokeWidth={2.5} />
+        </div>
+      )}
+      <span
+        className={`font-['Barlow_Condensed'] font-800 text-lg sm:text-xl tracking-wider uppercase whitespace-nowrap ${
+          isLight ? "text-slate-900" : "text-white"
+        }`}
+      >
+        Leão North Service
+      </span>
     </Link>
   );
 
@@ -113,7 +121,7 @@ export default function Navbar({ variant = "dark", simple = false }: NavbarProps
       <div className="h-0.5 bg-gradient-to-r from-transparent via-[#F0B429] to-transparent" />
 
       <nav className="container mx-auto px-4 lg:px-8 flex items-center justify-between h-16 lg:h-20">
-        {logoMarkup}
+        {logoMarkup(simple ? "/service" : "/")}
 
         {/* Desktop Nav (somente fora do modo "simple") */}
         {!simple && (

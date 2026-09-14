@@ -27,8 +27,9 @@ $DB_PASS = "";
 $DEFAULT_META = array(
     "/"          => array("Leão North — Instalações Elétricas e Materiais",
                           "Instalações elétricas residenciais, comerciais e industriais e materiais elétricos em Cornélio Procópio - PR.", null),
+    // FASE 33 — copy: meta description de /service com nomenclatura legal padronizada
     "/service"   => array("Leão North Service — Instalações Elétricas",
-                          "Projetos e serviços de engenharia elétrica com qualidade e segurança em Cornélio Procópio - PR.", null),
+                          "Instalações elétricas residenciais, comerciais e industriais com qualidade e segurança em Cornélio Procópio - PR.", null),
     "/materiais" => array("Leão North Materiais — Materiais Elétricos",
                           "Catálogo de materiais elétricos: iluminação, quadros, disjuntores e muito mais.", null),
 );

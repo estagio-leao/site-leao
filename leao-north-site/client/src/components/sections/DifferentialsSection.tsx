@@ -9,7 +9,8 @@ const differentials = [
   {
     icon: Users,
     title: "Equipe Especializada",
-    description: "Engenheiro eletricista e técnicos em eletrotécnica com formação e experiência comprovadas.",
+    // FASE 33 — copy: equipe descrita como técnica (nomenclatura legal)
+    description: "Técnicos em eletrotécnica com formação e experiência comprovadas.",
     number: "01",
   },
   {

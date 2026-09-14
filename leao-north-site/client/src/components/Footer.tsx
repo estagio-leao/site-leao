@@ -1,8 +1,13 @@
 /*
  * LEÃO NORTH — Footer Component
  * Design: Dark footer with gold accents, quick links, social media
+ *
+ * FASE 33 — Branding: a logo oficial (api/branding.php, com cache-busting ?v=)
+ * substitui o selo dourado; sem logo cadastrada o selo permanece (fallback).
+ * Copy: subtítulo da marca padronizado para "Instalações Elétricas" (nomenclatura legal).
  */
 import { Zap, MapPin, Phone, Mail, Instagram, Facebook, Linkedin } from "lucide-react";
+import { useBranding } from "@/hooks/useBranding";
 
 const quickLinks = [
   { label: "Início", href: "#inicio" },
@@ -29,6 +34,8 @@ const socialLinks = [
 ];
 
 export default function Footer() {
+  const { urlLogo } = useBranding(); // Fase 33 — logo oficial (null = selo padrão)
+
   const handleNavClick = (href: string) => {
     const el = document.querySelector(href);
     if (el) el.scrollIntoView({ behavior: "smooth" });
@@ -45,15 +52,25 @@ export default function Footer() {
           {/* Brand Column */}
           <div className="flex flex-col gap-5 sm:col-span-2 lg:col-span-1">
             <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-sm bg-[#F0B429] flex items-center justify-center">
-                <Zap className="w-5 h-5 text-[#080808]" strokeWidth={2.5} />
-              </div>
+              {urlLogo ? (
+                <div className="h-9 px-1.5 rounded-sm bg-white flex items-center justify-center">
+                  <img
+                    src={urlLogo}
+                    alt="Leão North Service"
+                    className="h-full w-auto max-w-[140px] object-contain"
+                  />
+                </div>
+              ) : (
+                <div className="w-9 h-9 rounded-sm bg-[#F0B429] flex items-center justify-center">
+                  <Zap className="w-5 h-5 text-[#080808]" strokeWidth={2.5} />
+                </div>
+              )}
               <div className="flex flex-col leading-none">
                 <span className="font-['Barlow_Condensed'] font-800 text-xl text-white tracking-wider uppercase">
                   Leão North
                 </span>
                 <span className="text-[10px] text-[#F0B429] tracking-[0.15em] uppercase font-['DM_Sans'] font-medium">
-                  Engenharia Elétrica
+                  Instalações Elétricas
                 </span>
               </div>
             </div>
@@ -167,7 +184,7 @@ export default function Footer() {
             © {new Date().getFullYear()} Leão North — Todos os direitos reservados.
           </p>
           <p className="text-white/25 text-xs font-['DM_Sans'] text-center sm:text-right">
-            Engenharia Elétrica · Cornélio Procópio - PR
+            Instalações Elétricas · Cornélio Procópio - PR
           </p>
         </div>
       </div>

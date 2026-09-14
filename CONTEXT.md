@@ -127,11 +127,33 @@ A **Leão North** é uma empresa de engenharia elétrica com sede em **Cornélio
 >   `disabled` do select de Grupo por um **escudo (overlay)** + guarda de teclado que dispara
 >   `toast.warning("Selecione a categoria primeiro!")` quando não há Categoria selecionada.
 >   Planejamento: [`fase32_melhorias_materiais.md`](zoo_code_docs/fase32_melhorias_materiais.md).
+>
+> **Fase 33 (branding dinâmico e refinamento de copy):** a marca passa a ser **dinâmica**. O painel ganhou a aba
+> **Configurações → Branding / Logo**
+> ([`AdminBranding.tsx`](leao-north-site/client/src/pages/admin/geral/AdminBranding.tsx)), que envia a logo para
+> [`api/admin/upload_logo.php`](api/admin/upload_logo.php) (Bearer Token; PNG/JPG/WEBP até 2 MB, **SVG recusado de
+> propósito** por ser vetor de XSS armazenado; valida MIME real via `finfo` + `getimagesize` e grava com **nome
+> fixo**). Persistência em **arquivo canônico** `uploads/branding/logo.<ext>`, **sem tabela `configuracoes`** — o
+> `filemtime` do arquivo é a "versão". O endpoint público [`api/branding.php`](api/branding.php) devolve
+> `{existe, logo, versao}` e o frontend consome por
+> [`lib/branding.ts`](leao-north-site/client/src/lib/branding.ts) +
+> [`hooks/useBranding.ts`](leao-north-site/client/src/hooks/useBranding.ts) (fetch memoizado, **cache-busting `?v=`**),
+> com **fallback** para o selo dourado (`Zap`/`Package`) quando não há logo cadastrada — nenhuma função foi removida.
+> Passam a exibir a logo: [`Gateway.tsx`](leao-north-site/client/src/pages/Gateway.tsx) (título agora "Instalações
+> Elétricas"), [`Navbar.tsx`](leao-north-site/client/src/components/Navbar.tsx) ("Leão North Service", na landing e
+> nas subpáginas `simple`), [`HeaderMateriais.tsx`](leao-north-site/client/src/components/HeaderMateriais.tsx)
+> ("Leão North Materiais Elétricos"), [`Footer.tsx`](leao-north-site/client/src/components/Footer.tsx) e
+> [`FooterMateriais.tsx`](leao-north-site/client/src/components/FooterMateriais.tsx). **Copy (nomenclatura legal):**
+> removidos os termos de engenharia/engenheiro de `HeroSection`, `AboutSection`, `MissionSection`,
+> `DifferentialsSection`, `Footer`, [`client/index.html`](leao-north-site/client/index.html) e da meta de `/service`
+> em [`index.php`](index.php) (o registro equivalente em `servicos_categorias` foi corrigido no banco pelo cliente).
+> Planejamento: [`fase33_branding.md`](zoo_code_docs/fase33_branding.md).
 
 A experiência começa no **Portal Gateway** (split-screen), onde o visitante escolhe entre **Service**
 e **Materiais**. Há também o **Painel Administrativo** (`/admin`), que permite gerenciar
 **categorias**, **grupos** (com upload de capa), **produtos (criar, editar, excluir e duplicar)**,
-**serviços**, **projetos de portfólio** e **sócios**, mensagens e depoimentos.
+**serviços**, **projetos de portfólio** e **sócios**, mensagens, depoimentos e a **logo da marca**
+(aba *Configurações → Branding / Logo*, Fase 33).
 
 O site é um **SPA em React** que roda na pasta do **XAMPP** (`c:/xampp/htdocs/leaonorth`) e conversa
 com uma **API em PHP** servida pelo Apache do XAMPP, persistindo dados em **MySQL**.

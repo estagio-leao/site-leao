@@ -1,16 +1,16 @@
 /*
- * LEÃO NORTH — Painel Admin: Dashboard (Orquestrador) — Fase 26
+ * LEÃO NORTH — Painel Admin: Dashboard (Orquestrador) — Fase 26 / 33
  * Arquivo enxuto: checagem de token, Sidebar com setActiveTab e <main> que apenas
  * monta o componente da aba ativa. Todo o estado/CRUD vive nos componentes:
  *   - materiais/: AdminCategorias, AdminGrupos, AdminProdutos
  *   - service/:   AdminServicos, AdminPortfolio, AdminSocios
- *   - geral/:     AdminDepoimentos, AdminMensagens
+ *   - geral/:     AdminDepoimentos, AdminMensagens, AdminBranding (Fase 33)
  */
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import {
   LogOut, Mail, Star, FolderOpen, Package,
-  Image as ImageIcon, Tag, Wrench, Users,
+  Image as ImageIcon, Tag, Wrench, Users, Settings,
 } from "lucide-react";
 import { adminFetch } from "@/lib/adminFetch";
 
@@ -22,6 +22,7 @@ import AdminPortfolio from "./service/AdminPortfolio";
 import AdminSocios from "./service/AdminSocios";
 import AdminDepoimentos from "./geral/AdminDepoimentos";
 import AdminMensagens from "./geral/AdminMensagens";
+import AdminBranding from "./geral/AdminBranding"; // Fase 33 — Branding / Logo
 
 // Classe dos itens do menu lateral (Fase 16)
 const sidebarItemClass = (tab: string, activeTab: string) =>
@@ -100,6 +101,12 @@ export default function Dashboard() {
           <button onClick={() => setActiveTab("mensagens")} className={sidebarItemClass("mensagens", activeTab)}>
             <Mail className="w-5 h-5" /> Mensagens
           </button>
+
+          {/* CONFIGURAÇÕES (Fase 33) */}
+          {sidebarSectionLabel("Configurações")}
+          <button onClick={() => setActiveTab("branding")} className={sidebarItemClass("branding", activeTab)}>
+            <Settings className="w-5 h-5" /> Branding / Logo
+          </button>
         </nav>
         <div className="p-4 border-t border-white/5">
           <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-3 text-red-400 hover:bg-red-400/10 rounded-sm transition-colors">
@@ -118,6 +125,7 @@ export default function Dashboard() {
         {activeTab === "socios"      && <AdminSocios />}
         {activeTab === "depoimentos" && <AdminDepoimentos />}
         {activeTab === "mensagens"   && <AdminMensagens />}
+        {activeTab === "branding"    && <AdminBranding />}
       </main>
     </div>
   );

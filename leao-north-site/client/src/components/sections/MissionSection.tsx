@@ -15,7 +15,8 @@ const cards = [
   {
     icon: Eye,
     title: "Visão",
-    text: "Ser referência regional em instalações elétricas e engenharia elétrica, reconhecida pela qualidade dos serviços, pela inovação e pela confiança que transmitimos a cada projeto.",
+    // FASE 33 — copy: atuação descrita como instalações prediais, comerciais e industriais
+    text: "Ser referência regional em instalações elétricas prediais, comerciais e industriais, reconhecida pela qualidade dos serviços, pela inovação e pela confiança que transmitimos a cada projeto.",
     accent: "#F0B429",
   },
   {

@@ -7,8 +7,9 @@ import { CheckCircle2, Award, Users, ShieldCheck } from "lucide-react";
 
 const ABOUT_IMG = "https://images.unsplash.com/photo-1621905251189-08b45d6a269e?auto=format&fit=crop&q=80&w=800";
 
+// FASE 33 — copy: equipe descrita como técnica (nomenclatura legal)
 const highlights = [
-  { icon: Award, text: "Engenheiro eletricista responsável técnico" },
+  { icon: Award, text: "Responsável técnico habilitado" },
   { icon: Users, text: "Técnicos em eletrotécnica especializados" },
   { icon: ShieldCheck, text: "Conformidade com NR-10 e normas ABNT" },
   { icon: CheckCircle2, text: "Projetos residenciais, comerciais e industriais" },
@@ -64,7 +65,7 @@ export default function AboutSection() {
               <div className="relative overflow-hidden rounded-sm">
                 <img
                   src={ABOUT_IMG}
-                  alt="Equipe de engenharia elétrica da Leão North"
+                  alt="Equipe de instalações elétricas da Leão North"
                   className="w-full h-[420px] lg:h-[500px] object-cover"
                   loading="lazy"
                 />
@@ -97,9 +98,9 @@ export default function AboutSection() {
               style={{ opacity: 0, transform: "translateY(24px)", transition: "all 0.6s cubic-bezier(0.23,1,0.32,1)" }}
             >
               Excelência em{" "}
-              <span className="text-gold-gradient">Engenharia</span>
+              <span className="text-gold-gradient">Instalações</span>
               <br />
-              Elétrica
+              Elétricas
             </h2>
 
             <p
@@ -116,9 +117,8 @@ export default function AboutSection() {
               className="reveal text-white/60 text-base font-['DM_Sans'] leading-relaxed"
               style={{ opacity: 0, transform: "translateY(24px)", transition: "all 0.6s cubic-bezier(0.23,1,0.32,1)" }}
             >
-              Nossa equipe é composta por <strong className="text-white font-medium">engenheiro eletricista</strong> e{" "}
-              <strong className="text-white font-medium">técnicos em eletrotécnica</strong> especializados, prontos
-              para atender projetos de qualquer porte com máxima competência técnica.
+              Nossa equipe é composta por <strong className="text-white font-medium">técnicos em eletrotécnica</strong>{" "}
+              especializados, prontos para atender projetos de qualquer porte com máxima competência técnica.
             </p>
 
             {/* Highlights */}

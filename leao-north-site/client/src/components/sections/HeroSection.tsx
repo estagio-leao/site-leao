@@ -63,8 +63,9 @@ export default function HeroSection() {
               className="inline-flex items-center gap-2 w-fit px-4 py-1.5 rounded-sm border border-[#F0B429]/30 bg-[#F0B429]/5"
             >
               <span className="w-1.5 h-1.5 rounded-full bg-[#F0B429] animate-pulse" />
+              {/* FASE 33 — copy: nomenclatura legal (instalações elétricas) */}
               <span className="text-[#F0B429] text-xs font-['DM_Sans'] font-medium tracking-[0.15em] uppercase">
-                Engenharia Elétrica Especializada
+                Instalações Elétricas Especializadas
               </span>
             </div>
 
@@ -90,7 +91,7 @@ export default function HeroSection() {
               className="text-white/60 text-base lg:text-lg font-['DM_Sans'] leading-relaxed max-w-lg"
             >
               A Leão North oferece soluções elétricas inovadoras para projetos residenciais,
-              comerciais e industriais — com engenheiro eletricista e técnicos especializados.
+              comerciais e industriais — com técnicos em eletrotécnica especializados.
             </p>
 
             {/* CTA Buttons */}
@@ -153,7 +154,7 @@ export default function HeroSection() {
             <div className="relative overflow-hidden rounded-sm" style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}>
               <img
                 src={HERO_IMG}
-                alt="Engenheiro elétrico trabalhando em painel de controle"
+                alt="Técnico em eletrotécnica trabalhando em painel de controle"
                 className="w-full h-[560px] object-cover"
                 loading="eager"
               />
@@ -169,7 +170,7 @@ export default function HeroSection() {
               </div>
               <div>
                 <p className="text-white font-['Barlow_Condensed'] font-600 text-sm uppercase tracking-wide">
-                  Engenheiro Eletricista
+                  Técnicos em Eletrotécnica
                 </p>
                 <p className="text-white/50 text-xs font-['DM_Sans']">
                   Equipe qualificada e certificada
