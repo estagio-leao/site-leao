@@ -22,12 +22,15 @@ type NavbarProps = {
   simple?: boolean;
 };
 
+// FASE 37 — "Sócios" foi movido para ANTES de "Portfólio" (mesma ordem aplicada às
+// seções da landing em Service.tsx). As âncoras seguem idênticas (#socios/#portfolio),
+// então o scroll suave e o roteamento por âncora continuam funcionando igual.
 const navLinks = [
   { label: "Início", href: "#inicio" },
   { label: "Sobre", href: "#sobre" },
   { label: "Serviços", href: "#servicos" },
-  { label: "Portfólio", href: "#portfolio" },
   { label: "Sócios", href: "#socios" },
+  { label: "Portfólio", href: "#portfolio" },
   { label: "Depoimentos", href: "#depoimentos" },
   // Fase 31 — Link renomeado de "Contato" para "Orçamento" (href preservado, âncora #contato intacta)
   { label: "Orçamento", href: "#contato" },

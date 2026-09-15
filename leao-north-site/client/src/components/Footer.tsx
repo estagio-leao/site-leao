@@ -39,10 +39,15 @@ const BASE = "http://localhost/leaonorth";
 /** Landing que contém todas as seções-âncora institucionais */
 const LANDING_SERVICE = "/service";
 
+// FASE 37 — ordem alinhada ao novo fluxo da landing: "Sócios" entra ANTES de
+// "Portfólio" (mesma ordem do menu do Navbar). As âncoras NÃO mudaram — as seções
+// mantêm os ids #socios e #portfolio — então nenhum link rápido quebra; a rolagem
+// inteligente da Fase 35 (lib/anchorScroll.ts) continua valendo para todos eles.
 const quickLinks = [
   { label: "Início", href: "#inicio" },
   { label: "Sobre Nós", href: "#sobre" },
   { label: "Serviços", href: "#servicos" },
+  { label: "Sócios", href: "#socios" },
   { label: "Portfólio", href: "#portfolio" },
   { label: "Depoimentos", href: "#depoimentos" },
   { label: "Orçamento", href: "#contato" },

@@ -2,11 +2,22 @@
  * LEÃO NORTH — Hero Section
  * Design: Asymmetric layout, dark background, gold accents
  * Left: headline + CTAs | Right: premium electrical image with diagonal clip
+ *
+ * FASE 37 — "Avaliação Google" dinâmica: o stat deixou de ser o número fixo "4.2★" e
+ * passou a exibir a MÉDIA REAL dos depoimentos (mediaGlobal / totalGlobal) vinda da
+ * MESMA fonte usada pela seção de depoimentos (api/depoimentos.php via
+ * lib/depoimentos). Quando o admin altera as estrelas no painel, o valor muda aqui e
+ * lá igualmente. Enquanto a API carrega, mantém o visual atual (sem "piscar").
  */
 import { useEffect, useRef } from "react";
 import { ArrowRight, Phone, ChevronDown } from "lucide-react";
+// FASE 37 — métricas reais dos depoimentos (mesma fonte da seção Testimonials)
+import { formatarMedia, useDepoimentos } from "@/lib/depoimentos";
 
 const HERO_IMG = "https://images.unsplash.com/photo-1581092160562-40aa08e78837?auto=format&fit=crop&q=80&w=2000";
+
+/** FASE 37 — valor exibido somente ENQUANTO a API de depoimentos carrega (visual atual do Hero). */
+const AVALIACAO_FALLBACK = "4.2★";
 
 export default function HeroSection() {
   const heroRef = useRef<HTMLElement>(null);
@@ -26,6 +37,23 @@ export default function HeroSection() {
   const scrollToSection = (id: string) => {
     document.querySelector(id)?.scrollIntoView({ behavior: "smooth" });
   };
+
+  // FASE 37 — o stat "Avaliação Google" deixa de ser fixo e passa a refletir a MÉDIA
+  // REAL dos depoimentos (mesma chamada que alimenta a seção abaixo). Regras:
+  //  • carregando → mantém o "4.2★" atual (evita piscar um traço na abertura);
+  //  • carregado   → usa `formatarMedia()` (pt-BR, 1 casa: "4,8★") com o MESMO critério
+  //                  da seção de depoimentos — inclusive exibindo "—★" se não houver
+  //                  nenhuma avaliação cadastrada (totalGlobal = 0).
+  const { metricas, carregando } = useDepoimentos();
+  const avaliacaoGoogle = carregando
+    ? AVALIACAO_FALLBACK
+    : `${formatarMedia(metricas.mediaGlobal, metricas.totalGlobal)}★`;
+
+  const stats = [
+    { value: "100+", label: "Projetos Realizados" },
+    { value: avaliacaoGoogle, label: "Avaliação Google" },
+    { value: "NR-10", label: "Conformidade Total" },
+  ];
 
   return (
     <section
@@ -125,11 +153,7 @@ export default function HeroSection() {
               style={{ opacity: 0, transform: "translateY(20px)", transition: "all 0.6s cubic-bezier(0.23,1,0.32,1)" }}
               className="flex gap-8 pt-4 border-t border-white/10"
             >
-              {[
-                { value: "100+", label: "Projetos Realizados" },
-                { value: "4.2★", label: "Avaliação Google" },
-                { value: "NR-10", label: "Conformidade Total" },
-              ].map((stat) => (
+              {stats.map((stat) => (
                 <div key={stat.label} className="flex flex-col gap-0.5">
                   <span className="font-['Barlow_Condensed'] font-700 text-2xl text-[#F0B429]">
                     {stat.value}
