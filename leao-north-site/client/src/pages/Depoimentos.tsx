@@ -3,15 +3,19 @@
  * Rota: /service/depoimentos
  * Lista TODOS os depoimentos com visivel = 1 (api/depoimentos.php default) em
  * um grid escuro, com estrelas, média geral e CTA de contato/orçamento.
+ *
+ * FASE 35 — o grid continua listando apenas os VISÍVEIS, mas o badge de métricas
+ * exibe totalGlobal/mediaGlobal (TODOS os depoimentos, inclusive ocultos e com
+ * 0 estrela) e o CTA final passa a navegar pelo router, com rolagem suave até
+ * #contato depois que a landing monta (sem reload completo).
  */
-import { useEffect, useState } from "react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { ArrowLeft, Star, Quote, ChevronRight } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import WhatsAppButton from "@/components/WhatsAppButton";
-
-const BASE = "http://localhost/leaonorth";
+import { formatarMedia, rotuloAvaliacoes, useDepoimentos } from "@/lib/depoimentos";
+import { navegarParaAncoraService } from "@/lib/anchorScroll";
 
 function StarRating({ rating }: { rating: number }) {
   return (
@@ -27,23 +31,12 @@ function StarRating({ rating }: { rating: number }) {
 }
 
 export default function Depoimentos() {
-  const [depoimentos, setDepoimentos] = useState<any[]>([]);
-  const [carregando, setCarregando] = useState(true);
+  // Fase 35 — lista = somente visíveis (grid/estado vazio);
+  //           métricas = GLOBAIS (todos os depoimentos cadastrados).
+  const { depoimentos, metricas, carregando } = useDepoimentos(false);
+  const [, navigate] = useLocation();
 
-  useEffect(() => {
-    fetch(`${BASE}/api/depoimentos.php`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (Array.isArray(data)) setDepoimentos(data);
-      })
-      .catch((error) => console.error("Erro ao buscar depoimentos:", error))
-      .finally(() => setCarregando(false));
-  }, []);
-
-  const total = depoimentos.length;
-  const media = total > 0
-    ? (depoimentos.reduce((acc, curr) => acc + Number(curr.estrelas || 0), 0) / total).toFixed(1).replace(".", ",")
-    : "—";
+  const media = formatarMedia(metricas.mediaGlobal, metricas.totalGlobal);
 
   const pageClass = "min-h-screen bg-[#080808] text-white font-['DM_Sans']";
 
@@ -76,12 +69,14 @@ export default function Depoimentos() {
             Histórias reais de quem confiou na Leão North para seus projetos elétricos.
           </p>
 
-          {total > 0 && (
+          {/* Fase 35 (D2) — o badge só aparece com lista de visíveis não vazia,
+              mas os NÚMEROS exibidos são os globais (todos os depoimentos). */}
+          {depoimentos.length > 0 && (
             <div className="inline-flex items-center gap-4 mt-8 px-6 py-4 rounded-sm border border-[#F0B429]/20 bg-[#F0B429]/5">
               <span className="font-['Barlow_Condensed'] font-800 text-5xl text-[#F0B429] leading-none">{media}</span>
               <div className="text-left">
-                <StarRating rating={Math.round(parseFloat(media.replace(",", ".")))} />
-                <p className="text-white/40 text-xs font-['DM_Sans'] mt-1">Média de {total} avaliação{total > 1 ? "ões" : ""}</p>
+                <StarRating rating={Math.round(metricas.mediaGlobal)} />
+                <p className="text-white/40 text-xs font-['DM_Sans'] mt-1">Média de {rotuloAvaliacoes(metricas.totalGlobal)}</p>
               </div>
             </div>
           )}
@@ -90,7 +85,7 @@ export default function Depoimentos() {
         {/* Grid de depoimentos visíveis */}
         {carregando ? (
           <p className="text-center text-white/50 py-20">Carregando depoimentos...</p>
-        ) : total === 0 ? (
+        ) : depoimentos.length === 0 ? (
           <div className="text-center text-white/40 py-20 border border-dashed border-white/10 rounded-sm">
             Ainda não há depoimentos publicados.
           </div>
@@ -129,6 +124,11 @@ export default function Depoimentos() {
           </p>
           <a
             href="/service#contato"
+            onClick={(e) => {
+              // Fase 35 — navega pelo router e rola assim que a landing montar
+              e.preventDefault();
+              navegarParaAncoraService("#contato", navigate);
+            }}
             className="inline-flex items-center gap-2 px-8 py-4 bg-[#F0B429] text-[#080808] font-['Barlow_Condensed'] font-700 text-lg uppercase tracking-wider rounded-sm hover:bg-[#FFD060] transition-colors"
           >
             Solicitar um Orçamento <ChevronRight className="w-5 h-5" />

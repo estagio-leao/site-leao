@@ -277,7 +277,7 @@ leaonorth/                          ← raiz do workspace (document root do site
 ├── api/                            ← BACKEND PHP (usado de verdade pelo frontend)
 │   ├── contato.php                 ← POST: salva contato/orçamento + tipo_mensagem + e-mail
 │   ├── portfolio.php               ← GET: lista projetos do portfólio — LEGADO (sem uso desde a Fase 24)
-│   ├── depoimentos.php             ← GET: depoimentos (curadoria: default visivel=1; filtro ?destaque=1 — o ?admin=1 foi REMOVIDO na Fase 29)
+│   ├── depoimentos.php             ← GET: depoimentos (curadoria: default visivel=1; filtro ?destaque=1 — o ?admin=1 foi REMOVIDO na Fase 29). FASE 35: resposta em OBJETO {depoimentos, total, totalGlobal, mediaGlobal}
 │   ├── categorias.php              ← GET: lista categorias (relacional v2.0)
 │   ├── grupos.php                  ← GET: lista grupos (com categoria_nome, capa e total de produtos)
 │   ├── produtos.php                ← GET: lista produtos (LEFT JOIN categoria/grupo + imagens[]/informacoes[])
@@ -355,7 +355,7 @@ leaonorth/                          ← raiz do workspace (document root do site
     │       │   ├── HeaderMateriais.tsx ← header EXCLUSIVO da frente Materiais
     │       │   ├── FooterMateriais.tsx ← rodapé enxuto da frente Materiais
     │       │   ├── Navbar.tsx      ← navbar institucional fixa; prop variant="dark" | "light" e simple (Fase 24)
-    │       │   ├── Footer.tsx      ← rodapé escuro institucional (Service)
+    │       │   ├── Footer.tsx      ← FASE 35: rodapé institucional (Service) com Serviços dinâmicos, WhatsApp (sem LinkedIn) e âncoras inteligentes
     │       │   ├── WhatsAppButton.tsx ← botão flutuante do WhatsApp
     │       │   ├── ErrorBoundary.tsx ← captura erros de renderização
     │       │   ├── ProdutoCard.tsx ← card de produto compartilhado
@@ -424,7 +424,7 @@ leaonorth/                          ← raiz do workspace (document root do site
 | --- | --- | --- | --- |
 | [`api/contato.php`](api/contato.php) | POST | Valida `name`, `phone`, `message`; insere em `contatos` **incluindo `tipo_mensagem`** (whitelist `service`/`materiais`/`socio`, default `service`); tenta enviar e-mail com a origem | `200/400/500/503` + `mensagem` |
 | [`api/portfolio.php`](api/portfolio.php) | GET | `SELECT id, img, title, category, size FROM portfolio ORDER BY id DESC` — **LEGADO** (sem uso desde a Fase 24) | array JSON |
-| [`api/depoimentos.php`](api/depoimentos.php) | GET | Lista `depoimentos` (inclui `visivel`/`destaque`); **default `WHERE visivel = 1`**; `?destaque=1` → só `visivel=1 AND destaque=1` (Home); `?admin=1` → todas (painel) | array JSON |
+| [`api/depoimentos.php`](api/depoimentos.php) | GET | Lista `depoimentos` (inclui `visivel`/`destaque`); **default `WHERE visivel = 1`**; `?destaque=1` → só `visivel=1 AND destaque=1` (Home). **FASE 35:** a resposta virou **objeto** com métricas globais — `{ depoimentos[], total, totalGlobal, mediaGlobal }` — em que `totalGlobal`/`mediaGlobal` saem de uma **2ª query sem `WHERE`** (`COUNT(*)` + `AVG(COALESCE(estrelas,0))`) que **não projeta** `nome`/`texto` dos ocultos; `?admin=1` segue removido (Fase 29) | objeto JSON |
 | [`api/categorias.php`](api/categorias.php) | GET | Lista `categorias` (`id, nome ORDER BY nome`) — usada pela vitrine e pelo painel | array JSON |
 | [`api/grupos.php`](api/grupos.php) | GET | Lista `grupos` com `categoria_id`/`categoria_nome` (JOIN), `caminho_imagem_capa` e `total_produtos` (COUNT); filtro opcional `?categoria_id=` | array JSON |
 | [`api/produtos.php`](api/produtos.php) | GET | Lista produtos com **`LEFT JOIN`** de `categorias`/`grupos` (expondo `categoria_id`/`categoria_nome`/`grupo_id`/`grupo_nome`/`grupo_capa`), `descricao` e **arrays aninhados** `imagens[]`/`informacoes[]` (3 queries com `IN (ids)`, sem N+1); filtros `?categoria_id=`/`?grupo_id=` | array JSON |
@@ -525,7 +525,7 @@ leaonorth/                          ← raiz do workspace (document root do site
 | [`Service.tsx`](leao-north-site/client/src/pages/Service.tsx) | **Leão North Service:** compõe `Navbar` → Hero → About → Mission → **Services (dinâmico)** → **Portfolio (dinâmico, cards com mini-carrossel)** → Differentials → **Sócios (dinâmico)** → Testimonials → Contact → Footer → WhatsAppButton. Fundo `#080808`. |
 | [`PortfolioDetalhes.tsx`](leao-north-site/client/src/pages/PortfolioDetalhes.tsx) | **Detalhes do projeto** (`/service/portfolio/:id`, Fase 24): tema escuro, galeria (capa no índice 0, setas, miniaturas, **zoom/lupa** no desktop — padrão `ProdutoDetalhes`), badge de categoria, Título/Subtítulo/Descrição e CTA WhatsApp. Usa `Navbar simple` + `Footer`. |
 | [`SocioDetalhes.tsx`](leao-north-site/client/src/pages/SocioDetalhes.tsx) | **Detalhes do sócio** (`/service/socio/:id`, Fase 24): foto ampliada (aspect 3/4), Nome, Subtítulo, Descrição completa (fallback) e CTA WhatsApp. Usa `Navbar simple` + `Footer`. |
-| [`Depoimentos.tsx`](leao-north-site/client/src/pages/Depoimentos.tsx) | **Depoimentos completos** (`/service/depoimentos`, Fase 27): lista todos os depoimentos com `visivel=1` em grid escuro (estrelas, média e CTA de orçamento). Usa `Navbar simple` + `Footer` + `WhatsAppButton`. |
+| [`Depoimentos.tsx`](leao-north-site/client/src/pages/Depoimentos.tsx) | **Depoimentos completos** (`/service/depoimentos`, Fase 27): lista todos os depoimentos com `visivel=1` em grid escuro (estrelas, média e CTA de orçamento). Usa `Navbar simple` + `Footer` + `WhatsAppButton`. **Fase 35:** o badge exibe **métricas globais** (`totalGlobal`/`mediaGlobal`, de todos os depoimentos — inclusive ocultos e com 0 estrela) enquanto o grid continua listando só os visíveis; o CTA de orçamento navega pelo router (`navegarParaAncoraService`) em vez de `<a href="/service#contato">` com reload. |
 | [`Materiais.tsx`](leao-north-site/client/src/pages/Materiais.tsx) | **Leão North Materiais (tema claro) — vitrine agrupada + UX de conversão:** consome `api/produtos.php`, separa cards de grupo e individuais; Header/Footer exclusivos; sidebar de categorias; ordenação; breadcrumbs; estado vazio com CTA WhatsApp. **Fase 32:** card de grupo com **exatamente 1 produto** exibe **"Ver Opção"** e navega **direto** para `/materiais/:id`; com **0 ou >1** mantém **"Ver Opções"** → `/materiais/grupo/:id` (badge/descrição flexionam no singular). |
 | [`GrupoVariacoes.tsx`](leao-north-site/client/src/pages/GrupoVariacoes.tsx) | **Variações de um grupo** (`/materiais/grupo/:id`). |
 | [`ProdutoDetalhes.tsx`](leao-north-site/client/src/pages/ProdutoDetalhes.tsx) | **Detalhes do produto** (`/materiais/:id`): galeria com zoom "lupa", descrição, informações e CTA "Tenho Interesse". |
@@ -542,7 +542,7 @@ leaonorth/                          ← raiz do workspace (document root do site
 | [`PortfolioSection.tsx`](leao-north-site/client/src/components/sections/PortfolioSection.tsx) | **Dinâmico (Fase 24):** consome `api/service/portfolio.php`; **cards de projeto com mini-carrossel** (setas ‹ › + contador); clique navega a `/service/portfolio/:id` |
 | [`DifferentialsSection.tsx`](leao-north-site/client/src/components/sections/DifferentialsSection.tsx) | Lista vertical numerada (01–05) de diferenciais |
 | [`SociosSection.tsx`](leao-north-site/client/src/components/sections/SociosSection.tsx) | **Dinâmico (Fase 24/27):** consome `api/service/socios.php` (inclui `whatsapp`); cards (foto/nome/subtítulo) clicáveis → `/service/socio/:id`; form "Falar com sócio" (`tipo_mensagem: socio`). **Fase 27:** no `onSuccess` abre o `wa.me` do sócio (`socios.whatsapp`, fallback p/ número da empresa). Grid `sm:grid-cols-2 lg:grid-cols-4` |
-| [`TestimonialsSection.tsx`](leao-north-site/client/src/components/sections/TestimonialsSection.tsx) | **Fase 27 (curadoria):** busca `api/depoimentos.php?destaque=1`; mostra até **6 destaques** + 7ª célula como card-botão **"Ver mais depoimentos"** (`/service/depoimentos`); calcula média dos destaques; se vazio, fica oculta |
+| [`TestimonialsSection.tsx`](leao-north-site/client/src/components/sections/TestimonialsSection.tsx) | **Fase 27 (curadoria):** busca `api/depoimentos.php?destaque=1`; mostra até **6 destaques** + 7ª célula como card-botão **"Ver mais depoimentos"** (`/service/depoimentos`); se não houver destaques, fica oculta. **Fase 35:** a lista continua sendo a curadoria, mas o banner Google exibe **métricas globais** (`mediaGlobal` + rótulo "Média de N avaliações", ambos de TODOS os depoimentos cadastrados) |
 | [`ContactSection.tsx`](leao-north-site/client/src/components/sections/ContactSection.tsx) | Info de contato, CTA WhatsApp, formulário de orçamento (`POST api/contato.php`) e mapa. **Fase 27:** iframe com **embed genérico** (`maps.google.com/maps?q=<endereço>&output=embed`, sem API key). **Fase 31:** `select` "Tipo de Serviço" **dinâmico** (`api/service/categorias.php`, ordem **A–Z pt-BR**, `value` = título do serviço; fallback local `SERVICOS_FALLBACK`) — o `POST` **não** mudou |
 
 > **Padrão comum nas seções dinâmicas:** cada seção usa `IntersectionObserver` para aplicar `.reveal`
@@ -558,7 +558,13 @@ leaonorth/                          ← raiz do workspace (document root do site
   `PortfolioDetalhes`/`SocioDetalhes`.
   **Fase 31:** o item de menu exibido como **CONTATO** passou a **ORÇAMENTO** (o `href: "#contato"`
   e a rolagem suave foram preservados; os CTAs "Fale Conosco" não mudaram).
-- [`Footer.tsx`](leao-north-site/client/src/components/Footer.tsx) — rodapé escuro institucional.
+- [`Footer.tsx`](leao-north-site/client/src/components/Footer.tsx) — rodapé escuro institucional. **Fase 35:**
+  a coluna "Serviços" é **dinâmica** ([`api/service/categorias.php`](api/service/categorias.php), ordem por `id`,
+  com fallback local que mantém a coluna preenchida), o **LinkedIn saiu** e entrou o **WhatsApp** do escritório
+  (`wa.me/5543999190467`, ícone SVG local, pois o lucide-react não tem a marca do WhatsApp — usa `currentColor`
+  para herdar o hover dourado) e os links-âncora usam
+  [`lib/anchorScroll.ts`](leao-north-site/client/src/lib/anchorScroll.ts): na landing rolam suave; em subpáginas
+  navegam pelo wouter para `/service#âncora` e rolam após o mount (retry por `requestAnimationFrame` + 2ª passada).
 - [`WhatsAppButton.tsx`](leao-north-site/client/src/components/WhatsAppButton.tsx) — botão flutuante.
 - [`HeaderMateriais.tsx`](leao-north-site/client/src/components/HeaderMateriais.tsx) e
   [`FooterMateriais.tsx`](leao-north-site/client/src/components/FooterMateriais.tsx) — header/footer
@@ -617,7 +623,7 @@ Schema relacional da Versão 2.0 (Materiais — [`api/migracao_v2.sql`](api/migr
 | --- | --- | --- |
 | `contatos` | `id`, `nome`, `telefone`, `email`, `servico`, `mensagem`, **`tipo_mensagem`** (ENUM `service`/`materiais`/`socio`, default `service`), `data_envio` | `contato.php` (insert), `mensagens.php` (select) |
 | `portfolio` | `id`, `img`, `title`, `category`, `size` — **LEGADO (sem uso desde a Fase 24)** | (era `portfolio.php`/`upload.php`/`delete.php`) |
-| `depoimentos` | `id`, `nome`, `estrelas`, `texto`, **`visivel`** (TINYINT default 1), **`destaque`** (TINYINT default 0) — **Fase 27** | `depoimentos.php`, CRUD admin de depoimentos, `toggle_depoimento.php` |
+| `depoimentos` | `id`, `nome`, `estrelas`, `texto`, **`visivel`** (TINYINT default 1), **`destaque`** (TINYINT default 0) — **Fase 27** | `depoimentos.php` (Fase 35: `totalGlobal`/`mediaGlobal` agregam **todos** os registros, sem `WHERE`, inclusive `visivel=0` e `estrelas=0`), CRUD admin de depoimentos, `toggle_depoimento.php` |
 | `categorias` | `id`, `nome` (UNIQUE) | `categorias.php`, CRUD admin de categorias (Materiais) |
 | `grupos` | `id`, `nome`, `categoria_id` (FK → `categorias` `ON DELETE RESTRICT`), `caminho_imagem_capa` — UNIQUE `(categoria_id, nome)` | `grupos.php`, CRUD admin de grupos |
 | `produtos` | `id`, `nome`, `especificacao`, `descricao` (TEXT), `categoria_id` (FK → `categorias` `ON DELETE SET NULL`), `grupo_id` (FK → `grupos` `ON DELETE SET NULL`), `data_cadastro` | `produtos.php`, CRUD admin de produtos |
@@ -712,9 +718,10 @@ Schema relacional da Versão 2.0 (Materiais — [`api/migracao_v2.sql`](api/migr
     apresentação no banco; em Sócios existe a coluna `whatsapp`, Fase 27). Portfólio tem 1..N imagens
     com **1 capa** (`is_capa`), garantida no backend.
 11. **Zoom na página de detalhes:** funciona apenas em **desktop (hover)**; mobile usa pinça.
-12. **Documentação por fases:** planejamentos das Fases 1–33 em [`zoo_code_docs/`](zoo_code_docs/)
-    (`fase1_arquitetura.md` ... `fase33_branding.md`). Destaques recentes:
-    `fase31_orcamento_dinamico.md`, `fase32_melhorias_materiais.md` e `fase33_branding.md`.
+12. **Documentação por fases:** planejamentos das Fases 1–35 em [`zoo_code_docs/`](zoo_code_docs/)
+    (`fase1_arquitetura.md` ... `fase35_rodape_depoimentos.md`). Destaques recentes:
+    `fase31_orcamento_dinamico.md`, `fase32_melhorias_materiais.md`, `fase33_branding.md` e
+    `fase35_rodape_depoimentos.md` (rodapé dinâmico, âncoras em subpáginas e métricas globais).
 13. **Sem teste automatizado** no projeto (apenas `tsc --noEmit` via `pnpm check`).
 14. **Wouter v3 — query string fora do `useLocation`:** `useLocation` retorna **apenas o pathname**;
     a leitura de `?q=` (busca global) é feita com `window.location.search` (ver §10.13/`Materiais`).
@@ -766,3 +773,29 @@ Schema relacional da Versão 2.0 (Materiais — [`api/migracao_v2.sql`](api/migr
     eletrotécnica* em `HeroSection`, `AboutSection`, `MissionSection`, `DifferentialsSection`, `Footer`,
     `client/index.html` e na meta de `/service` do `index.php`; o texto equivalente em `servicos_categorias`
     (id 4) foi corrigido no banco (sem menção a ART).
+22. **Fase 35 (rodapé dinâmico, âncoras e métricas de depoimentos):** a coluna "Serviços" do rodapé lê
+    [`api/service/categorias.php`](api/service/categorias.php) (fallback local `SERVICOS_FALLBACK`; ordem por
+    `id`, **sem** reordenar A–Z como no formulário de orçamento); o LinkedIn foi trocado pelo **WhatsApp**
+    (`5543999190467`, ícone SVG local); as âncoras usam
+    [`lib/anchorScroll.ts`](leao-north-site/client/src/lib/anchorScroll.ts) — **na landing `/service` rola
+    suave, fora dela navega pelo wouter para `/service#âncora`** (o bug de clique "morto" afetava
+    `/service/depoimentos`, `/service/socio/:id` e `/service/portfolio/:id`).
+    **Depoimentos — contrato novo (⚠️ quebra de compatibilidade):** `api/depoimentos.php` responde o objeto
+    `{ depoimentos[], total, totalGlobal, mediaGlobal }`; o `parse` é **tolerante ao formato antigo (array)** em
+    [`lib/depoimentos.ts`](leao-north-site/client/src/lib/depoimentos.ts), que também expõe o hook
+    `useDepoimentos()` e os utilitários `formatarMedia()`/`rotuloAvaliacoes()`.
+    **Decisão de produto (D3):** `totalGlobal`/`mediaGlobal` incluem **todos** os registros — inclusive
+    `visivel=0` e `estrelas=0` —, portanto **ocultar um depoimento NÃO reduz o total e notas 0 derrubam a
+    média** (aprovado pelo cliente em 15/09/2026; **não é bug**). Os metadados vêm de uma query separada, só
+    numérica (`COUNT(*)` + `AVG(COALESCE(estrelas,0))`, sem `WHERE`), que **não projeta** `nome`/`texto` de
+    depoimento oculto. O painel **não** foi afetado (continua no endpoint privado
+    [`api/admin/depoimentos.php`](api/admin/depoimentos.php)). Planejamento:
+    [`fase35_rodape_depoimentos.md`](zoo_code_docs/fase35_rodape_depoimentos.md).
+    **Rodapé da frente Materiais** ([`FooterMateriais.tsx`](leao-north-site/client/src/components/FooterMateriais.tsx), ajuste pedido
+    pelo cliente depois do plano): o **LinkedIn saiu e entrou o WhatsApp** do escritório (mesmo padrão
+    visual, com `target="_blank"`) e a **logo exibida nesse rodapé é a da frente Service**
+    (`urlLogoService`, alt "Leão North Service") — **exceção à regra da Fase 33.1**; o
+    [`HeaderMateriais.tsx`](leao-north-site/client/src/components/HeaderMateriais.tsx) **continua com
+    `urlLogoMateriais`** e o texto "Leão North / Materiais" do rodapé não mudou.
+    O ícone de marca do WhatsApp virou componente compartilhado
+    ([`WhatsAppIcon.tsx`](leao-north-site/client/src/components/WhatsAppIcon.tsx)), usado pelos dois rodapés.

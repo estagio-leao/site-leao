@@ -12,7 +12,7 @@ const highlights = [
   { icon: Award, text: "Responsável técnico habilitado" },
   { icon: Users, text: "Técnicos em elétrica especializados" },
   { icon: ShieldCheck, text: "Conformidade com NRs e normas ABNT" },
-  { icon: CheckCircle2, text: "Serviços qualificados em todas as áreas" },
+  { icon: CheckCircle2, text: "Serviços qualificados em diversas áreas" },
 ];
 
 export default function AboutSection() {

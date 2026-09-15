@@ -2,9 +2,11 @@
  * LEÃO NORTH — Testimonials Section
  * Design: Dark cards, star ratings, Google rating highlight, DB Fetch Integration
  */
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { Link } from "wouter";
 import { Star, Quote, ChevronRight } from "lucide-react";
+// Fase 35 — leitura normalizada + formatação pt-BR das métricas globais
+import { formatarMedia, rotuloAvaliacoes, useDepoimentos } from "@/lib/depoimentos";
 
 function StarRating({ rating }: { rating: number }) {
   return (
@@ -21,25 +23,13 @@ function StarRating({ rating }: { rating: number }) {
 
 export default function TestimonialsSection() {
   const sectionRef = useRef<HTMLElement>(null);
-  const [testimonials, setTestimonials] = useState<any[]>([]);
-  const [averageRating, setAverageRating] = useState("5,0");
+
+  // Fase 27 — a LISTA continua sendo a curadoria (apenas destaques, ?destaque=1).
+  // Fase 35 — as MÉTRICAS (contagem e média) são GLOBAIS: vêm do backend já
+  // calculadas sobre TODOS os depoimentos, inclusive os ocultos e os de 0 estrela.
+  const { depoimentos: testimonials, metricas } = useDepoimentos(true);
 
   useEffect(() => {
-    // Fase 27 — Home busca apenas os depoimentos em DESTAQUE (curadoria)
-    fetch('http://localhost/leaonorth/api/depoimentos.php?destaque=1')
-      .then(response => response.json())
-      .then(data => {
-        if (Array.isArray(data)) {
-          setTestimonials(data);
-          if (data.length > 0) {
-            const sum = data.reduce((acc, curr) => acc + curr.estrelas, 0);
-            const avg = (sum / data.length).toFixed(1).replace(".", ",");
-            setAverageRating(avg);
-          }
-        }
-      })
-      .catch(error => console.error("Erro ao buscar depoimentos:", error));
-
     // O observador agora vai encontrar o elemento perfeitamente no htdocs
     const el = sectionRef.current;
     if (!el) return;
@@ -116,14 +106,19 @@ export default function TestimonialsSection() {
 
           <div className="flex flex-col items-center gap-2">
             <div className="flex items-center gap-3">
-              <span className="font-['Barlow_Condensed'] font-800 text-6xl text-[#F0B429] leading-none">{averageRating}</span>
+              {/* Fase 35 — média e contagem GLOBAIS (todos os depoimentos cadastrados) */}
+              <span className="font-['Barlow_Condensed'] font-800 text-6xl text-[#F0B429] leading-none">
+                {formatarMedia(metricas.mediaGlobal, metricas.totalGlobal)}
+              </span>
               <div className="flex flex-col gap-1">
                 <div className="flex gap-0.5">
                   {[1, 2, 3, 4, 5].map((s) => (
-                    <Star key={s} className={`w-5 h-5 ${s <= parseFloat(averageRating.replace(',','.')) ? "fill-[#F0B429] text-[#F0B429]" : "text-white/20"}`} />
+                    <Star key={s} className={`w-5 h-5 ${s <= Math.round(metricas.mediaGlobal) ? "fill-[#F0B429] text-[#F0B429]" : "text-white/20"}`} />
                   ))}
                 </div>
-                <span className="text-white/50 text-xs font-['DM_Sans']">Média de avaliações</span>
+                <span className="text-white/50 text-xs font-['DM_Sans']">
+                  Média de {rotuloAvaliacoes(metricas.totalGlobal)}
+                </span>
               </div>
             </div>
           </div>

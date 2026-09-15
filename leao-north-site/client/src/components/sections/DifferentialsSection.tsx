@@ -16,7 +16,7 @@ const differentials = [
   {
     icon: Headphones,
     title: "Atendimento Profissional",
-    description: "Suporte dedicado em todas as etapas do projeto, do planejamento à entrega final.",
+    description: "Suporte dedicado em todas as etapas do serviço, do planejamento à entrega final.",
     number: "02",
   },
   {
@@ -34,7 +34,7 @@ const differentials = [
   {
     icon: BookCheck,
     title: "Conformidade com Normas",
-    description: "Projetos e instalações em conformidade com ABNT NBR 5410, NR-10 e legislações aplicáveis.",
+    description: "Projetos e instalações em conformidade com ABNT, NR-10 e legislações aplicáveis.",
     number: "05",
   },
 ];

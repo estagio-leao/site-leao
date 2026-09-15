@@ -22,9 +22,29 @@ try {
 
     $where = $so_destaques ? "WHERE visivel = 1 AND destaque = 1 " : "WHERE visivel = 1 ";
 
+    // 1) Lista pública — projeção mínima, NUNCA inclui registros com visivel = 0
     $query = "SELECT id, nome, estrelas, texto, visivel, destaque FROM depoimentos " . $where . "ORDER BY id DESC";
-    $stmt = $conn->prepare($query); $stmt->execute();
-    echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
+    $stmt = $conn->prepare($query);
+    $stmt->execute();
+    $depoimentos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // 2) FASE 35 — Agregados GLOBAIS (sem WHERE): média/contagem de TODOS os
+    //    registros, inclusive visivel = 0 e estrelas = 0. Apenas números:
+    //    nenhum nome, texto ou id de depoimento oculto sai do banco.
+    //    COALESCE garante que um estrelas NULL conte como 0 (o AVG descarta NULL).
+    $stmtMeta = $conn->query("SELECT COUNT(*) AS total, AVG(COALESCE(estrelas, 0)) AS media FROM depoimentos");
+    $meta = $stmtMeta->fetch(PDO::FETCH_ASSOC);
+
+    $totalGlobal = (int) $meta['total'];
+    $mediaGlobal = $totalGlobal > 0 ? round((float) $meta['media'], 1) : 0.0;
+
+    http_response_code(200);
+    echo json_encode(array(
+        "depoimentos" => $depoimentos,
+        "total"       => count($depoimentos), // visíveis no filtro corrente
+        "totalGlobal" => $totalGlobal,        // TODOS os registros da tabela
+        "mediaGlobal" => $mediaGlobal         // média de TODOS (1 casa decimal)
+    ));
 } catch(PDOException $e) {
     http_response_code(500); echo json_encode(array("mensagem" => "Erro: " . $e->getMessage()));
 }
