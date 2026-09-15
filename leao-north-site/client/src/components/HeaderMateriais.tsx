@@ -73,12 +73,25 @@ export default function HeaderMateriais() {
   const inputClasses =
     "w-full bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400";
 
+  /* FASE 37 — correção do "risco/faixa escura" que limitava o cabeçalho:
+     1) o fundo agora é SEMPRE branco OPACO. Antes era `bg-transparent` no topo e
+        `bg-white/95` ao rolar — a transparência deixava o fundo ESCURO do `body`
+        (#080808, definido em index.css) e o rodapé escuro vazarem pela borda do
+        header, criando a linha/faixa escura relatada pelo cliente;
+     2) a borda inferior existe SEMPRE com a mesma espessura (1px) e muda apenas de
+        COR (transparente → slate bem claro): não há pulo de layout nem linha escura
+        no estado de topo;
+     3) sombra suave e larga (cara de e-commerce moderno) no lugar do `shadow-sm`;
+     4) `fixed top-0 left-0 right-0 w-full` — sem margens negativas, portanto nenhum
+        gap de subpixel para o fundo do body vazar;
+     5) a transição anima SOMENTE cor de borda e sombra (`transition-[...]`), não o
+        `transition-all`, ficando fluida e sem custo de layout. */
   return (
     <header
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+      className={`fixed top-0 left-0 right-0 w-full z-50 bg-white border-b transition-[background-color,box-shadow,border-color] duration-300 ease-out ${
         scrolled
-          ? "bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-sm"
-          : "bg-transparent"
+          ? "border-slate-200/80 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_10px_30px_-12px_rgba(15,23,42,0.14)]"
+          : "border-transparent shadow-none"
       }`}
     >
       {/* Gold top accent line */}
@@ -201,9 +214,12 @@ export default function HeaderMateriais() {
         </div>
       </nav>
 
-      {/* Busca mobile (linha extra abaixo do header) */}
+      {/* Busca mobile (linha extra abaixo do header).
+          FASE 37 — fundo OPACO: antes era `bg-white/95` + `backdrop-blur-md`, e a
+          transparência sobre conteúdo escuro (rodapé/fundo do body) gerava a faixa
+          escura relatada pelo cliente. */}
       {buscaMobileAberta && (
-        <div className="lg:hidden bg-white/95 backdrop-blur-md border-b border-slate-200 px-4 py-3">
+        <div className="lg:hidden bg-white border-b border-slate-200 px-4 py-3">
           <form onSubmit={enviarBusca} className="flex items-center gap-2" role="search">
             <div className="flex-1 flex items-center gap-2 bg-white border border-slate-200 rounded-sm px-3 focus-within:border-[#F0B429]">
               <Search className="w-4 h-4 text-slate-400 shrink-0" />

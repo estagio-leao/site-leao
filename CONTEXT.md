@@ -580,6 +580,12 @@ leaonorth/                          ← raiz do workspace (document root do site
   [`FooterMateriais.tsx`](leao-north-site/client/src/components/FooterMateriais.tsx) — header/footer
   **exclusivos** da frente Materiais. **Fase 36:** o header ganhou o **gatilho do carrinho**
   (ícone `ShoppingCart` + badge com a soma das quantidades) nas barras desktop **e** mobile.
+  **Fase 37 (fix visual):** o header da frente Materiais passou a ter **fundo branco OPACO
+  permanente** (antes usava `bg-transparent` no topo e `bg-white/95` ao rolar), **borda inferior de
+  1px sempre presente** que só muda de cor (transparente → `slate-200/80`) e **sombra suave** no lugar
+  do `shadow-sm`. Isso elimina a linha/faixa escura que aparecia limitando o cabeçalho em `/materiais`,
+  causada pelo vazamento do fundo escuro do `body` (#080808) e do rodapé escuro através da
+  transparência/`backdrop-blur`; a transição passou a animar apenas cor de borda e sombra.
   **Fase 37:** o **FooterMateriais** foi padronizado no peso do `Footer` da Service (4 colunas, `py-16`,
   divisores dourados e traço animado): marca **clicável** (Link → portal `/`) + descrição + redes sociais reais,
   **Links Rápidos** com o botão **Orçamento** (abre o `CartDrawer` via `useCart()`, sem navegação),
