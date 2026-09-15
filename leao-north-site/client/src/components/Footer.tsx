@@ -15,6 +15,14 @@
  *   - âncoras: na landing /service rola suave até a seção; em subpáginas
  *     (/service/depoimentos, /service/socio/:id, /service/portfolio/:id) navega
  *     pelo router para /service#âncora e rola após o mount — ver lib/anchorScroll.ts.
+ *
+ * FASE 37 — Redes sociais reais:
+ *   - Instagram e Facebook deixaram de ser placeholders ("#") e passaram a apontar
+ *     para os perfis oficiais da Leão North;
+ *   - os três canais (Instagram, Facebook e WhatsApp) vêm da fonte única
+ *     `lib/redesSociais.ts` (decisão D1) e usam `externo: true`, que injeta
+ *     target="_blank" + rel="noopener noreferrer" no spread condicional do JSX.
+ *   - Nenhuma função foi removida (WhatsApp e LinkedIn-off seguem como na Fase 35).
  */
 import { useEffect, useState, type ComponentType, type MouseEvent } from "react";
 import { useLocation } from "wouter";
@@ -23,10 +31,11 @@ import { useBranding } from "@/hooks/useBranding";
 import { navegarParaAncoraService, rolarParaAncora } from "@/lib/anchorScroll";
 // FASE 35 — ícone de marca do WhatsApp (o lucide-react não o possui)
 import WhatsAppIcon from "@/components/WhatsAppIcon";
+// FASE 37 — canais oficiais em fonte única (Instagram/Facebook reais + WhatsApp)
+import { FACEBOOK_URL, INSTAGRAM_URL, WHATSAPP_URL } from "@/lib/redesSociais";
 
 const BASE = "http://localhost/leaonorth";
-/** Número do escritório — 55 43 99919-0467 (mesmo usado no Navbar/WhatsAppButton) */
-const WHATSAPP_URL = "https://wa.me/5543999190467";
+/* FASE 37 — a constante WHATSAPP_URL saiu daqui e agora vem de lib/redesSociais.ts */
 /** Landing que contém todas as seções-âncora institucionais */
 const LANDING_SERVICE = "/service";
 
@@ -65,9 +74,12 @@ type SocialLink = {
 };
 
 // FASE 35 — LinkedIn removido; WhatsApp do escritório adicionado.
+// FASE 37 — Instagram e Facebook agora apontam para os perfis OFICIAIS da Leão
+// North (antes eram "#"). `externo: true` abre em nova aba com rel="noopener
+// noreferrer" — o mecanismo já existia no JSX abaixo e é reutilizado.
 const socialLinks: SocialLink[] = [
-  { icon: Instagram, href: "#", label: "Instagram" },
-  { icon: Facebook, href: "#", label: "Facebook" },
+  { icon: Instagram, href: INSTAGRAM_URL, label: "Instagram", externo: true },
+  { icon: Facebook, href: FACEBOOK_URL, label: "Facebook", externo: true },
   { icon: WhatsAppIcon, href: WHATSAPP_URL, label: "WhatsApp", externo: true },
 ];
 
@@ -222,7 +234,8 @@ export default function Footer() {
               <li className="flex items-center gap-3">
                 <Phone className="w-4 h-4 text-[#F0B429] flex-shrink-0" />
                 <a
-                  href="https://wa.me/5543999190467"
+                  /* FASE 37 — mesma constante usada pelas redes sociais do rodapé */
+                  href={WHATSAPP_URL}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-white/40 text-sm font-['DM_Sans'] hover:text-[#F0B429] transition-colors duration-200"

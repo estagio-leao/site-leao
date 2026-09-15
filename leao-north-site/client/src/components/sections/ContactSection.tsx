@@ -1,6 +1,11 @@
 /*
  * LEÃO NORTH — Contact Section
  * Design: Dark bg, form + info side by side, Google Maps embed
+ *
+ * FASE 37 — Mapa: o embed passou a consultar o NOME DO PERFIL no Google (place)
+ * junto do endereço, para o Google resolver a ficha do estabelecimento e destacar
+ * o "alfinete" exatamente na Leão North (antes o q= era só o endereço e o pin caía
+ * no meio da rua). Formulário, select dinâmico de serviços e fallbacks NÃO mudaram.
  */
 import { useEffect, useRef, useState } from "react";
 import { MapPin, Phone, Mail, Send, CheckCircle2 } from "lucide-react";
@@ -96,11 +101,18 @@ export default function ContactSection() {
 
   const inputClass = "w-full bg-[#111111] border border-white/10 rounded-sm px-4 py-3 text-white text-sm font-['DM_Sans'] placeholder-white/30 focus:outline-none focus:border-[#F0B429]/50 focus:ring-1 focus:ring-[#F0B429]/30 transition-all duration-200";
 
-  // Fase 27 — embed genérico do Google Maps (sem API key) apontando para o endereço exato da empresa
+  // Fase 27 — embed genérico do Google Maps (sem API key).
+  // FASE 37 — Centralização do pin: o `q=` agora usa o NOME DO PERFIL (place) + endereço,
+  // para o Google resolver a ficha da empresa e destacar o alfinete com a marca da Leão
+  // North. Entram também o idioma pt-BR e o zoom de rua (z=17). Saíram os parâmetros
+  // INERTES do embed antigo (t=, ie=UTF8, iwloc=B) — nenhuma função do site foi removida
+  // e o iframe (altura, tema escuro via filtro CSS e lazy loading) segue idêntico.
   const MAPA_URL =
-    "https://maps.google.com/maps?q=" +
-    encodeURIComponent("R. Paraíba, 830 - Centro, Cornélio Procópio - PR") +
-    "&t=&z=16&ie=UTF8&iwloc=B&output=embed";
+    "https://www.google.com/maps?q=" +
+    encodeURIComponent(
+      "Leão North Materiais Elétricos e Instalações Elétricas - R. Paraíba, 830 - Centro, Cornélio Procópio - PR"
+    ) +
+    "&hl=pt-BR&z=17&output=embed";
 
   return (
     <section
@@ -346,7 +358,7 @@ export default function ContactSection() {
             allowFullScreen
             loading="lazy"
             referrerPolicy="no-referrer-when-downgrade"
-            title="Localização Leão North — R. Paraíba, 830, Cornélio Procópio - PR"
+            title="Localização da Leão North Materiais Elétricos e Instalações Elétricas — Cornélio Procópio - PR"
           />
         </div>
       </div>

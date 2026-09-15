@@ -353,9 +353,9 @@ leaonorth/                          ← raiz do workspace (document root do site
     │       │           └── AdminBranding.tsx  ← FASE 33.1: upload das logos das duas frentes (aba Configurações)
     │       ├── components/
     │       │   ├── HeaderMateriais.tsx ← header EXCLUSIVO da frente Materiais (FASE 36: gatilho + badge do carrinho de orçamentos)
-    │       │   ├── FooterMateriais.tsx ← rodapé enxuto da frente Materiais
+    │       │   ├── FooterMateriais.tsx ← FASE 37: rodapé da frente Materiais padronizado no peso do Footer da Service (4 colunas: marca clicável + descrição, Links Rápidos/Orçamento via carrinho, Categorias de Produtos dinâmicas e contato)
     │       │   ├── Navbar.tsx      ← navbar institucional fixa; prop variant="dark" | "light" e simple (Fase 24)
-    │       │   ├── Footer.tsx      ← FASE 35: rodapé institucional (Service) com Serviços dinâmicos, WhatsApp (sem LinkedIn) e âncoras inteligentes
+    │       │   ├── Footer.tsx      ← FASE 35: rodapé institucional (Service) com Serviços dinâmicos, WhatsApp (sem LinkedIn) e âncoras inteligentes (FASE 37: Instagram/Facebook reais via lib/redesSociais.ts)
     │       │   ├── WhatsAppButton.tsx ← botão flutuante do WhatsApp
     │       │   ├── ErrorBoundary.tsx ← captura erros de renderização
     │       │   ├── WhatsAppIcon.tsx ← FASE 35: ícone de marca do WhatsApp (lucide não tem) usado nos dois rodapés
@@ -372,6 +372,7 @@ leaonorth/                          ← raiz do workspace (document root do site
     │       ├── hooks/              ← useScrollReveal, useMobile, useComposition, usePersistFn (utils)
     │       │                       + useBranding.ts (FASE 33.1: logos service/materiais com ?v=, fallback p/ o selo)
     │       └── lib/
+    │           ├── redesSociais.ts ← FASE 37: Instagram/Facebook/WhatsApp oficiais — fonte ÚNICA das URLs dos rodapés (só strings, sem JSX)
     │           ├── utils.ts        ← helpers `cn()` (clsx + tailwind-merge) e `formatPhoneBR` (máscara (XX) XXXXX-XXXX)
     │           ├── adminFetch.ts   ← FASE 29: fetch admin injetando `Authorization: Bearer` e tratando 401 (redirect p/ /admin)
     │           ├── branding.ts     ← FASE 33.1: GET /api/branding.php memoizado + urlLogoComVersao() (cache-busting)
@@ -428,7 +429,7 @@ leaonorth/                          ← raiz do workspace (document root do site
 
 | Endpoint | Método | O que faz | Retorno |
 | --- | --- | --- | --- |
-| [`api/contato.php`](api/contato.php) | POST | Valida `name`, `phone`, `message`; insere em `contatos` **incluindo `tipo_mensagem`** (whitelist `service`/`materiais`/`socio`, default `service`); tenta enviar e-mail com a origem | `200/400/500/503` + `mensagem` |
+| [`api/contato.php`](api/contato.php) | POST | Valida `name`, `phone`, `message`; insere em `contatos` **incluindo `tipo_mensagem`** (whitelist `service`/`materiais`/`socio`, default `service`); tenta enviar e-mail com a origem — **FASE 37:** o destinatário `contato@leaonorth.com.br` **já era** o oficial e o `mail()` roda **antes** dos 200 (portanto **antes** do WhatsApp); o retorno é capturado em `$email_enviado` com `error_log` na falha | `200/400/500/503` + `mensagem` + `email_enviado` (aditivo, Fase 37) |
 | [`api/portfolio.php`](api/portfolio.php) | GET | `SELECT id, img, title, category, size FROM portfolio ORDER BY id DESC` — **LEGADO** (sem uso desde a Fase 24) | array JSON |
 | [`api/depoimentos.php`](api/depoimentos.php) | GET | Lista `depoimentos` (inclui `visivel`/`destaque`); **default `WHERE visivel = 1`**; `?destaque=1` → só `visivel=1 AND destaque=1` (Home). **FASE 35:** a resposta virou **objeto** com métricas globais — `{ depoimentos[], total, totalGlobal, mediaGlobal }` — em que `totalGlobal`/`mediaGlobal` saem de uma **2ª query sem `WHERE`** (`COUNT(*)` + `AVG(COALESCE(estrelas,0))`) que **não projeta** `nome`/`texto` dos ocultos; `?admin=1` segue removido (Fase 29) | objeto JSON |
 | [`api/categorias.php`](api/categorias.php) | GET | Lista `categorias` (`id, nome ORDER BY nome`) — usada pela vitrine e pelo painel | array JSON |
@@ -571,11 +572,21 @@ leaonorth/                          ← raiz do workspace (document root do site
   para herdar o hover dourado) e os links-âncora usam
   [`lib/anchorScroll.ts`](leao-north-site/client/src/lib/anchorScroll.ts): na landing rolam suave; em subpáginas
   navegam pelo wouter para `/service#âncora` e rolam após o mount (retry por `requestAnimationFrame` + 2ª passada).
+  **Fase 37:** o **Instagram** e o **Facebook** deixaram de ser placeholders `"#"` e passaram a apontar para os
+  perfis oficiais ([`lib/redesSociais.ts`](leao-north-site/client/src/lib/redesSociais.ts)), abrindo em nova aba
+  com `rel="noopener noreferrer"` (o mecanismo `externo` do componente já existia e foi reutilizado).
 - [`WhatsAppButton.tsx`](leao-north-site/client/src/components/WhatsAppButton.tsx) — botão flutuante.
 - [`HeaderMateriais.tsx`](leao-north-site/client/src/components/HeaderMateriais.tsx) e
   [`FooterMateriais.tsx`](leao-north-site/client/src/components/FooterMateriais.tsx) — header/footer
   **exclusivos** da frente Materiais. **Fase 36:** o header ganhou o **gatilho do carrinho**
   (ícone `ShoppingCart` + badge com a soma das quantidades) nas barras desktop **e** mobile.
+  **Fase 37:** o **FooterMateriais** foi padronizado no peso do `Footer` da Service (4 colunas, `py-16`,
+  divisores dourados e traço animado): marca **clicável** (Link → portal `/`) + descrição + redes sociais reais,
+  **Links Rápidos** com o botão **Orçamento** (abre o `CartDrawer` via `useCart()`, sem navegação),
+  **Categorias de Produtos** dinâmicas ([`api/categorias.php`](api/categorias.php), com `CATEGORIAS_FALLBACK` e
+  **modo seguro** → só "Ver catálogo completo" se a API falhar) e o bloco de **Contato** (endereço, WhatsApp e
+  e-mail oficial).
+  A logo exibida continua sendo a da frente **Service** (decisão D2 da Fase 37, mantendo a Fase 35).
 - [`ProdutoCard.tsx`](leao-north-site/client/src/components/ProdutoCard.tsx) — card de produto
   compartilhado (Materiais/GrupoVariacoes); **Fase 36:** prop opcional `mostrarAdicionar` (a vitrine
   `/materiais` permanece sem o botão).
@@ -833,3 +844,29 @@ Schema relacional da Versão 2.0 (Materiais — [`api/migracao_v2.sql`](api/migr
     *snapshot* no JSON, o carrinho é limpo só após `200`, o WhatsApp é **pré-aberto** dentro do clique (evita
     popup blocker, com link de fallback na tela de sucesso) e `contatos.mensagem` é **TEXT** (ALTER aplicado pelo
     cliente). Planejamento: [`fase36_carrinho_materiais.md`](zoo_code_docs/fase36_carrinho_materiais.md).
+24. **Fase 37 (padronização, redes sociais e mapa):** os dois rodapés passam a usar os canais oficiais em fonte
+    única ([`lib/redesSociais.ts`](leao-north-site/client/src/lib/redesSociais.ts): Instagram
+    `https://www.instagram.com/leaonorth/`, Facebook `https://www.facebook.com/leaonorth/` e WhatsApp
+    `https://wa.me/5543999190467`) — Instagram/Facebook **deixaram de ser placeholders `"#"`** e os três abrem em
+    nova aba com `target="_blank"` + `rel="noopener noreferrer"`. O
+    [`FooterMateriais.tsx`](leao-north-site/client/src/components/FooterMateriais.tsx) foi **refatorado** para o
+    mesmo peso do rodapé da Service (grid de 4 colunas, `py-16`, divisor dourado e traço animado no hover): Coluna 1
+    = marca **clicável** (Link → portal `/`) + descrição (logo da frente **Service**, D2 — Fase 35 preservada — com
+    selo `Zap` de fallback); Coluna 2 = **Links Rápidos** + botão **Orçamento** que abre o `CartDrawer` pelo
+    `useCart()` (mesmo gatilho do header) + WhatsApp; Coluna 3 = **Categorias de Produtos dinâmicas** via
+    [`api/categorias.php`](api/categorias.php) (fetch na montagem, `CATEGORIAS_FALLBACK` e **modo seguro**), com
+    links em `/materiais?q=<categoria>` (D3 · Opção A — a busca global casa `categoria_nome` e ainda preenche a
+    barra do `HeaderMateriais`) — ordem trocada a pedido do cliente: Links Rápidos antes das Categorias;
+    Coluna 4 = **Contato** (endereço, WhatsApp e
+    `contato@leaonorth.com.br`). **Auditoria de e-mail:**
+    [`api/contato.php`](api/contato.php) **já** enviava para `contato@leaonorth.com.br` e a arquitetura **garante o
+    e-mail ANTES do WhatsApp** (`INSERT` → `mail()` → `200`; o front só abre o `wa.me` após o `ok`); ganho aditivo
+    (D5): o retorno do `mail()` é capturado em `$email_enviado`, com `error_log` na falha e a chave `email_enviado`
+    no JSON de `200` — o campo `mensagem` não mudou. **Mapa:**
+    [`ContactSection.tsx`](leao-north-site/client/src/components/sections/ContactSection.tsx) troca o `q=` de
+    endereço puro pelo **nome do perfil no Google (place) + endereço**, com `hl=pt-BR&z=17&output=embed`, para o
+    Google destacar o alfinete na Leão North (saíram os parâmetros inertes `t=`, `ie=UTF8` e `iwloc=B`; iframe,
+    tema escuro e lazy loading seguem iguais). ⚠️ **Lacuna conhecida (fase futura):** o CTA "Tenho Interesse" de
+    [`ProdutoDetalhes.tsx`](leao-north-site/client/src/pages/ProdutoDetalhes.tsx) é um `wa.me` **puro** — não faz
+    `POST` em `contato.php`, logo **não dispara e-mail** nem gera registro no painel. Planejamento:
+    [`fase37_rodape_redes_mapa.md`](zoo_code_docs/fase37_rodape_redes_mapa.md).

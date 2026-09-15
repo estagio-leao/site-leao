@@ -116,11 +116,24 @@ if (!empty($dados->name) && !empty($dados->phone) && !empty($dados->message)) {
             $headers .= "Reply-To: " . $email . "\r\n";
             $headers .= "Content-Type: text/plain; charset=UTF-8\r\n";
             
-            // O "@" oculta erros temporários no XAMPP, já que o localhost não envia e-mail de verdade
-            @mail($para, $assunto, $corpo, $headers);
+            // O "@" oculta erros temporários no XAMPP, já que o localhost não envia e-mail de verdade.
+            // FASE 37 — Auditoria de e-mail: captura o retorno do mail() para haver rastreabilidade
+            // da falha. O fluxo NÃO muda: se o e-mail falhar, o contato permanece salvo no banco
+            // (fonte de verdade, visível em /admin → Mensagens) e o site segue respondendo 200.
+            // IMPORTANTE: em localhost (XAMPP) não há SMTP, então $email_enviado tende a ser false;
+            // o envio real ocorre na hospedagem publicada, com o domínio leaonorth.com.br.
+            $email_enviado = @mail($para, $assunto, $corpo, $headers);
+            if (!$email_enviado) {
+                error_log("[LeaoNorth] Falha ao enviar e-mail para {$para} | origem: {$tipo_mensagem} | telefone: " . $dados->phone);
+            }
 
             http_response_code(200);
-            echo json_encode(array("mensagem" => "Contato salvo com sucesso e notificação preparada."));
+            // FASE 37 — "email_enviado" é uma chave NOVA e ADITIVA (diagnóstico). O campo
+            // "mensagem" foi preservado e os frontends atuais continuam funcionando sem alteração.
+            echo json_encode(array(
+                "mensagem" => "Contato salvo com sucesso e notificação preparada.",
+                "email_enviado" => $email_enviado
+            ));
         } else {
             http_response_code(503);
             echo json_encode(array("mensagem" => "Não foi possível salvar o contato."));
