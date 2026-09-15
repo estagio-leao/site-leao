@@ -5,10 +5,13 @@
  */
 import { useEffect, useState } from "react";
 import { Link, useParams } from "wouter";
-import { ChevronLeft, ChevronRight, ArrowLeft, ZoomIn } from "lucide-react";
+import { ChevronLeft, ChevronRight, ArrowLeft, ZoomIn, ShoppingCart } from "lucide-react";
+import { toast } from "sonner";
 import HeaderMateriais from "@/components/HeaderMateriais";
 import FooterMateriais from "@/components/FooterMateriais";
 import WhatsAppButton from "@/components/WhatsAppButton";
+// FASE 36 — carrinho de orçamentos (estado global)
+import { useCart } from "@/contexts/CartContext";
 
 type ProdutoImagem = { caminho_imagem: string; is_capa: boolean | number };
 type ProdutoInfo = { titulo: string; texto: string };
@@ -38,6 +41,7 @@ export default function ProdutoDetalhes() {
   const [produto, setProduto] = useState<Produto | null>(null);
   const [naoEncontrado, setNaoEncontrado] = useState(false);
   const [fotoAtiva, setFotoAtiva] = useState(0); // capa selecionada por padrão
+  const { adicionarItem, abrirCarrinho } = useCart(); // FASE 36
 
   // Estados do efeito de zoom (Fase 10)
   const [isZoomed, setIsZoomed] = useState(false);
@@ -105,6 +109,24 @@ export default function ProdutoDetalhes() {
     });
   };
   const whatsLink = `https://wa.me/${WHATSAPP_NUMERO}?text=${encodeURIComponent(`Olá! Tenho interesse no produto: ${produto.nome}`)}`;
+
+  // FASE 36 — adiciona a capa (índice 0 já normalizado) + especificação ao carrinho
+  const adicionarAoCarrinho = () => {
+    const resultado = adicionarItem({
+      id: produto.id,
+      nome: produto.nome,
+      img: imagens[0]?.caminho_imagem ?? null,
+      espec: produto.especificacao,
+    });
+
+    if (resultado === "limite") {
+      toast.error("Limite de itens por orçamento atingido. Envie o atual ou remova algum item.");
+      return;
+    }
+
+    toast.success("Produto adicionado ao orçamento.");
+    abrirCarrinho();
+  };
 
   return (
     <div className={pageClass} style={{ background: "#F8FAFC" }}>
@@ -213,15 +235,24 @@ export default function ProdutoDetalhes() {
               </div>
             )}
 
-            {/* CTA WhatsApp GIGANTE */}
-            <a
-              href={whatsLink}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-8 flex items-center justify-center gap-3 py-5 bg-[#25D366] text-white font-['Barlow_Condensed'] font-800 text-xl uppercase tracking-wider rounded-sm hover:bg-[#1EBE5A] shadow-lg shadow-green-500/30 transition-all active:scale-[0.98]"
-            >
-              Tenho Interesse
-            </a>
+            {/* CTA principal: ADICIONAR AO ORÇAMENTO (Fase 36) + WhatsApp direto */}
+            <div className="mt-8 flex flex-col sm:flex-row gap-3">
+              <button
+                type="button"
+                onClick={adicionarAoCarrinho}
+                className="flex-1 flex items-center justify-center gap-3 py-5 bg-[#F0B429] text-[#080808] font-['Barlow_Condensed'] font-800 text-lg lg:text-xl uppercase tracking-wider rounded-sm hover:bg-[#FFD060] shadow-lg shadow-amber-500/20 transition-all active:scale-[0.98]"
+              >
+                <ShoppingCart className="w-6 h-6" /> Adicionar ao Orçamento
+              </button>
+              <a
+                href={whatsLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 flex items-center justify-center gap-3 py-5 bg-[#25D366] text-white font-['Barlow_Condensed'] font-800 text-lg lg:text-xl uppercase tracking-wider rounded-sm hover:bg-[#1EBE5A] shadow-lg shadow-green-500/30 transition-all active:scale-[0.98]"
+              >
+                Tenho Interesse
+              </a>
+            </div>
           </div>
         </div>
       </main>

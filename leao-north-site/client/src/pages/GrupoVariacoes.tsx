@@ -120,8 +120,9 @@ export default function GrupoVariacoes() {
           </div>
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {/* FASE 36 — nesta página cada variação pode ir direto para o orçamento */}
             {produtos.map((produto) => (
-              <ProdutoCard key={produto.id} produto={produto} />
+              <ProdutoCard key={produto.id} produto={produto} mostrarAdicionar />
             ))}
           </div>
         )}

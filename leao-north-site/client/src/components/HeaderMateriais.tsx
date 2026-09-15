@@ -14,8 +14,10 @@
  */
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useLocation } from "wouter";
-import { Zap, Search, X } from "lucide-react";
+import { Zap, Search, X, ShoppingCart } from "lucide-react";
 import { useBranding } from "@/hooks/useBranding";
+// FASE 36 — gatilho do carrinho de orçamentos (estado global via CartContext)
+import { useCart } from "@/contexts/CartContext";
 
 const WHATSAPP_URL = "https://wa.me/5543999190467";
 
@@ -28,6 +30,7 @@ const WhatsAppIcon = () => (
 export default function HeaderMateriais() {
   const [, setLocation] = useLocation();
   const { urlLogoMateriais } = useBranding(); // Fase 33.1 — logo da frente Materiais
+  const { totalItens, alternarCarrinho } = useCart(); // FASE 36
   const [scrolled, setScrolled] = useState(false);
   const [termo, setTermo] = useState("");
   const [buscaMobileAberta, setBuscaMobileAberta] = useState(false);
@@ -137,6 +140,21 @@ export default function HeaderMateriais() {
           >
             Catálogo
           </Link>
+          {/* FASE 36 — carrinho de orçamentos (badge = soma das quantidades) */}
+          <button
+            type="button"
+            onClick={alternarCarrinho}
+            aria-label="Abrir carrinho de orçamentos"
+            className="relative flex items-center gap-2 text-sm font-['DM_Sans'] font-medium uppercase tracking-wide text-slate-700 hover:text-[#B8860B] transition-colors duration-200"
+          >
+            <ShoppingCart className="w-5 h-5" />
+            Orçamento
+            {totalItens > 0 && (
+              <span className="absolute -top-2 -right-3 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-[#F0B429] text-[#080808] text-[10px] font-['Barlow_Condensed'] font-800">
+                {totalItens}
+              </span>
+            )}
+          </button>
           <a
             href={WHATSAPP_URL}
             target="_blank"
@@ -149,6 +167,20 @@ export default function HeaderMateriais() {
 
         {/* Ações mobile (busca + whatsapp — logo já aponta para a raiz "/") */}
         <div className="flex lg:hidden items-center gap-1 shrink-0">
+          {/* FASE 36 — carrinho de orçamentos (mobile) */}
+          <button
+            type="button"
+            onClick={alternarCarrinho}
+            aria-label="Abrir carrinho de orçamentos"
+            className="relative p-2 text-slate-900 hover:text-[#B8860B] transition-colors"
+          >
+            <ShoppingCart className="w-5 h-5" />
+            {totalItens > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 min-w-[17px] h-[17px] px-1 flex items-center justify-center rounded-full bg-[#F0B429] text-[#080808] text-[10px] font-['Barlow_Condensed'] font-800">
+                {totalItens}
+              </span>
+            )}
+          </button>
           <button
             type="button"
             onClick={() => setBuscaMobileAberta((v) => !v)}

@@ -4,6 +4,9 @@ import NotFound from "@/pages/NotFound";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
+// FASE 36 — Carrinho de Orçamentos (frente Materiais)
+import { CartProvider } from "./contexts/CartContext";
+import CartDrawer from "./components/CartDrawer";
 import Gateway from "./pages/Gateway";              // ← Portal Gateway
 import Service from "./pages/Service";
 import Materiais from "./pages/Materiais";
@@ -47,8 +50,14 @@ function App() {
     <ErrorBoundary>
       <ThemeProvider defaultTheme="dark">
         <TooltipProvider>
-          <Toaster />
-          <Router />
+          {/* FASE 36 — o provider fica acima do Router (o estado sobrevive à
+              navegação) e o CartDrawer é montado UMA única vez na árvore, o que
+              evita drawer duplicado por página e preserva o formulário digitado. */}
+          <CartProvider>
+            <Toaster />
+            <Router />
+            <CartDrawer />
+          </CartProvider>
         </TooltipProvider>
       </ThemeProvider>
     </ErrorBoundary>

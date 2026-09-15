@@ -349,29 +349,35 @@ leaonorth/                          ← raiz do workspace (document root do site
     │       │       │   └── AdminSocios.tsx ← CRUD Sócios (foto + whatsapp)
     │       │       └── geral/       ← painel Geral (Fase 26)
     │       │           ├── AdminDepoimentos.tsx ← CRUD Depoimentos (curadoria visivel/destaque + toggles)
-    │       │           ├── AdminMensagens.tsx ← Caixa de entrada (badges + modal Detalhes do Orçamento)
+    │       │           ├── AdminMensagens.tsx ← Caixa de entrada (badges + modal Detalhes do Orçamento; FASE 36: visão rica do carrinho com foto/qtd/nome)
     │       │           └── AdminBranding.tsx  ← FASE 33.1: upload das logos das duas frentes (aba Configurações)
     │       ├── components/
-    │       │   ├── HeaderMateriais.tsx ← header EXCLUSIVO da frente Materiais
+    │       │   ├── HeaderMateriais.tsx ← header EXCLUSIVO da frente Materiais (FASE 36: gatilho + badge do carrinho de orçamentos)
     │       │   ├── FooterMateriais.tsx ← rodapé enxuto da frente Materiais
     │       │   ├── Navbar.tsx      ← navbar institucional fixa; prop variant="dark" | "light" e simple (Fase 24)
     │       │   ├── Footer.tsx      ← FASE 35: rodapé institucional (Service) com Serviços dinâmicos, WhatsApp (sem LinkedIn) e âncoras inteligentes
     │       │   ├── WhatsAppButton.tsx ← botão flutuante do WhatsApp
     │       │   ├── ErrorBoundary.tsx ← captura erros de renderização
-    │       │   ├── ProdutoCard.tsx ← card de produto compartilhado
+    │       │   ├── WhatsAppIcon.tsx ← FASE 35: ícone de marca do WhatsApp (lucide não tem) usado nos dois rodapés
+    │       │   ├── ProdutoCard.tsx ← card de produto compartilhado (FASE 36: prop opcional `mostrarAdicionar`)
+    │       │   ├── CartDrawer.tsx  ← FASE 36: drawer ESQUERDO do carrinho (itens + formulário + envio e WhatsApp)
     │       │   ├── sections/       ← seções da landing Service
     │       │   │   ├── HeroSection.tsx, AboutSection.tsx, MissionSection.tsx,
     │       │   │   ├── ServicesSection.tsx, PortfolioSection.tsx, DifferentialsSection.tsx,
     │       │   │   ├── SociosSection.tsx, TestimonialsSection.tsx, ContactSection.tsx
     │       │   └── ui/             ← ~50 componentes shadcn/ui (biblioteca padrão)
     │       ├── contexts/
-    │       │   └── ThemeContext.tsx ← provider de tema claro/escuro (app usa dark)
+    │       │   ├── ThemeContext.tsx ← provider de tema claro/escuro (app usa dark)
+    │       │   └── CartContext.tsx  ← FASE 36: carrinho de orçamentos da frente Materiais (Context API + localStorage)
     │       ├── hooks/              ← useScrollReveal, useMobile, useComposition, usePersistFn (utils)
     │       │                       + useBranding.ts (FASE 33.1: logos service/materiais com ?v=, fallback p/ o selo)
     │       └── lib/
     │           ├── utils.ts        ← helpers `cn()` (clsx + tailwind-merge) e `formatPhoneBR` (máscara (XX) XXXXX-XXXX)
     │           ├── adminFetch.ts   ← FASE 29: fetch admin injetando `Authorization: Bearer` e tratando 401 (redirect p/ /admin)
-    │           └── branding.ts     ← FASE 33.1: GET /api/branding.php memoizado + urlLogoComVersao() (cache-busting)
+    │           ├── branding.ts     ← FASE 33.1: GET /api/branding.php memoizado + urlLogoComVersao() (cache-busting)
+    │           ├── depoimentos.ts  ← FASE 35: tipos + normalização (métricas globais) + hook useDepoimentos()
+    │           ├── anchorScroll.ts ← FASE 35: rolagem/navegação inteligente das âncoras do Service
+    │           └── carrinho.ts     ← FASE 36: contrato JSON do carrinho (parseCarrinho, urlImagem, link do WhatsApp, storage)
     ├── server/index.ts             ← servidor Express placeholder (template; NÃO usado)
     ├── shared/const.ts             ← constantes compartilhadas (template)
     ├── patches/wouter@3.7.1.patch  ← patch do wouter (registra rotas no window)
@@ -527,8 +533,8 @@ leaonorth/                          ← raiz do workspace (document root do site
 | [`SocioDetalhes.tsx`](leao-north-site/client/src/pages/SocioDetalhes.tsx) | **Detalhes do sócio** (`/service/socio/:id`, Fase 24): foto ampliada (aspect 3/4), Nome, Subtítulo, Descrição completa (fallback) e CTA WhatsApp. Usa `Navbar simple` + `Footer`. |
 | [`Depoimentos.tsx`](leao-north-site/client/src/pages/Depoimentos.tsx) | **Depoimentos completos** (`/service/depoimentos`, Fase 27): lista todos os depoimentos com `visivel=1` em grid escuro (estrelas, média e CTA de orçamento). Usa `Navbar simple` + `Footer` + `WhatsAppButton`. **Fase 35:** o badge exibe **métricas globais** (`totalGlobal`/`mediaGlobal`, de todos os depoimentos — inclusive ocultos e com 0 estrela) enquanto o grid continua listando só os visíveis; o CTA de orçamento navega pelo router (`navegarParaAncoraService`) em vez de `<a href="/service#contato">` com reload. |
 | [`Materiais.tsx`](leao-north-site/client/src/pages/Materiais.tsx) | **Leão North Materiais (tema claro) — vitrine agrupada + UX de conversão:** consome `api/produtos.php`, separa cards de grupo e individuais; Header/Footer exclusivos; sidebar de categorias; ordenação; breadcrumbs; estado vazio com CTA WhatsApp. **Fase 32:** card de grupo com **exatamente 1 produto** exibe **"Ver Opção"** e navega **direto** para `/materiais/:id`; com **0 ou >1** mantém **"Ver Opções"** → `/materiais/grupo/:id` (badge/descrição flexionam no singular). |
-| [`GrupoVariacoes.tsx`](leao-north-site/client/src/pages/GrupoVariacoes.tsx) | **Variações de um grupo** (`/materiais/grupo/:id`). |
-| [`ProdutoDetalhes.tsx`](leao-north-site/client/src/pages/ProdutoDetalhes.tsx) | **Detalhes do produto** (`/materiais/:id`): galeria com zoom "lupa", descrição, informações e CTA "Tenho Interesse". |
+| [`GrupoVariacoes.tsx`](leao-north-site/client/src/pages/GrupoVariacoes.tsx) | **Variações de um grupo** (`/materiais/grupo/:id`). **Fase 36:** usa `ProdutoCard` com a prop **`mostrarAdicionar`**, habilitando "Adicionar ao Orçamento" em cada variação. |
+| [`ProdutoDetalhes.tsx`](leao-north-site/client/src/pages/ProdutoDetalhes.tsx) | **Detalhes do produto** (`/materiais/:id`): galeria com zoom "lupa", descrição, informações e CTA "Tenho Interesse". **Fase 36:** CTA duplo — **"Adicionar ao Orçamento"** (dourado, adiciona e abre o drawer) ao lado do "Tenho Interesse" (WhatsApp). |
 | [`NotFound.tsx`](leao-north-site/client/src/pages/NotFound.tsx) | Página 404. |
 
 ### Seções (components/sections) — usadas pelo `Service`
@@ -568,9 +574,14 @@ leaonorth/                          ← raiz do workspace (document root do site
 - [`WhatsAppButton.tsx`](leao-north-site/client/src/components/WhatsAppButton.tsx) — botão flutuante.
 - [`HeaderMateriais.tsx`](leao-north-site/client/src/components/HeaderMateriais.tsx) e
   [`FooterMateriais.tsx`](leao-north-site/client/src/components/FooterMateriais.tsx) — header/footer
-  **exclusivos** da frente Materiais.
+  **exclusivos** da frente Materiais. **Fase 36:** o header ganhou o **gatilho do carrinho**
+  (ícone `ShoppingCart` + badge com a soma das quantidades) nas barras desktop **e** mobile.
 - [`ProdutoCard.tsx`](leao-north-site/client/src/components/ProdutoCard.tsx) — card de produto
-  compartilhado (Materiais/GrupoVariacoes).
+  compartilhado (Materiais/GrupoVariacoes); **Fase 36:** prop opcional `mostrarAdicionar` (a vitrine
+  `/materiais` permanece sem o botão).
+- [`CartDrawer.tsx`](leao-north-site/client/src/components/CartDrawer.tsx) — **Fase 36:** drawer que
+  desliza da **esquerda** (shadcn `Sheet`), com foto/nome/quantidade por item, stepper `−/+`, lixeira,
+  formulário (Nome, WhatsApp, E-mail) e o envio do orçamento. Montado **uma única vez** no `App.tsx`.
 - [`components/ui/`](leao-north-site/client/src/components/ui/) — biblioteca **shadcn/ui** (~50).
 
 ### Admin
@@ -718,10 +729,11 @@ Schema relacional da Versão 2.0 (Materiais — [`api/migracao_v2.sql`](api/migr
     apresentação no banco; em Sócios existe a coluna `whatsapp`, Fase 27). Portfólio tem 1..N imagens
     com **1 capa** (`is_capa`), garantida no backend.
 11. **Zoom na página de detalhes:** funciona apenas em **desktop (hover)**; mobile usa pinça.
-12. **Documentação por fases:** planejamentos das Fases 1–35 em [`zoo_code_docs/`](zoo_code_docs/)
-    (`fase1_arquitetura.md` ... `fase35_rodape_depoimentos.md`). Destaques recentes:
-    `fase31_orcamento_dinamico.md`, `fase32_melhorias_materiais.md`, `fase33_branding.md` e
-    `fase35_rodape_depoimentos.md` (rodapé dinâmico, âncoras em subpáginas e métricas globais).
+12. **Documentação por fases:** planejamentos das Fases 1–36 em [`zoo_code_docs/`](zoo_code_docs/)
+    (`fase1_arquitetura.md` ... `fase36_carrinho_materiais.md`). Destaques recentes:
+    `fase31_orcamento_dinamico.md`, `fase32_melhorias_materiais.md`, `fase33_branding.md`,
+    `fase35_rodape_depoimentos.md` (rodapé dinâmico, âncoras e métricas de depoimentos) e
+    `fase36_carrinho_materiais.md` (carrinho de orçamentos da frente Materiais).
 13. **Sem teste automatizado** no projeto (apenas `tsc --noEmit` via `pnpm check`).
 14. **Wouter v3 — query string fora do `useLocation`:** `useLocation` retorna **apenas o pathname**;
     a leitura de `?q=` (busca global) é feita com `window.location.search` (ver §10.13/`Materiais`).
@@ -799,3 +811,25 @@ Schema relacional da Versão 2.0 (Materiais — [`api/migracao_v2.sql`](api/migr
     `urlLogoMateriais`** e o texto "Leão North / Materiais" do rodapé não mudou.
     O ícone de marca do WhatsApp virou componente compartilhado
     ([`WhatsAppIcon.tsx`](leao-north-site/client/src/components/WhatsAppIcon.tsx)), usado pelos dois rodapés.
+23. **Fase 36 (carrinho de orçamentos — Materiais):** o carrinho é **exclusivo da frente Materiais** e vive em
+    [`contexts/CartContext.tsx`](leao-north-site/client/src/contexts/CartContext.tsx) (Context API + `localStorage`
+    `leaonorth:carrinho:v1`, chave versionada), montado **acima do Router** em [`App.tsx`](leao-north-site/client/src/App.tsx);
+    o drawer [`CartDrawer.tsx`](leao-north-site/client/src/components/CartDrawer.tsx) é renderizado **uma única vez**
+    no App e abre pela **esquerda** (shadcn `Sheet`, `z-[60]`). Botões "Adicionar ao Orçamento" em
+    [`ProdutoDetalhes.tsx`](leao-north-site/client/src/pages/ProdutoDetalhes.tsx) e nos cards de
+    [`GrupoVariacoes.tsx`](leao-north-site/client/src/pages/GrupoVariacoes.tsx) (prop `mostrarAdicionar` do
+    [`ProdutoCard.tsx`](leao-north-site/client/src/components/ProdutoCard.tsx)); gatilho + badge no
+    [`HeaderMateriais.tsx`](leao-north-site/client/src/components/HeaderMateriais.tsx). Regras: item repetido soma,
+    `qtd` 1–99, máximo 30 itens distintos.
+    **⚠️ Contrato de dados (SEM DDL):** o pedido vai para [`api/contato.php`](api/contato.php) com
+    `tipo_mensagem: "materiais"`, `servico` = "Orçamento Materiais (N itens)" e **`message` = STRING JSON**
+    `{"tipo":"carrinho","versao":1,"itens":[{id,nome,qtd,img,espec}]}` (coluna `mensagem`, **TEXT**). O backend
+    **sanitiza o POST público**: no máximo 30 itens, `qtd` 1–99, `nome`/`espec` ≤ 120 chars e `img` **somente**
+    `/uploads/...` (qualquer URL externa vira `null`); o e-mail de notificação passa a listar `10x Nome do Produto`.
+    **Painel:** [`AdminMensagens.tsx`](leao-north-site/client/src/pages/admin/geral/AdminMensagens.tsx) usa
+    `parseCarrinho()` de [`lib/carrinho.ts`](leao-north-site/client/src/lib/carrinho.ts) para identificar o
+    documento (`JSON.parse` + `tipo === "carrinho"`) e renderizar `N itens · M un.` na tabela e a **visão rica
+    (foto + quantidade + nome)** no modal — mensagens de texto puro continuam idênticas. Decisões: a foto é
+    *snapshot* no JSON, o carrinho é limpo só após `200`, o WhatsApp é **pré-aberto** dentro do clique (evita
+    popup blocker, com link de fallback na tela de sucesso) e `contatos.mensagem` é **TEXT** (ALTER aplicado pelo
+    cliente). Planejamento: [`fase36_carrinho_materiais.md`](zoo_code_docs/fase36_carrinho_materiais.md).

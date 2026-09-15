@@ -7,7 +7,10 @@
  */
 import { useState } from "react";
 import { Link } from "wouter";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, ShoppingCart } from "lucide-react";
+import { toast } from "sonner";
+// FASE 36 — carrinho de orçamentos (estado global)
+import { useCart } from "@/contexts/CartContext";
 
 export type ProdutoImagem = { caminho_imagem: string; is_capa: boolean | number };
 export type ProdutoInfo = { titulo: string; texto: string };
@@ -46,13 +49,41 @@ export const normalizarImagens = (imagens: ProdutoImagem[]): ProdutoImagem[] => 
   ...imagens.filter(i => !(i.is_capa === true || i.is_capa === 1)),
 ];
 
-export default function ProdutoCard({ produto }: { produto: Produto }) {
+type ProdutoCardProps = {
+  produto: Produto;
+  /**
+   * FASE 36 — habilita "Adicionar ao Orçamento" (usado em /materiais/grupo/:id).
+   * A vitrine /materiais mantém o layout atual (prop omitida por padrão).
+   */
+  mostrarAdicionar?: boolean;
+};
+
+export default function ProdutoCard({ produto, mostrarAdicionar = false }: ProdutoCardProps) {
   const imagens = normalizarImagens(produto.imagens || []);
   const total = imagens.length;
   const [fotoIndex, setFotoIndex] = useState(0);
+  const { adicionarItem, abrirCarrinho } = useCart(); // FASE 36
 
   const prevFoto = () => setFotoIndex(i => (i - 1 + total) % total);
   const nextFoto = () => setFotoIndex(i => (i + 1) % total);
+
+  // FASE 36 — adiciona o produto (capa no índice 0) ao carrinho de orçamentos
+  const adicionarAoCarrinho = () => {
+    const resultado = adicionarItem({
+      id: produto.id,
+      nome: produto.nome,
+      img: imagens[0]?.caminho_imagem ?? null,
+      espec: produto.especificacao,
+    });
+
+    if (resultado === "limite") {
+      toast.error("Limite de itens por orçamento atingido. Envie o atual ou remova algum item.");
+      return;
+    }
+
+    toast.success("Produto adicionado ao orçamento.");
+    abrirCarrinho();
+  };
 
   return (
     <div className="bg-white border border-slate-200 rounded-sm overflow-hidden flex flex-col shadow-sm hover:shadow-md hover:border-[#F0B429]/40 transition-all">
@@ -122,6 +153,17 @@ export default function ProdutoCard({ produto }: { produto: Produto }) {
             <WhatsAppIcon /> Tenho Interesse
           </a>
         </div>
+
+        {/* FASE 36 — habilitação opcional (páginas de grupo de variações) */}
+        {mostrarAdicionar && (
+          <button
+            type="button"
+            onClick={adicionarAoCarrinho}
+            className="mt-2 w-full flex items-center justify-center gap-2 py-3 bg-[#F0B429]/10 border border-[#F0B429]/50 text-[#B8860B] font-['Barlow_Condensed'] font-700 uppercase rounded-sm hover:bg-[#F0B429]/20 transition-colors"
+          >
+            <ShoppingCart className="w-4 h-4" /> Adicionar ao Orçamento
+          </button>
+        )}
       </div>
     </div>
   );

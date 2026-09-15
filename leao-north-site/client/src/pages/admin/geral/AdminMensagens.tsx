@@ -7,8 +7,10 @@
  *   GET api/admin/mensagens.php
  */
 import { useEffect, useState } from "react";
-import { Mail, X } from "lucide-react";
+import { ImageOff, Mail, ShoppingCart, X } from "lucide-react";
 import { adminFetch } from "@/lib/adminFetch";
+// FASE 36 — leitura do carrinho de orçamentos (JSON salvo em contatos.mensagem)
+import { parseCarrinho, resumoCurto, urlImagem } from "@/lib/carrinho";
 
 // Badges de origem da mensagem (tipo_mensagem) — Service dourado, Materiais azul, Sócio roxo
 const tipoMensagemConfig: Record<string, { label: string; className: string }> = {
@@ -37,6 +39,10 @@ export default function AdminMensagens() {
     fetchMensagens();
   }, []);
 
+  // FASE 36 — o carrinho é identificado pelo CONTEÚDO da mensagem (JSON com
+  // tipo "carrinho"); qualquer outro texto continua no layout simples de antes.
+  const carrinhoSelecionado = selectedMsg ? parseCarrinho(selectedMsg.mensagem) : null;
+
   return (
     <div className="max-w-6xl mx-auto">
       <h2 className="text-white font-['Barlow_Condensed'] text-2xl uppercase font-600 mb-6 flex items-center gap-2">
@@ -56,28 +62,41 @@ export default function AdminMensagens() {
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
-              {mensagens.map(msg => (
-                <tr
-                  key={msg.id}
-                  onClick={() => setSelectedMsg(msg)}
-                  className="hover:bg-white/5 transition-colors cursor-pointer group"
-                  title="Clique para ler a mensagem completa"
-                >
-                  <td className="px-6 py-4 whitespace-nowrap text-white/40">{new Date(msg.data_envio).toLocaleDateString('pt-BR')}</td>
-                  <td className="px-6 py-4 font-medium group-hover:text-[#F0B429] transition-colors">{msg.nome}</td>
-                  <td className="px-6 py-4">
-                    <p>{msg.telefone}</p>
-                    <p className="text-white/40 text-xs">{msg.email}</p>
-                  </td>
-                  <td className="px-6 py-4 text-[#F0B429]">{msg.servico}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-sm text-[10px] font-['DM_Sans'] uppercase tracking-wider border ${getTipoBadge(msg.tipo_mensagem).className}`}>
-                      {getTipoBadge(msg.tipo_mensagem).label}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 max-w-xs truncate text-white/60">{msg.mensagem}</td>
-                </tr>
-              ))}
+              {mensagens.map(msg => {
+                // FASE 36 — pedidos do carrinho mostram um resumo, não o JSON cru
+                const carrinho = parseCarrinho(msg.mensagem);
+                return (
+                  <tr
+                    key={msg.id}
+                    onClick={() => setSelectedMsg(msg)}
+                    className="hover:bg-white/5 transition-colors cursor-pointer group"
+                    title="Clique para ler a mensagem completa"
+                  >
+                    <td className="px-6 py-4 whitespace-nowrap text-white/40">{new Date(msg.data_envio).toLocaleDateString('pt-BR')}</td>
+                    <td className="px-6 py-4 font-medium group-hover:text-[#F0B429] transition-colors">{msg.nome}</td>
+                    <td className="px-6 py-4">
+                      <p>{msg.telefone}</p>
+                      <p className="text-white/40 text-xs">{msg.email}</p>
+                    </td>
+                    <td className="px-6 py-4 text-[#F0B429]">{msg.servico}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-sm text-[10px] font-['DM_Sans'] uppercase tracking-wider border ${getTipoBadge(msg.tipo_mensagem).className}`}>
+                        {getTipoBadge(msg.tipo_mensagem).label}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 max-w-xs truncate text-white/60">
+                      {carrinho ? (
+                        <span className="inline-flex items-center gap-1.5 text-sky-400">
+                          <ShoppingCart className="w-3.5 h-3.5 shrink-0" />
+                          {resumoCurto(carrinho.itens)}
+                        </span>
+                      ) : (
+                        msg.mensagem
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
               {mensagens.length === 0 && (
                 <tr><td colSpan={6} className="px-6 py-8 text-center text-white/40">Nenhuma mensagem recebida ainda.</td></tr>
               )}
@@ -132,10 +151,61 @@ export default function AdminMensagens() {
               </div>
 
               <div className="pt-6 border-t border-white/5">
-                <span className="block text-white/40 text-xs tracking-widest uppercase mb-3">Mensagem Recebida</span>
-                <p className="text-white/80 text-sm font-['DM_Sans'] leading-relaxed whitespace-pre-wrap bg-[#080808] p-5 rounded-sm border border-white/5">
-                  {selectedMsg.mensagem}
-                </p>
+                {carrinhoSelecionado ? (
+                  /* FASE 36 — pedido do carrinho: (FOTO) 10x NOME DO PRODUTO */
+                  <>
+                    <span className="block text-white/40 text-xs tracking-widest uppercase mb-3">
+                      Itens do Orçamento
+                    </span>
+                    <div className="divide-y divide-white/5 border border-white/5 rounded-sm bg-[#080808] overflow-hidden">
+                      {carrinhoSelecionado.itens.map((item) => {
+                        const imagem = urlImagem(item.img);
+                        return (
+                          <div key={item.id} className="flex items-center gap-4 p-3">
+                            {/* (FOTO) */}
+                            {imagem ? (
+                              <img
+                                src={imagem}
+                                alt={item.nome}
+                                className="w-14 h-14 object-contain bg-white/5 border border-white/10 rounded-sm shrink-0"
+                                onError={(e) => { e.currentTarget.style.display = "none"; }}
+                              />
+                            ) : (
+                              <div className="w-14 h-14 flex items-center justify-center bg-white/5 border border-white/10 rounded-sm text-white/30 shrink-0">
+                                <ImageOff className="w-5 h-5" />
+                              </div>
+                            )}
+                            {/* (QUANTIDADE x NOME) */}
+                            <div className="min-w-0 flex-1">
+                              <p className="text-white font-['DM_Sans'] font-medium leading-snug">
+                                <span className="text-[#F0B429] font-['Barlow_Condensed'] font-700 text-lg mr-1">
+                                  {item.qtd}x
+                                </span>
+                                {item.nome}
+                              </p>
+                              {item.espec && (
+                                <p className="text-white/40 text-xs truncate mt-0.5">{item.espec}</p>
+                              )}
+                              <p className="text-white/25 text-[10px] uppercase tracking-wider mt-1">
+                                Produto #{item.id}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <p className="text-white/40 text-xs font-['DM_Sans'] mt-3">
+                      {resumoCurto(carrinhoSelecionado.itens)}
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <span className="block text-white/40 text-xs tracking-widest uppercase mb-3">Mensagem Recebida</span>
+                    <p className="text-white/80 text-sm font-['DM_Sans'] leading-relaxed whitespace-pre-wrap bg-[#080808] p-5 rounded-sm border border-white/5">
+                      {selectedMsg.mensagem}
+                    </p>
+                  </>
+                )}
               </div>
             </div>
 
